@@ -32,11 +32,12 @@ Please format the output as HTML with:
 Make it professional and well-structured. Use HTML tags like <h2>, <h3>, <p>, <ul>, <li>. If there are no decisions or action items, simply provide a clear summary of the discussion.`
 
   try {
-    // Use backend proxy server (runs on port 3001)
-    // In development: http://localhost:3001/api/enhance
-    // With ngrok: use the ngrok URL for the backend server
-    const backendUrl = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:3001'
-    const apiUrl = `${backendUrl}/api/enhance`
+    // Use Vercel serverless function in production, or local server in development
+    // In production: /api/enhance (relative URL works with Vercel)
+    // In development: http://localhost:3001/api/enhance (or use VITE_AI_BACKEND_URL if set)
+    const isDevelopment = import.meta.env.DEV
+    const backendUrl = import.meta.env.VITE_AI_BACKEND_URL || (isDevelopment ? 'http://localhost:3001' : '')
+    const apiUrl = backendUrl ? `${backendUrl}/api/enhance` : '/api/enhance'
     
     const response = await fetch(apiUrl, {
       method: 'POST',
