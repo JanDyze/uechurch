@@ -1,12 +1,12 @@
 <script setup>
-import { Search, Settings, Plus, Calendar } from 'lucide-vue-next'
+import { Search, Plus, Calendar } from 'lucide-vue-next'
 
 defineProps({
   searchQuery: {
     type: String,
     default: ''
   },
-  showUpcomingEvents: {
+  showMonthEvents: {
     type: Boolean,
     default: false
   },
@@ -16,7 +16,7 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['update:searchQuery', 'managePresets', 'addEvent', 'toggleUpcomingEvents'])
+const emit = defineEmits(['update:searchQuery', 'addEvent', 'toggleMonthEvents'])
 </script>
 
 <template>
@@ -37,28 +37,21 @@ const emit = defineEmits(['update:searchQuery', 'managePresets', 'addEvent', 'to
     <!-- Action Buttons -->
     <div class="flex items-center gap-2">
       <button
-        @click="emit('toggleUpcomingEvents')"
+        @click="emit('toggleMonthEvents')"
         :class="[
-          'flex items-center gap-2 px-4 py-2 rounded-lg transition-colors shadow-sm',
-          showUpcomingEvents
+          'p-2 rounded-lg transition-colors',
+          showMonthEvents
             ? 'bg-[#01779b] text-white hover:bg-[#015a77]'
             : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
         ]"
-        title="Toggle upcoming events"
+        title="Month Events"
       >
         <Calendar class="h-5 w-5" />
       </button>
       <button
-        @click="emit('managePresets')"
-        class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm"
-        title="Manage event presets"
-      >
-        <Settings class="h-5 w-5" />
-      </button>
-      <button
         @click="emit('addEvent')"
         :class="[
-          'flex items-center gap-2 px-4 py-2 rounded-lg transition-all shadow-sm',
+          'p-2 rounded-lg transition-all',
           showAddEvent
             ? 'bg-[#015a77] text-white hover:bg-[#014a60]'
             : 'bg-[#01779b] text-white hover:bg-[#015a77]'
@@ -75,4 +68,3 @@ const emit = defineEmits(['update:searchQuery', 'managePresets', 'addEvent', 'to
     </div>
   </div>
 </template>
-

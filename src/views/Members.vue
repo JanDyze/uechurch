@@ -1,22 +1,29 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import { useMembers } from "../composables/useMembers";
 import { useMemberFilters } from "../composables/useMemberFilters";
 import { useMemberSorting } from "../composables/useMemberSorting";
-import { useFamilyGroups } from "../composables/useFamilyGroups";
 import { useMemberForm } from "../composables/useMemberForm";
+import { useToast } from "../composables/useToast";
 import MembersToolbar from "../components/members/MembersToolbar.vue";
 import FilterDrawer from "../components/members/FilterDrawer.vue";
 import ConfigDrawer from "../components/members/ConfigDrawer.vue";
 import AddMemberDrawer from "../components/members/AddMemberDrawer.vue";
 import MemberDetailsDrawer from "../components/members/MemberDetailsDrawer.vue";
+import MemberContextMenu from "../components/members/MemberContextMenu.vue";
 import ExportDialog from "../components/members/ExportDialog.vue";
-import FamilyGroup from "../components/members/FamilyGroup.vue";
 import MemberCard from "../components/members/MemberCard.vue";
 import MemberListItem from "../components/members/MemberListItem.vue";
 import MemberCardSkeleton from "../components/members/MemberCardSkeleton.vue";
 import ConfirmationModal from "../components/common/ConfirmationModal.vue";
-import { exportToCSV } from "../utils/exportUtils";
+import { exportToExcel } from "../utils/exportUtils";
+import { getFullName } from "../utils/memberUtils";
+
+const toast = useToast();
+
+const router = useRouter();
+const route = useRoute();
 
 const searchQuery = ref("");
 
@@ -24,32 +31,44 @@ const searchQuery = ref("");
 const { members, loading, addMemberToFirestore, updateMemberInFirestore, removeMember } = useMembers();
 
 // Filters
-const { filters, allTags, filteredMembers: baseFilteredMembers, hasActiveFilters, clearFilters, toggleTag } = useMemberFilters(members, searchQuery);
+const { filters, allTags, filteredMembers: baseFilteredMembers, hasActiveFilters, applyFilters, clearFilters } = useMemberFilters(members, searchQuery);
 
 // Sorting
-const { sortBy, sortOrder, familyMemberSort, sortMembers, sortFamilyMembers } = useMemberSorting();
+const { sortBy, sortOrder, sortMembers } = useMemberSorting();
 
 // Apply sorting to filtered members
 const filteredMembers = computed(() => {
   return sortMembers(baseFilteredMembers.value);
 });
 
-// Family groups
-const groupByFamily = ref(false);
-const { familyGroups } = useFamilyGroups(
-  members,
-  filteredMembers,
-  groupByFamily,
-  sortFamilyMembers,
-  sortMembers,
-  sortBy,
-  sortOrder
-);
-
-// View state
-const viewMode = ref("simple");
-const layoutMode = ref("grid");
+// View state with URL params
 const activeDrawer = ref(null);
+
+// LocalStorage keys
+const STORAGE_KEY_LAYOUT = 'members_layout';
+const STORAGE_KEY_VIEW_MODE = 'members_viewMode';
+
+// Get saved preferences from localStorage
+const getSavedLayout = () => localStorage.getItem(STORAGE_KEY_LAYOUT) || 'grid';
+const getSavedViewMode = () => localStorage.getItem(STORAGE_KEY_VIEW_MODE) || 'simple';
+
+// View mode: 'simple' or 'detailed'
+const viewMode = computed({
+  get: () => route.query.viewMode || getSavedViewMode(),
+  set: (value) => {
+    localStorage.setItem(STORAGE_KEY_VIEW_MODE, value);
+    updateQueryParams({ viewMode: value });
+  }
+});
+
+// Layout mode: 'grid' or 'list'
+const layoutMode = computed({
+  get: () => route.query.layout || getSavedLayout(),
+  set: (value) => {
+    localStorage.setItem(STORAGE_KEY_LAYOUT, value);
+    updateQueryParams({ layout: value });
+  }
+});
 const showExport = ref(false);
 const selectedMember = ref(null);
 const showDetails = ref(false);
@@ -71,20 +90,78 @@ const { showAddMember, newMember, canAddMember, addMemberTooltip, calculateAge, 
   allTags
 );
 
-// Computed properties for drawer visibility
+// URL query parameter helpers
+const updateQueryParams = (params) => {
+  const query = { ...route.query };
+  
+  // Remove null/false params
+  Object.keys(params).forEach(key => {
+    if (params[key] === null || params[key] === false || params[key] === undefined) {
+      delete query[key];
+    } else {
+      query[key] = params[key];
+    }
+  });
+  
+  router.replace({ query });
+};
+
+// Handle layout switch (updates both layout and viewMode in one call)
+const handleSwitchLayout = ({ layout, viewMode: newViewMode }) => {
+  localStorage.setItem(STORAGE_KEY_LAYOUT, layout);
+  localStorage.setItem(STORAGE_KEY_VIEW_MODE, newViewMode);
+  updateQueryParams({ layout, viewMode: newViewMode });
+};
+
+// Track if filters were just applied (to avoid URL conflicts)
+const filtersJustApplied = ref(false);
+
+// Computed properties for drawer visibility with URL params
 const showFilters = computed({
-  get: () => activeDrawer.value === 'filter',
+  get: () => route.query.filter === 'true',
   set: (value) => {
     if (value) {
       showAddMember.value = false;
       showDetails.value = false;
       selectedMember.value = null;
-      activeDrawer.value = 'filter';
-    } else {
-      activeDrawer.value = null;
+      filtersJustApplied.value = false;
+      updateQueryParams({ filter: 'true', add: null, view: null });
+    } else if (!filtersJustApplied.value) {
+      // Only remove filter param if we're just closing (not applying)
+      updateQueryParams({ filter: null });
     }
+    // Reset flag
+    filtersJustApplied.value = false;
   }
 });
+
+// Wrap applyFilters to set flag before closing drawer
+const handleApplyFilters = (newFilters) => {
+  filtersJustApplied.value = true;
+  applyFilters(newFilters);
+  
+  // Count active filters for toast message
+  const activeCount = [
+    newFilters.tags?.length > 0,
+    newFilters.isMember !== null,
+    newFilters.sex !== null,
+    newFilters.civilStatus !== null,
+    newFilters.hasAddress !== null,
+    newFilters.hasOccupation !== null,
+  ].filter(Boolean).length;
+  
+  if (activeCount > 0) {
+    toast.success(`${activeCount} filter${activeCount > 1 ? 's' : ''} applied`);
+  } else {
+    toast.info('Filters cleared');
+  }
+};
+
+// Wrap clearFilters to show toast
+const handleClearFilters = () => {
+  clearFilters();
+  toast.info('All filters cleared');
+};
 
 const showConfig = computed({
   get: () => activeDrawer.value === 'config',
@@ -94,39 +171,151 @@ const showConfig = computed({
       showDetails.value = false;
       selectedMember.value = null;
       activeDrawer.value = 'config';
+      updateQueryParams({ filter: null, add: null, view: null });
     } else {
       activeDrawer.value = null;
     }
   }
 });
 
-// Computed property for showAddMember to work with v-model
+// Computed property for showAddMember to work with v-model and URL params
 const showAddMemberComputed = computed({
-  get: () => showAddMember.value,
+  get: () => route.query.add === 'true',
   set: (value) => {
     if (value) {
       activeDrawer.value = null;
       showDetails.value = false;
       selectedMember.value = null;
       showAddMember.value = true;
+      updateQueryParams({ add: 'true', filter: null, view: null });
     } else {
       showAddMember.value = false;
+      updateQueryParams({ add: null });
     }
+  }
+});
+
+// Computed for details drawer with URL params
+const showDetailsComputed = computed({
+  get: () => !!route.query.view,
+  set: (value) => {
+    if (!value) {
+      showDetails.value = false;
+      selectedMember.value = null;
+      updateQueryParams({ view: null });
+    }
+  }
+});
+
+// Helper to sync view drawer from URL
+const syncViewDrawer = () => {
+  const viewId = route.query.view;
+  if (viewId && members.value.length > 0) {
+    const member = members.value.find(m => 
+      String(m.id) === String(viewId) || 
+      String(m.firestoreId) === String(viewId)
+    );
+    if (member) {
+      selectedMember.value = member;
+      showDetails.value = true;
+    }
+  } else if (!viewId) {
+    showDetails.value = false;
+    selectedMember.value = null;
+  }
+};
+
+// Watch URL params to sync state on navigation
+watch(() => route.query, (query) => {
+  // Sync filter drawer
+  if (query.filter === 'true') {
+    activeDrawer.value = null;
+    showAddMember.value = false;
+  }
+  
+  // Sync add drawer
+  if (query.add === 'true') {
+    activeDrawer.value = null;
+    showAddMember.value = true;
+  } else {
+    showAddMember.value = false;
+  }
+  
+  // Sync view drawer
+  syncViewDrawer();
+}, { immediate: true });
+
+// Also watch members loading - when members load, check if we need to show view panel
+watch(() => members.value, () => {
+  if (route.query.view) {
+    syncViewDrawer();
   }
 });
 
 // Export handler
 const handleExport = (config) => {
-  exportToCSV(members.value, config);
+  exportToExcel(members.value, config);
+  toast.success('Export downloaded successfully!');
 };
 
 // Member details handlers
 const handleMemberClick = (member) => {
+  const memberId = member.firestoreId || member.id;
+  updateQueryParams({ view: memberId, filter: null, add: null });
+};
+
+// Context menu state
+const contextMenu = ref({
+  show: false,
+  x: 0,
+  y: 0,
+  member: null,
+});
+
+const handleContextMenu = ({ member, x, y }) => {
+  contextMenu.value = { show: true, x, y, member };
+};
+
+const closeContextMenu = () => {
+  contextMenu.value.show = false;
+};
+
+// Context menu action handlers
+const handleContextView = (member) => {
+  const id = member?.firestoreId || member?.id;
+  if (id) router.push(`/members/${id}`);
+};
+
+const handleContextEdit = (member) => {
   selectedMember.value = member;
   showDetails.value = true;
-  // Close other drawers
   showAddMember.value = false;
   activeDrawer.value = null;
+  // Trigger edit mode in the drawer after it opens
+  setTimeout(() => {
+    const drawer = document.querySelector('.add-member-drawer');
+    if (drawer) {
+      const editBtn = drawer.querySelector('button[title="Edit"]');
+      if (editBtn) editBtn.click();
+    }
+  }, 100);
+};
+
+const handleContextCall = (member) => {
+  if (member?.contactNumber) {
+    window.location.href = `tel:${member.contactNumber}`;
+  }
+};
+
+const handleContextEmail = (member) => {
+  if (member?.email) {
+    window.location.href = `mailto:${member.email}`;
+  }
+};
+
+const handleContextCopy = (member) => {
+  const name = getFullName(member);
+  navigator.clipboard.writeText(name);
 };
 
 // Confirmation modal state
@@ -157,17 +346,11 @@ const handleMemberUpdate = async (updatedMemberData) => {
     // Remove id and firestoreId from update data (they shouldn't be updated)
     const { id, firestoreId, ...dataToUpdate } = updatedMemberData;
     await updateMemberInFirestore(selectedMember.value, dataToUpdate);
-    showDetails.value = false;
-    selectedMember.value = null;
+    toast.success('Changes saved');
+    // Panel stays open for inline editing - don't close it
   } catch (error) {
     console.error('Error updating member:', error);
-    showConfirmModal({
-      title: 'Error',
-      message: 'Failed to update member. Please try again.',
-      confirmText: 'OK',
-      cancelText: '',
-      onConfirm: () => {},
-    });
+    toast.error('Failed to save changes. Please try again.');
   }
 };
 
@@ -187,30 +370,14 @@ const handleMemberDelete = async (member) => {
         await removeMember(member);
         showDetails.value = false;
         selectedMember.value = null;
+        toast.success('Member deleted');
       } catch (error) {
         console.error('Error deleting member:', error);
-        showConfirmModal({
-          title: 'Error',
-          message: 'Failed to delete member. Please try again.',
-          confirmText: 'OK',
-          cancelText: '',
-          onConfirm: () => {},
-        });
+        toast.error('Failed to delete member. Please try again.');
       }
     }
   });
 };
-
-// Computed property for showDetails drawer
-const showDetailsComputed = computed({
-  get: () => showDetails.value,
-  set: (value) => {
-    showDetails.value = value;
-    if (!value) {
-      selectedMember.value = null;
-    }
-  }
-});
 
 // Computed property for selected member ID
 const selectedMemberId = computed(() => {
@@ -219,7 +386,7 @@ const selectedMemberId = computed(() => {
 
 // Check if any drawer is open
 const isDrawerOpen = computed(() => {
-  return showFilters.value || showConfig.value || showAddMember.value || showDetails.value;
+  return showFilters.value || showConfig.value || showAddMemberComputed.value || showDetailsComputed.value;
 });
 </script>
 
@@ -235,34 +402,17 @@ const isDrawerOpen = computed(() => {
       v-model:showAddMember="showAddMemberComputed"
       :hasActiveFilters="hasActiveFilters"
       @export="showExport = true"
+      @switchLayout="handleSwitchLayout"
     />
 
     <!-- Members List -->
     <div class="flex-1 overflow-hidden bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex">
       <!-- Members Content -->
       <div class="flex-1 h-full overflow-y-auto">
-      <!-- Family Grouped Layout -->
-      <div v-if="groupByFamily" class="p-4 space-y-4">
-          <FamilyGroup
-          v-for="family in familyGroups"
-          :key="family.id"
-            :family="family"
-            :layoutMode="layoutMode"
-            :viewMode="viewMode"
-            :visibleFields="visibleFields"
-            :selectedMemberId="selectedMemberId"
-            :isDrawerOpen="isDrawerOpen"
-            @memberClick="handleMemberClick"
-          />
-        <div v-if="familyGroups.length === 0" class="p-8 text-center text-gray-500 dark:text-gray-400">
-          No family groups found.
-        </div>
-      </div>
-
       <!-- Grid Layout -->
-        <div v-else-if="!groupByFamily && layoutMode === 'grid'" :class="[
+        <div v-if="layoutMode === 'grid'" :class="[
           'grid gap-3 p-3',
-          isDrawerOpen ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
+          isDrawerOpen ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
         ]">
           <template v-if="loading">
             <MemberCardSkeleton
@@ -280,11 +430,12 @@ const isDrawerOpen = computed(() => {
             :visibleFields="visibleFields"
             :selected="selectedMemberId === member.id || selectedMemberId === member.firestoreId"
             @click="handleMemberClick"
+            @contextmenu="handleContextMenu"
           />
           </div>
 
       <!-- List Layout -->
-      <div v-else-if="!groupByFamily" class="divide-y divide-gray-200 dark:divide-gray-700">
+      <div v-else class="space-y-1 p-2">
           <template v-if="loading">
             <div
               v-for="i in 10"
@@ -307,6 +458,7 @@ const isDrawerOpen = computed(() => {
             :visibleFields="visibleFields"
             :selected="selectedMemberId === member.id || selectedMemberId === member.firestoreId"
             @click="handleMemberClick"
+            @contextmenu="handleContextMenu"
           />
           </div>
 
@@ -321,11 +473,10 @@ const isDrawerOpen = computed(() => {
         :filters="filters"
         v-model:sortBy="sortBy"
         v-model:sortOrder="sortOrder"
-        v-model:groupByFamily="groupByFamily"
         :allTags="allTags"
         :hasActiveFilters="hasActiveFilters"
-        @clearFilters="clearFilters"
-        @toggleTag="toggleTag"
+        @applyFilters="handleApplyFilters"
+        @clearFilters="handleClearFilters"
       />
 
       <!-- Config Drawer -->
@@ -353,6 +504,7 @@ const isDrawerOpen = computed(() => {
         v-model:showDetails="showDetailsComputed"
         :member="selectedMember"
         :allTags="allTags"
+        :loading="loading"
         @update="handleMemberUpdate"
         @delete="handleMemberDelete"
       />
@@ -368,6 +520,21 @@ const isDrawerOpen = computed(() => {
         @update:show="showConfirmation = $event"
         @confirm="handleConfirmation"
         @cancel="showConfirmation = false"
+      />
+
+      <!-- Context Menu -->
+      <MemberContextMenu
+        :show="contextMenu.show"
+        :x="contextMenu.x"
+        :y="contextMenu.y"
+        :member="contextMenu.member"
+        @close="closeContextMenu"
+        @view="handleContextView"
+        @edit="handleContextEdit"
+        @delete="handleMemberDelete"
+        @call="handleContextCall"
+        @email="handleContextEmail"
+        @copy="handleContextCopy"
       />
     </div>
 

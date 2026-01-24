@@ -31,12 +31,13 @@ const emit = defineEmits(['update:eventTypeFilter', 'update:upcomingDaysFilter',
 const getEventTypeColor = (type) => {
   const colors = {
     worship: 'bg-blue-500 text-white',
-    study: 'bg-green-500 text-white',
-    youth: 'bg-purple-500 text-white',
-    prayer: 'bg-yellow-500 text-white',
+    prayer: 'bg-purple-500 text-white',
+    meeting: 'bg-slate-500 text-white',
+    fellowship: 'bg-teal-500 text-white',
     outreach: 'bg-orange-500 text-white',
-    music: 'bg-pink-500 text-white',
-    birthday: 'bg-red-500 text-white'
+    training: 'bg-green-500 text-white',
+    celebration: 'bg-pink-500 text-white',
+    special: 'bg-amber-500 text-white',
   }
   return colors[type] || 'bg-gray-500 text-white'
 }

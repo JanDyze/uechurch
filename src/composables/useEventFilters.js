@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 
 export function useEventFilters(events, searchQuery) {
-  const eventTypeFilter = ref(null)
+  const eventTypeFilter = ref([])
   const upcomingDaysFilter = ref(7)
 
   // Get filtered events based on search
@@ -49,9 +49,9 @@ export function useEventFilters(events, searchQuery) {
         return eventDate >= today && eventDate <= endDate
       })
 
-    // Apply event type filter - only filter if a specific type is selected
-    if (eventTypeFilter.value !== null && eventTypeFilter.value !== undefined) {
-      filtered = filtered.filter((event) => event.type === eventTypeFilter.value)
+    // Apply event type filter - only filter if types are selected
+    if (eventTypeFilter.value.length > 0) {
+      filtered = filtered.filter((event) => eventTypeFilter.value.includes(event.type))
     }
 
     return filtered

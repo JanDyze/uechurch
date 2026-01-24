@@ -1,8 +1,15 @@
 <script setup>
 import { ref, computed, watch } from "vue";
-import { X, Edit2, Trash2, Save, User, Calendar, MapPin, Phone, Briefcase, Users, Tag, Image as ImageIcon } from "lucide-vue-next";
-import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, getFamilyRoleLabel, calculateAgeFromDate } from "../../utils/memberUtils";
+import { useRouter } from "vue-router";
+import { X, Trash2, User, Calendar, MapPin, Phone, Briefcase, Users, Tag, Image as ImageIcon, ExternalLink, Edit2, Check } from "lucide-vue-next";
+import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate } from "../../utils/memberUtils";
 import ImageCropper from "./ImageCropper.vue";
+import InlineEditField from "../common/InlineEditField.vue";
+
+const router = useRouter();
+
+// Edit mode state
+const isEditMode = ref(false);
 
 const props = defineProps({
   showDetails: {
@@ -17,523 +24,399 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  loading: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(["update:showDetails", "update", "delete"]);
 
-const isEditing = ref(false);
-const editedMember = ref({});
+// Local copy of member data
+const localMember = ref({});
 
-// Watch member changes to reset edit state
+// Watch member changes to sync local copy
 watch(() => props.member, (newMember) => {
   if (newMember) {
-    editedMember.value = { ...newMember };
-    isEditing.value = false;
+    localMember.value = { ...newMember };
   }
-}, { immediate: true });
+}, { immediate: true, deep: true });
 
-// Validation
-const canSave = computed(() => {
-  return editedMember.value.firstName?.trim() !== '' &&
-         editedMember.value.lastName?.trim() !== '' &&
-         editedMember.value.sex !== '';
+// Reset edit mode when panel closes
+watch(() => props.showDetails, (newVal) => {
+  if (!newVal) {
+    isEditMode.value = false;
+  }
 });
 
-const handleEdit = () => {
-  isEditing.value = true;
-  editedMember.value = { ...props.member };
-};
-
-const handleCancel = () => {
-  isEditing.value = false;
-  editedMember.value = { ...props.member };
-};
-
-const handleSave = () => {
-  if (!canSave.value) return;
+// Handle field save - immediately update
+const handleFieldSave = (field, value) => {
+  localMember.value[field] = value;
   
   // Calculate age if date of birth changed
-  if (editedMember.value.dateOfBirth) {
-    editedMember.value.age = calculateAgeFromDate(editedMember.value.dateOfBirth);
+  if (field === 'dateOfBirth' && value) {
+    localMember.value.age = calculateAgeFromDate(value);
   }
   
-  // Clean up undefined values
-  const cleanedMember = { ...editedMember.value };
+  // Emit update with cleaned data
+  const cleanedMember = { ...localMember.value };
   Object.keys(cleanedMember).forEach(key => {
     if (cleanedMember[key] === undefined || cleanedMember[key] === '') {
-      if (key !== 'id' && key !== 'firestoreId' && key !== 'tags' && key !== 'isMember' && key !== 'image') {
+      if (!['id', 'firestoreId', 'tags', 'isMember', 'image'].includes(key)) {
         delete cleanedMember[key];
       }
     }
   });
   
-  // Preserve image field even if null (to allow removing image)
-  if (editedMember.value.image === null || editedMember.value.image === '') {
-    cleanedMember.image = null;
-  }
-  
   emit("update", cleanedMember);
-  isEditing.value = false;
 };
 
 const handleDelete = () => {
   emit("delete", props.member);
 };
 
-const toggleTag = (tag) => {
-  if (!editedMember.value.tags) {
-    editedMember.value.tags = [];
+const handleViewPage = () => {
+  const id = props.member?.firestoreId || props.member?.id;
+  if (id) {
+    router.push(`/members/${id}`);
   }
-  const index = editedMember.value.tags.indexOf(tag);
-  if (index > -1) {
-    editedMember.value.tags.splice(index, 1);
-  } else {
-    editedMember.value.tags.push(tag);
-  }
+};
+
+const handleEdit = () => {
+  isEditMode.value = true;
+};
+
+const handleDoneEditing = () => {
+  isEditMode.value = false;
 };
 
 const showImageCropper = ref(false);
 
 const handleImageUpdate = (base64Image) => {
-  editedMember.value.image = base64Image;
+  handleFieldSave('image', base64Image);
 };
+
+// Options for select fields
+const sexOptions = [
+  { value: 'Male', label: 'Male' },
+  { value: 'Female', label: 'Female' },
+];
+
+const civilStatusOptions = [
+  { value: 'Single', label: 'Single' },
+  { value: 'Married', label: 'Married' },
+  { value: 'Widowed', label: 'Widowed' },
+  { value: 'Separated', label: 'Separated' },
+];
+
 </script>
 
 <template>
   <Transition name="drawer">
     <div
-      v-if="showDetails && member"
-      class="add-member-drawer border-l-4 border-[#01779b] bg-gray-50 dark:bg-gray-900 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      v-if="showDetails"
+      class="member-details-drawer m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-          {{ isEditing ? 'Edit Member' : 'Member Details' }}
-        </h3>
+      <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-t-2xl border-b border-[#01779b]/20 dark:border-[#22b8cf]/20 px-6 py-4 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+            {{ isEditMode ? 'Edit Member' : 'Member Details' }}
+          </h3>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {{ isEditMode ? 'All fields are editable' : 'Double-click any field to edit' }}
+          </p>
+        </div>
         <button
           @click="$emit('update:showDetails', false)"
-          class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <X class="h-5 w-5" />
         </button>
       </div>
 
-      <!-- Scrollable Content -->
-      <div class="flex-1 overflow-y-auto p-6">
-        <div v-if="!isEditing" class="space-y-6">
-          <!-- Avatar and Name -->
-          <div class="flex flex-col items-center text-center">
-            <div class="relative mb-4">
-              <img
-                :src="getAvatarUrl(member)"
-                :alt="getFullName(member)"
-                class="h-24 w-24 rounded-full"
-              />
-              <button
-                v-if="isEditing"
-                @click="showImageCropper = true"
-                class="absolute bottom-0 right-0 p-2 bg-[#01779b] text-white rounded-full hover:bg-[#015a77] transition-colors shadow-sm"
-                title="Change Image"
-              >
-                <ImageIcon class="h-4 w-4" />
-              </button>
+      <!-- Loading Skeleton -->
+      <div v-if="loading || !member" class="flex-1 overflow-y-auto p-5">
+        <div class="flex items-center gap-4 pb-5 mb-5 border-b border-gray-200 dark:border-gray-700">
+          <div class="h-16 w-16 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-5 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+            <div class="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+            <div class="h-5 w-16 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+        <div class="space-y-4">
+          <div class="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <div class="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-5 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
             </div>
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-              {{ getFullName(member) }}
-            </h2>
-            <p v-if="member.nickname" class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              "{{ member.nickname }}"
-            </p>
-            <div class="flex items-center gap-2 mt-2">
-              <span :class="['text-2xl', getSexIconColor(member.sex)]" :title="member.sex">
-                {{ getSexIcon(member.sex) }}
-              </span>
-              <span v-if="member.familyRole" class="px-2 py-1 text-xs font-medium rounded-full bg-[#01779b]/10 text-[#01779b] dark:bg-[#01779b]/20">
-                {{ getFamilyRoleLabel(member.familyRole) }}
-              </span>
+            <div class="space-y-1">
+              <div class="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-5 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
             </div>
           </div>
-
-          <!-- Details Grid -->
-          <div class="grid grid-cols-1 gap-4">
-            <div v-if="member.dateOfBirth" class="flex items-start gap-3">
-              <Calendar class="h-5 w-5 text-gray-400 mt-0.5" />
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Date of Birth</p>
-                <p class="text-sm text-gray-900 dark:text-white">
-                  {{ new Date(member.dateOfBirth).toLocaleDateString() }}
-                  <span v-if="member.age" class="text-gray-500">({{ member.age }} years old)</span>
-                </p>
-              </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <div class="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-5 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
             </div>
-
-            <div v-if="member.civilStatus" class="flex items-start gap-3">
-              <User class="h-5 w-5 text-gray-400 mt-0.5" />
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Civil Status</p>
-                <p class="text-sm text-gray-900 dark:text-white">{{ member.civilStatus }}</p>
-              </div>
+            <div class="space-y-1">
+              <div class="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-5 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
             </div>
-
-            <div v-if="member.address" class="flex items-start gap-3">
-              <MapPin class="h-5 w-5 text-gray-400 mt-0.5" />
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Address</p>
-                <p class="text-sm text-gray-900 dark:text-white">{{ member.address }}</p>
-              </div>
+          </div>
+          <div class="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mt-6"></div>
+          <div class="space-y-1">
+            <div class="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+            <div class="h-16 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <div class="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-5 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
             </div>
-
-            <div v-if="member.contactNumber" class="flex items-start gap-3">
-              <Phone class="h-5 w-5 text-gray-400 mt-0.5" />
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Contact Number</p>
-                <p class="text-sm text-gray-900 dark:text-white">{{ member.contactNumber }}</p>
-              </div>
-            </div>
-
-            <div v-if="member.occupation" class="flex items-start gap-3">
-              <Briefcase class="h-5 w-5 text-gray-400 mt-0.5" />
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Occupation</p>
-                <p class="text-sm text-gray-900 dark:text-white">{{ member.occupation }}</p>
-              </div>
-            </div>
-
-            <div v-if="member.tags && member.tags.length > 0" class="flex items-start gap-3">
-              <Tag class="h-5 w-5 text-gray-400 mt-0.5" />
-              <div class="flex-1">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Tags</p>
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    v-for="tag in member.tags"
-                    :key="tag"
-                    class="px-2 py-1 text-xs rounded-full bg-[#01779b]/10 text-[#01779b] dark:bg-[#01779b]/20"
-                  >
-                    {{ tag }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-              <Users class="h-5 w-5 text-gray-400" />
-              <div class="flex-1">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Member Status</p>
-                <p class="text-sm text-gray-900 dark:text-white">
-                  {{ member.isMember ? 'Member' : 'Non-Member' }}
-                </p>
-              </div>
+            <div class="space-y-1">
+              <div class="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div class="h-5 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Edit Form -->
-        <div v-else class="space-y-4">
-          <!-- Image Upload -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Profile Image
-            </label>
-            <div class="flex items-center gap-4">
-              <div class="relative">
-                <img
-                  :src="editedMember.image || getAvatarUrl(editedMember)"
-                  alt="Avatar"
-                  class="w-20 h-20 rounded-full border-2 border-gray-300 dark:border-gray-600 object-cover"
-                />
-                <button
-                  type="button"
-                  @click="showImageCropper = true"
-                  class="absolute bottom-0 right-0 p-1.5 bg-[#01779b] text-white rounded-full hover:bg-[#015a77] transition-colors shadow-sm"
-                  title="Upload Image"
-                >
-                  <ImageIcon class="h-4 w-4" />
-                </button>
-              </div>
-              <div class="flex-1">
-                <button
-                  type="button"
-                  @click="showImageCropper = true"
-                  class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                >
-                  {{ editedMember.image ? 'Change Image' : 'Upload Image' }}
-                </button>
-                <button
-                  v-if="editedMember.image"
-                  type="button"
-                  @click="editedMember.image = null"
-                  class="ml-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- First Name -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              First Name <span class="text-red-500">*</span>
-            </label>
-            <input
-              v-model="editedMember.firstName"
-              type="text"
-              required
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-              placeholder="First Name"
+      <!-- Scrollable Content -->
+      <div v-else class="flex-1 overflow-y-auto p-5">
+        <!-- Profile Section -->
+        <div class="flex items-center gap-4 pb-5 mb-5 border-b border-gray-200 dark:border-gray-700">
+          <div class="relative group">
+            <img
+              :src="getAvatarUrl(localMember)"
+              :alt="getFullName(localMember)"
+              class="h-16 w-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
             />
-          </div>
-
-          <!-- Last Name -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Last Name <span class="text-red-500">*</span>
-            </label>
-            <input
-              v-model="editedMember.lastName"
-              type="text"
-              required
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-              placeholder="Last Name"
-            />
-          </div>
-
-          <!-- Nickname -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Nickname
-            </label>
-            <input
-              v-model="editedMember.nickname"
-              type="text"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-              placeholder="Nickname"
-            />
-          </div>
-
-          <!-- Sex -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Sex <span class="text-red-500">*</span>
-            </label>
-            <select
-              v-model="editedMember.sex"
-              required
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-            >
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
-
-          <!-- Date of Birth -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Date of Birth
-            </label>
-            <input
-              v-model="editedMember.dateOfBirth"
-              @input="editedMember.age = calculateAgeFromDate(editedMember.dateOfBirth)"
-              type="date"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-            />
-          </div>
-
-          <!-- Age -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Age
-            </label>
-            <input
-              v-model.number="editedMember.age"
-              type="number"
-              min="0"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-              placeholder="Age"
-            />
-          </div>
-
-          <!-- Civil Status -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Civil Status
-            </label>
-            <select
-              v-model="editedMember.civilStatus"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-            >
-              <option value="Single">Single</option>
-              <option value="Married">Married</option>
-              <option value="Divorced">Divorced</option>
-            </select>
-          </div>
-
-          <!-- Family Role -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Family Role
-            </label>
-            <select
-              v-model="editedMember.familyRole"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-            >
-              <option value="">None</option>
-              <option value="Father">Father</option>
-              <option value="Mother">Mother</option>
-              <option value="Spouse">Spouse</option>
-              <option value="Son">Son</option>
-              <option value="Daughter">Daughter</option>
-              <option value="Child">Child</option>
-              <option value="Brother">Brother</option>
-              <option value="Sister">Sister</option>
-            </select>
-          </div>
-
-          <!-- Address -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Address
-            </label>
-            <input
-              v-model="editedMember.address"
-              type="text"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-              placeholder="Address"
-            />
-          </div>
-
-          <!-- Contact Number -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Contact Number
-            </label>
-            <input
-              v-model="editedMember.contactNumber"
-              type="text"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-              placeholder="0912-345-6789"
-            />
-          </div>
-
-          <!-- Occupation -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Occupation
-            </label>
-            <input
-              v-model="editedMember.occupation"
-              type="text"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-              placeholder="Occupation"
-            />
-          </div>
-
-          <!-- Tags -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Tags
-            </label>
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="tag in allTags"
-                :key="tag"
-                type="button"
-                @click="toggleTag(tag)"
-                :class="[
-                  'px-3 py-1 text-xs rounded-full transition-colors',
-                  editedMember.tags?.includes(tag)
-                    ? 'bg-[#01779b] text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
-                ]"
-              >
-                {{ tag }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Is Member -->
-          <div class="flex items-center justify-between py-2 border-t border-gray-200 dark:border-gray-700 pt-4">
-            <span class="text-sm text-gray-700 dark:text-gray-300 font-medium">Is Member</span>
             <button
-              type="button"
-              @click="editedMember.isMember = !editedMember.isMember"
-              :class="[
-                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#01779b] focus:ring-offset-2',
-                editedMember.isMember ? 'bg-[#01779b]' : 'bg-gray-300 dark:bg-gray-600'
-              ]"
+              @click="showImageCropper = true"
+              class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <span
-                :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                  editedMember.isMember ? 'translate-x-6' : 'translate-x-1'
-                ]"
-              ></span>
+              <ImageIcon class="h-5 w-5 text-white" />
             </button>
           </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white truncate">
+                {{ getFullName(localMember) }}
+              </h2>
+              <span :class="['text-lg', getSexIconColor(localMember.sex)]" :title="localMember.sex">
+                {{ getSexIcon(localMember.sex) }}
+              </span>
+            </div>
+            <p v-if="localMember.nickname" class="text-sm text-gray-500 dark:text-gray-400 truncate">
+              "{{ localMember.nickname }}"
+            </p>
+          </div>
+        </div>
+
+        <!-- Editable Fields - Grouped Sections -->
+        <div class="space-y-6">
+          
+          <!-- Personal Information Section -->
+          <section class="space-y-4">
+            <h4 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-2">
+              <User class="h-3.5 w-3.5" />
+              Personal Information
+            </h4>
+            <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4 space-y-4">
+              <!-- Name Fields -->
+              <div class="grid grid-cols-2 gap-4">
+                <InlineEditField
+                  v-model="localMember.firstName"
+                  label="First Name"
+                  type="text"
+                  :forceEdit="isEditMode"
+                  @save="handleFieldSave('firstName', $event)"
+                />
+                <InlineEditField
+                  v-model="localMember.lastName"
+                  label="Last Name"
+                  type="text"
+                  :forceEdit="isEditMode"
+                  @save="handleFieldSave('lastName', $event)"
+                />
+              </div>
+
+              <!-- Nickname, Gender -->
+              <div class="grid grid-cols-2 gap-4">
+                <InlineEditField
+                  v-model="localMember.nickname"
+                  label="Nickname"
+                  type="text"
+                  emptyText="None"
+                  :forceEdit="isEditMode"
+                  @save="handleFieldSave('nickname', $event)"
+                />
+                <InlineEditField
+                  v-model="localMember.sex"
+                  label="Gender"
+                  type="select"
+                  :options="sexOptions"
+                  :forceEdit="isEditMode"
+                  @save="handleFieldSave('sex', $event)"
+                />
+              </div>
+
+              <!-- Civil Status, Date of Birth -->
+              <div class="grid grid-cols-2 gap-4">
+                <InlineEditField
+                  v-model="localMember.civilStatus"
+                  label="Civil Status"
+                  type="select"
+                  :options="civilStatusOptions"
+                  :forceEdit="isEditMode"
+                  @save="handleFieldSave('civilStatus', $event)"
+                />
+                <InlineEditField
+                  v-model="localMember.dateOfBirth"
+                  label="Date of Birth"
+                  type="date"
+                  :displayFormatter="(val) => val ? `${new Date(val).toLocaleDateString()}${localMember.age ? ` (${localMember.age} yrs)` : ''}` : null"
+                  :forceEdit="isEditMode"
+                  @save="handleFieldSave('dateOfBirth', $event)"
+                />
+              </div>
+            </div>
+          </section>
+
+          <!-- Contact Information Section -->
+          <section class="space-y-4">
+            <h4 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-2">
+              <Phone class="h-3.5 w-3.5" />
+              Contact Information
+            </h4>
+            <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4 space-y-4">
+              <InlineEditField
+                v-model="localMember.contactNumber"
+                label="Phone Number"
+                type="tel"
+                :forceEdit="isEditMode"
+                @save="handleFieldSave('contactNumber', $event)"
+              />
+              <InlineEditField
+                v-model="localMember.address"
+                label="Address"
+                type="textarea"
+                :forceEdit="isEditMode"
+                @save="handleFieldSave('address', $event)"
+              />
+            </div>
+          </section>
+
+          <!-- Work & Church Section -->
+          <section class="space-y-4">
+            <h4 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-2">
+              <Briefcase class="h-3.5 w-3.5" />
+              Work & Church
+            </h4>
+            <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4 space-y-4">
+              <InlineEditField
+                v-model="localMember.occupation"
+                label="Occupation"
+                type="text"
+                :forceEdit="isEditMode"
+                @save="handleFieldSave('occupation', $event)"
+              />
+              <InlineEditField
+                v-model="localMember.tags"
+                label="Ministry Tags"
+                type="tags"
+                emptyText="No tags assigned"
+                :allTags="allTags"
+                :forceEdit="isEditMode"
+                @save="handleFieldSave('tags', $event)"
+              />
+              
+              <!-- Member Status Toggle -->
+              <div class="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">Church Member</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Official membership status</p>
+                </div>
+                <button
+                  @click="handleFieldSave('isMember', !localMember.isMember)"
+                  :class="[
+                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#01779b] focus:ring-offset-2',
+                    localMember.isMember ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                  ]"
+                >
+                  <span
+                    :class="[
+                      'inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm',
+                      localMember.isMember ? 'translate-x-6' : 'translate-x-1'
+                    ]"
+                  ></span>
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex-shrink-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
-        <div v-if="!isEditing" class="flex justify-end gap-3">
+      <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-b-2xl border-t border-[#01779b]/20 dark:border-[#22b8cf]/20 px-6 py-4">
+        <div class="flex justify-end gap-2">
+          <button
+            @click="handleViewPage"
+            class="p-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-lg shadow-gray-400/25 dark:shadow-gray-900/25"
+            title="View Full Page"
+          >
+            <ExternalLink class="h-5 w-5" />
+          </button>
+          <button
+            v-if="isEditMode"
+            @click="handleDoneEditing"
+            class="px-4 py-2 text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 shadow-lg shadow-green-500/25"
+            title="Done Editing"
+          >
+            <Check class="h-4 w-4" />
+            <span class="text-sm font-medium">Done</span>
+          </button>
+          <button
+            v-else
+            @click="handleEdit"
+            class="p-2 text-white bg-[#01779b] dark:bg-[#22b8cf] rounded-lg hover:bg-[#015a77] dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-[#01779b]/25 dark:shadow-[#22b8cf]/25"
+            title="Edit All Fields"
+          >
+            <Edit2 class="h-5 w-5" />
+          </button>
           <button
             @click="handleDelete"
-            class="px-4 py-2 text-sm font-medium text-white bg-red-600 dark:bg-red-600 rounded-lg hover:bg-red-700 dark:hover:bg-red-700 transition-colors flex items-center gap-2"
+            class="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors shadow-lg shadow-red-500/25"
+            title="Delete"
           >
-            <Trash2 class="h-4 w-4" />
-            Delete
+            <Trash2 class="h-5 w-5" />
           </button>
-          <button
-            @click="handleEdit"
-            class="px-4 py-2 text-sm font-medium text-white bg-[#01779b] dark:bg-[#01779b] rounded-lg hover:bg-[#015a77] dark:hover:bg-[#015a77] transition-colors flex items-center gap-2"
-          >
-            <Edit2 class="h-4 w-4" />
-            Edit
-          </button>
-        </div>
-        <div v-else class="flex justify-end gap-3">
-          <button
-            @click="handleCancel"
-            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            @click="handleSave"
-            :disabled="!canSave"
-            :class="[
-              'px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2',
-              canSave
-                ? 'text-white bg-[#01779b] dark:bg-[#01779b] hover:bg-[#015a77] dark:hover:bg-[#015a77] cursor-pointer'
-                : 'text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 cursor-not-allowed opacity-50'
-            ]"
-          >
-            <Save class="h-4 w-4" />
-            Save Changes
-          </button>
-        </div>
         </div>
       </div>
-    </Transition>
+    </div>
+  </Transition>
 
-    <!-- Image Cropper -->
-    <ImageCropper
-      v-model:show="showImageCropper"
-      v-model="editedMember.image"
-      @update:modelValue="handleImageUpdate"
-    />
-  </template>
+  <!-- Image Cropper -->
+  <ImageCropper
+    v-model:show="showImageCropper"
+    v-model="localMember.image"
+    @update:modelValue="handleImageUpdate"
+  />
+</template>
 
 <style>
-.add-member-drawer {
-  transition: max-width 0.3s ease-out, opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+.member-details-drawer {
+  transition: max-width 0.3s ease-out, opacity 0.3s ease;
 }
 
-.drawer-enter-from.add-member-drawer,
-.drawer-leave-to.add-member-drawer {
+.drawer-enter-from.member-details-drawer,
+.drawer-leave-to.member-details-drawer {
   max-width: 0;
   opacity: 0;
   overflow: hidden;
 }
 </style>
-

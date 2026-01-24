@@ -65,7 +65,7 @@ const pageTitle = computed(() => {
             class="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <img
-              src="https://api.dicebear.com/9.x/pixel-art/svg?seed=UEC"
+              src="https://api.dicebear.com/9.x/dylan/svg?seed=UEC"
               alt="User Avatar"
               class="w-8 h-8 rounded-full object-cover"
             />

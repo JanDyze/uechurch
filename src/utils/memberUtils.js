@@ -10,7 +10,7 @@ export const getAvatarUrl = (member) => {
   }
   // Otherwise, use generated avatar
   const name = member.nickname || `${member.firstName} ${member.lastName}`;
-  return `https://api.dicebear.com/9.x/pixel-art/svg?seed=${encodeURIComponent(
+  return `https://api.dicebear.com/9.x/dylan/svg?seed=${encodeURIComponent(
     name
   )}`;
 };

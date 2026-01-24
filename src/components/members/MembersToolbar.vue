@@ -51,6 +51,7 @@ const emit = defineEmits([
   "update:showConfig",
   "update:showAddMember",
   "export",
+  "switchLayout",
 ]);
 
 const gridIcon = computed(() => {
@@ -67,25 +68,27 @@ const listIcon = computed(() => {
 
 const handleViewModeToggle = () => {
   if (props.layoutMode === "grid") {
+    // Already in grid, toggle between simple/detailed
     const newMode = props.viewMode === "simple" ? "detailed" : "simple";
     emit("update:viewMode", newMode);
     if (newMode === "simple") emit("update:showConfig", false);
   } else {
-    emit("update:layoutMode", "grid");
-    emit("update:viewMode", "simple");
+    // Switch to grid mode
     emit("update:showConfig", false);
+    emit("switchLayout", { layout: "grid", viewMode: "simple" });
   }
 };
 
 const handleListModeToggle = () => {
   if (props.layoutMode === "list") {
+    // Already in list, toggle between simple/detailed
     const newMode = props.viewMode === "simple" ? "detailed" : "simple";
     emit("update:viewMode", newMode);
     if (newMode === "simple") emit("update:showConfig", false);
   } else {
-    emit("update:layoutMode", "list");
-    emit("update:viewMode", "simple");
+    // Switch to list mode
     emit("update:showConfig", false);
+    emit("switchLayout", { layout: "list", viewMode: "simple" });
   }
 };
 </script>
@@ -144,13 +147,13 @@ const handleListModeToggle = () => {
         @click="handleViewModeToggle"
         :class="[
           'p-1.5 rounded transition-colors',
-          layoutMode === 'grid'
+          props.layoutMode === 'grid'
             ? 'bg-white dark:bg-gray-600 text-[#01779b] dark:text-[#01779b] shadow-sm'
             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white',
         ]"
         :title="
-          layoutMode === 'grid'
-            ? viewMode === 'simple'
+          props.layoutMode === 'grid'
+            ? props.viewMode === 'simple'
               ? 'Switch to Detailed Grid'
               : 'Switch to Simple Grid'
             : 'Grid View'
@@ -162,13 +165,13 @@ const handleListModeToggle = () => {
         @click="handleListModeToggle"
         :class="[
           'p-1.5 rounded transition-colors',
-          layoutMode === 'list'
+          props.layoutMode === 'list'
             ? 'bg-white dark:bg-gray-600 text-[#01779b] dark:text-[#01779b] shadow-sm'
             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white',
         ]"
         :title="
-          layoutMode === 'list'
-            ? viewMode === 'simple'
+          props.layoutMode === 'list'
+            ? props.viewMode === 'simple'
               ? 'Switch to Detailed List'
               : 'Switch to Simple List'
             : 'List View'

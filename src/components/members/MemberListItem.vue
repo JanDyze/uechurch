@@ -20,17 +20,23 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["click"]);
+const emit = defineEmits(["click", "contextmenu"]);
+
+const handleContextMenu = (event) => {
+  event.preventDefault();
+  emit("contextmenu", { member: props.member, x: event.clientX, y: event.clientY });
+};
 </script>
 
 <template>
   <div 
     @click="emit('click', member)"
+    @contextmenu="handleContextMenu"
     :class="[
-      'p-4 transition-all cursor-pointer border-l-4 select-none',
+      'p-3 transition-all cursor-pointer select-none rounded-lg',
       selected
-        ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20 border-[#01779b] shadow-sm'
-        : 'hover:bg-gray-50 dark:hover:bg-gray-700 border-transparent'
+        ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20 ring-1 ring-[#01779b]/30 dark:ring-[#22b8cf]/30'
+        : 'hover:bg-gray-100 dark:hover:bg-gray-700/50'
     ]"
   >
     <!-- Simple List View -->

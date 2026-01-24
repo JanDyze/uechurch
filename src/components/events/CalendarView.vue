@@ -1,5 +1,6 @@
 <script setup>
-import { ChevronLeft, ChevronRight, List } from 'lucide-vue-next'
+import { ref, computed } from 'vue'
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import philippineHolidays from '../../data/philippineHolidays.json'
 
@@ -34,7 +35,37 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['navigateMonth', 'dayClick', 'eventClick', 'goToToday', 'calendarWheel', 'showMonthEvents'])
+const emit = defineEmits(['navigateMonth', 'dayClick', 'eventClick', 'goToToday', 'calendarWheel', 'setDate'])
+
+// Month/Year picker state
+const showMonthYearPicker = ref(false)
+
+const months = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+]
+
+const currentYear = computed(() => props.currentDate.getFullYear())
+const currentMonthIndex = computed(() => props.currentDate.getMonth())
+
+// Generate year range (10 years before and after current year)
+const years = computed(() => {
+  const thisYear = new Date().getFullYear()
+  const range = []
+  for (let y = thisYear - 10; y <= thisYear + 10; y++) {
+    range.push(y)
+  }
+  return range
+})
+
+const selectMonth = (monthIndex) => {
+  emit('setDate', new Date(currentYear.value, monthIndex, 1))
+  showMonthYearPicker.value = false
+}
+
+const selectYear = (year) => {
+  emit('setDate', new Date(year, currentMonthIndex.value, 1))
+}
 
 const holidays = philippineHolidays
 
@@ -68,12 +99,13 @@ const getEventsForDate = (date) => {
 const getEventTypeColor = (type) => {
   const colors = {
     worship: 'bg-blue-500 text-white',
-    study: 'bg-green-500 text-white',
-    youth: 'bg-purple-500 text-white',
-    prayer: 'bg-yellow-500 text-white',
+    prayer: 'bg-purple-500 text-white',
+    meeting: 'bg-slate-500 text-white',
+    fellowship: 'bg-teal-500 text-white',
     outreach: 'bg-orange-500 text-white',
-    music: 'bg-pink-500 text-white',
-    birthday: 'bg-red-500 text-white'
+    training: 'bg-green-500 text-white',
+    celebration: 'bg-pink-500 text-white',
+    special: 'bg-amber-500 text-white',
   }
   return colors[type] || 'bg-gray-500 text-white'
 }
@@ -94,9 +126,69 @@ const getIconComponent = (iconName) => {
         >
           <ChevronLeft class="h-5 w-5 text-gray-600 dark:text-gray-300" />
         </button>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white min-w-[200px] text-center">
-          {{ currentMonth }}
-        </h2>
+        
+        <!-- Clickable Month/Year with Picker -->
+        <div class="relative">
+          <button
+            @click="showMonthYearPicker = !showMonthYearPicker"
+            class="px-3 py-1.5 text-lg font-semibold text-gray-900 dark:text-white min-w-[200px] text-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            {{ currentMonth }}
+          </button>
+          
+          <!-- Month/Year Picker Dropdown -->
+          <div
+            v-if="showMonthYearPicker"
+            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50 min-w-[300px]"
+          >
+            <!-- Year Selector -->
+            <div class="mb-4">
+              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Year</p>
+              <div class="flex items-center gap-2">
+                <button
+                  @click="selectYear(currentYear - 1)"
+                  class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <ChevronLeft class="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                </button>
+                <select
+                  :value="currentYear"
+                  @change="selectYear(Number($event.target.value))"
+                  class="flex-1 px-3 py-2 text-center font-semibold bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] cursor-pointer"
+                >
+                  <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
+                </select>
+                <button
+                  @click="selectYear(currentYear + 1)"
+                  class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <ChevronRight class="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                </button>
+              </div>
+            </div>
+            
+            <!-- Month Grid -->
+            <div>
+              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Month</p>
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  v-for="(month, index) in months"
+                  :key="month"
+                  @click="selectMonth(index)"
+                  :class="[
+                    'px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                    currentMonthIndex === index
+                      ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ]"
+                >
+                  {{ month.slice(0, 3) }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <button
           @click="emit('navigateMonth', 'next')"
           class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -104,28 +196,25 @@ const getIconComponent = (iconName) => {
           <ChevronRight class="h-5 w-5 text-gray-600 dark:text-gray-300" />
         </button>
       </div>
-      <div class="flex items-center gap-2">
-        <button
-          @click="emit('showMonthEvents')"
-          class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
-          title="Show all events this month"
-        >
-          <List class="h-4 w-4" />
-          <span class="hidden sm:inline">Month Events</span>
-        </button>
-        <button
-          @click="emit('goToToday')"
-          class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-        >
-          Today
-        </button>
-      </div>
+      <button
+        @click="emit('goToToday')"
+        class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+      >
+        Today
+      </button>
     </div>
+    
+    <!-- Click outside to close picker -->
+    <div
+      v-if="showMonthYearPicker"
+      @click="showMonthYearPicker = false"
+      class="fixed inset-0 z-40"
+    ></div>
 
     <!-- Calendar Grid -->
-    <div :ref="calendarScrollRef" @wheel="emit('calendarWheel', $event)" class="flex-1 overflow-auto p-4">
+    <div :ref="calendarScrollRef" @wheel="emit('calendarWheel', $event)" class="flex-1 flex flex-col p-4 min-h-0">
       <!-- Day Headers -->
-      <div class="grid grid-cols-7 gap-1 mb-2">
+      <div class="grid grid-cols-7 gap-1.5 mb-2 flex-shrink-0">
         <div
           v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']"
           :key="day"
@@ -137,28 +226,28 @@ const getIconComponent = (iconName) => {
 
       <!-- Calendar Days with transition -->
       <Transition name="calendar-month" mode="out-in">
-        <div v-if="loading" :key="`skeleton-${currentMonth}`" class="grid grid-cols-7 gap-1">
+        <div v-if="loading" :key="`skeleton-${currentMonth}`" class="calendar-grid flex-1 grid grid-cols-7 grid-rows-6 gap-1.5 min-h-0">
           <div
             v-for="i in 42"
             :key="`skeleton-day-${i}`"
-            class="min-h-[60px] p-1 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+            class="min-h-0 p-1.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 overflow-hidden"
           >
             <div class="h-4 w-6 bg-gray-200 dark:bg-gray-600 rounded animate-pulse mb-1"></div>
             <div class="h-3 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
           </div>
         </div>
-        <div v-else :key="currentMonth" class="grid grid-cols-7 gap-1">
+        <div v-else :key="currentMonth" class="calendar-grid flex-1 grid grid-cols-7 grid-rows-6 gap-1.5 min-h-0">
             <div
               v-for="(day, index) in calendarDays"
               :key="index"
               @click="emit('dayClick', day)"
               :class="[
-                'min-h-[60px] p-1 rounded-lg transition-all cursor-pointer',
+                'min-h-0 p-1.5 rounded-lg transition-all cursor-pointer overflow-hidden flex flex-col',
                 day.isCurrentMonth
                   ? selectedDate === formatDateString(day.fullDate)
                     ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20 border-2 border-[#01779b] shadow-lg shadow-[#01779b]/20'
                     : isToday(day.fullDate)
-                    ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20 border-2 border-[#01779b] shadow-lg shadow-[#01779b]/20'
+                    ? 'bg-amber-500/10 dark:bg-amber-500/20 border-2 border-amber-500 shadow-lg shadow-amber-500/20'
                     : getHolidayForDate(day.fullDate)
                     ? 'bg-white dark:bg-gray-800 border-2 border-yellow-500 hover:bg-gray-50 dark:hover:bg-gray-700'
                     : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -169,7 +258,7 @@ const getIconComponent = (iconName) => {
               :class="[
                 'text-sm font-medium mb-1',
                 isToday(day.fullDate) && day.isCurrentMonth
-                  ? 'text-[#01779b] dark:text-[#01779b]'
+                  ? 'text-amber-600 dark:text-amber-400 font-bold'
                   : day.isCurrentMonth
                   ? 'text-gray-900 dark:text-white'
                   : 'text-gray-400 dark:text-gray-600',
@@ -177,30 +266,56 @@ const getIconComponent = (iconName) => {
             >
               {{ day.date }}
             </div>
-            <div v-if="getHolidayForDate(day.fullDate)" class="mb-1">
-              <div class="px-1.5 py-0.5 text-[10px] bg-yellow-500 text-white rounded truncate" :title="getHolidayForDate(day.fullDate).name">
-                {{ getHolidayForDate(day.fullDate).name }}
-              </div>
+            <!-- Show holiday as first item if exists -->
+            <div
+              v-if="getHolidayForDate(day.fullDate)"
+              class="px-1.5 py-1 text-[10px] bg-yellow-500 text-white rounded truncate flex-1 flex items-center"
+              :class="{ 'mb-0.5': getEventsForDate(day.fullDate).length > 0 }"
+              :title="getHolidayForDate(day.fullDate).name"
+            >
+              {{ getHolidayForDate(day.fullDate).name }}
             </div>
-            <div v-if="getEventsForDate(day.fullDate).length > 0" class="flex flex-row items-center gap-1" @click.stop>
+            <!-- Show events (max 2 total items including holiday) -->
+            <div v-if="getEventsForDate(day.fullDate).length > 0" class="flex-1 flex flex-col gap-0.5 min-h-0" @click.stop>
+              <!-- First event -->
               <button
                 v-if="getEventsForDate(day.fullDate).length > 0"
-                :key="getEventsForDate(day.fullDate)[0].id"
+                :key="getEventsForDate(day.fullDate)[0]?.id"
                 @click.stop="emit('eventClick', getEventsForDate(day.fullDate)[0])"
                 :class="[
-                  'flex-1 text-left px-1.5 py-0.5 text-[10px] rounded truncate hover:opacity-80 transition-opacity flex items-center gap-1',
-                  getEventTypeColor(getEventsForDate(day.fullDate)[0].type),
+                  'w-full text-left px-1.5 py-1 text-[10px] rounded truncate hover:opacity-80 transition-opacity flex items-center gap-1 flex-1',
+                  getEventTypeColor(getEventsForDate(day.fullDate)[0]?.type),
                 ]"
-                :title="getEventsForDate(day.fullDate)[0].title"
+                :title="getEventsForDate(day.fullDate)[0]?.title"
               >
-                <component :is="getIconComponent(getEventsForDate(day.fullDate)[0].icon || 'Calendar')" class="h-3 w-3 flex-shrink-0" />
-                <span class="truncate">{{ getEventsForDate(day.fullDate)[0].title }}</span>
+                <component :is="getIconComponent(getEventsForDate(day.fullDate)[0]?.icon || 'Calendar')" class="h-3 w-3 shrink-0" />
+                <span class="truncate">{{ getEventsForDate(day.fullDate)[0]?.title }}</span>
               </button>
+              <!-- Second row: second event + overflow indicator on same line -->
               <div
-                v-if="getEventsForDate(day.fullDate).length > 1"
-                class="bg-gray-400 dark:bg-gray-600 text-white text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
+                v-if="(!getHolidayForDate(day.fullDate) && getEventsForDate(day.fullDate).length > 1) || (getHolidayForDate(day.fullDate) && getEventsForDate(day.fullDate).length > 1)"
+                class="flex items-center gap-1 flex-1"
               >
-                +{{ getEventsForDate(day.fullDate).length - 1 }}
+                <button
+                  v-if="!getHolidayForDate(day.fullDate) && getEventsForDate(day.fullDate)[1]"
+                  :key="getEventsForDate(day.fullDate)[1]?.id"
+                  @click.stop="emit('eventClick', getEventsForDate(day.fullDate)[1])"
+                  :class="[
+                    'flex-1 text-left px-1.5 py-1 text-[10px] rounded truncate hover:opacity-80 transition-opacity flex items-center gap-1 min-w-0',
+                    getEventTypeColor(getEventsForDate(day.fullDate)[1]?.type),
+                  ]"
+                  :title="getEventsForDate(day.fullDate)[1]?.title"
+                >
+                  <component :is="getIconComponent(getEventsForDate(day.fullDate)[1]?.icon || 'Calendar')" class="h-3 w-3 shrink-0" />
+                  <span class="truncate">{{ getEventsForDate(day.fullDate)[1]?.title }}</span>
+                </button>
+                <!-- +X indicator -->
+                <div
+                  v-if="(getHolidayForDate(day.fullDate) && getEventsForDate(day.fullDate).length > 1) || (!getHolidayForDate(day.fullDate) && getEventsForDate(day.fullDate).length > 2)"
+                  class="bg-gray-500 dark:bg-gray-600 text-white text-[10px] px-1.5 py-1 rounded shrink-0"
+                >
+                  +{{ getHolidayForDate(day.fullDate) ? getEventsForDate(day.fullDate).length - 1 : getEventsForDate(day.fullDate).length - 2 }}
+                </div>
               </div>
             </div>
           </div>
@@ -211,6 +326,11 @@ const getIconComponent = (iconName) => {
 </template>
 
 <style scoped>
+.calendar-grid {
+  /* Ensure grid fills available space */
+  height: 100%;
+}
+
 .calendar-month-enter-active,
 .calendar-month-leave-active {
   transition: all 0.25s ease-out;

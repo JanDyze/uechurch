@@ -1,7 +1,9 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import eventTypesData from '../data/eventTypes.json'
 
-export function useEventForm() {
+export function useEventForm(members = { value: [] }) {
+  const memberCount = computed(() => members.value?.length || 0)
+  
   const newEventDate = ref('')
   const newEventData = ref({
     title: '',
@@ -9,11 +11,10 @@ export function useEventForm() {
     time: '09:00',
     location: '',
     description: '',
-    attendees: 0,
+    attendees: memberCount.value,
     icon: 'Calendar'
   })
 
-  const selectedPreset = ref(null)
   const eventTypes = eventTypesData
 
   const resetEventForm = () => {
@@ -24,32 +25,16 @@ export function useEventForm() {
       time: '09:00',
       location: '',
       description: '',
-      attendees: 0,
+      attendees: memberCount.value,
       icon: 'Calendar'
-    }
-    selectedPreset.value = null
-  }
-
-  const updateEventFormFromPreset = (preset) => {
-    if (preset) {
-      // Remove firestoreId and id from form data
-      const { firestoreId, id, ...presetData } = preset
-      newEventData.value = { ...presetData }
-      selectedPreset.value = { ...preset }
-    } else {
-      resetEventForm()
     }
   }
 
   return {
     newEventDate,
     newEventData,
-    selectedPreset,
     eventTypes,
     resetEventForm,
-    updateEventFormFromPreset
+    memberCount,
   }
 }
-
-
-

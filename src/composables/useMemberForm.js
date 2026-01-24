@@ -1,7 +1,9 @@
 import { ref, computed } from "vue";
 import { calculateAgeFromDate } from "../utils/memberUtils";
+import { useToast } from "./useToast";
 
 export function useMemberForm(members, addMemberToFirestore, allTags) {
+  const toast = useToast();
   const showAddMember = ref(false);
   
   const newMember = ref({
@@ -17,7 +19,6 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
     occupation: '',
     tags: [],
     isMember: false,
-    familyRole: '',
     image: null, // Add image field
   });
 
@@ -73,7 +74,6 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
       relatives: {},
       tags: Array.isArray(newMember.value.tags) ? newMember.value.tags : [],
       isMember: newMember.value.isMember !== undefined ? newMember.value.isMember : true,
-      familyRole: newMember.value.familyRole.trim() || undefined,
       image: newMember.value.image || undefined, // Include image field
     };
     
@@ -93,6 +93,8 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
       // Add to Firestore (real-time listener will update members automatically)
       await addMemberToFirestore(member);
       
+      toast.success(`${member.firstName} ${member.lastName} added`);
+      
       // Reset form
       newMember.value = {
         firstName: '',
@@ -107,14 +109,13 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
         occupation: '',
         tags: [],
         isMember: false,
-        familyRole: '',
         image: null, // Reset image field
       };
       
       showAddMember.value = false;
     } catch (error) {
       console.error('Error adding member:', error);
-      // Optionally show error message to user
+      toast.error('Failed to add member. Please try again.');
     }
   };
 

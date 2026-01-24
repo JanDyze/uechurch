@@ -31,7 +31,6 @@ const normalizeMember = (data, docId) => {
     relatives: data.relatives || {},
     tags: Array.isArray(data.tags) ? data.tags : [],
     isMember: data.isMember !== undefined ? data.isMember : true,
-    familyRole: data.familyRole || '',
     image: data.image || null,
   };
 };

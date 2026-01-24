@@ -1,5 +1,6 @@
 <script setup>
 import { useTheme } from './composables/useTheme'
+import ToastContainer from './components/common/ToastContainer.vue'
 
 const { isTransitioning, isDark, transitionOrigin } = useTheme()
 </script>
@@ -7,6 +8,9 @@ const { isTransitioning, isDark, transitionOrigin } = useTheme()
 <template>
   <div id="app">
     <router-view />
+    
+    <!-- Global Toast Notifications -->
+    <ToastContainer />
     
     <!-- Theme transition overlay - circular reveal -->
     <div 
