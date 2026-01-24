@@ -134,28 +134,6 @@ const eventTypes = computed(() => {
   return Array.from(types).sort()
 })
 
-// Statistics (only count actual recorded attendance, not expected from events)
-const stats = computed(() => {
-  // Filter out events for stats (they only have expected attendees, not actual attendance)
-  const recordsWithAttendance = filteredAttendance.value.filter(record => record.source !== 'event')
-  const totalRecords = recordsWithAttendance.length
-  const totalAttendees = recordsWithAttendance.reduce((sum, record) => {
-    return sum + (record.totalAttendees || 0)
-  }, 0)
-  const uniqueMembers = new Set()
-  recordsWithAttendance.forEach(record => {
-    if (Array.isArray(record.attendees)) {
-      record.attendees.forEach(memberId => uniqueMembers.add(String(memberId)))
-    }
-  })
-
-  return {
-    totalRecords,
-    totalAttendees,
-    uniqueMembers: uniqueMembers.size,
-    averageAttendance: totalRecords > 0 ? Math.round(totalAttendees / totalRecords) : 0
-  }
-})
 
 const handleDeleteAttendance = (record) => {
   // Only allow deletion of dedicated attendance records (not linked to events), not from events/minutes
@@ -394,7 +372,6 @@ const handleCancelAttendance = () => {
       :search-query="searchQuery"
       :show-filters="showFilters"
       :show-record-attendance="showRecordAttendance"
-      :stats="stats"
       :has-active-filters="hasActiveFilters"
       @update:search-query="searchQuery = $event"
       @update:show-filters="showFilters = $event"

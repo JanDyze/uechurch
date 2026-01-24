@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { X, Save, Calendar, Clock, MapPin, Search, Users, Check, CheckCircle2, User } from 'lucide-vue-next'
+import { X, Search, Check } from 'lucide-vue-next'
 import { useMembers } from '../../composables/useMembers'
 
 const props = defineProps({
@@ -26,8 +26,9 @@ const emit = defineEmits(['update:show', 'update:attendanceData', 'save', 'cance
 
 const { members } = useMembers()
 const searchQuery = ref('')
-const showOnlyPresent = ref(false)
-const showOnlyAbsent = ref(false)
+
+// Check if creating new (no event data and not editing)
+const isNewAttendance = computed(() => !props.eventData && !props.isEdit)
 
 // Initialize form data
 const formData = computed({
@@ -52,30 +53,26 @@ const formData = computed({
   }
 })
 
+// Update form field
+const updateField = (field, value) => {
+  emit('update:attendanceData', { ...formData.value, [field]: value })
+}
+
 const isFormValid = computed(() => {
   return formData.value.eventTitle && formData.value.eventTitle.trim().length > 0 &&
          formData.value.date && formData.value.date.length > 0
 })
 
-// Filter members by search and status
+// Filter members by search
 const filteredMembers = computed(() => {
   let filtered = members.value || []
   
-  // Search filter
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(member => {
       const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim().toLowerCase()
-      const nickname = (member.nickname || '').toLowerCase()
-      return fullName.includes(query) || nickname.includes(query)
+      return fullName.includes(query)
     })
-  }
-  
-  // Status filter
-  if (showOnlyPresent.value) {
-    filtered = filtered.filter(member => isPresent(member.id || member.firestoreId))
-  } else if (showOnlyAbsent.value) {
-    filtered = filtered.filter(member => !isPresent(member.id || member.firestoreId))
   }
   
   return filtered
@@ -84,10 +81,7 @@ const filteredMembers = computed(() => {
 // Toggle member attendance
 const toggleAttendee = (memberId) => {
   const attendees = [...(formData.value.attendees || [])]
-  const index = attendees.findIndex(id => 
-    String(id) === String(memberId) || 
-    id === memberId
-  )
+  const index = attendees.findIndex(id => String(id) === String(memberId) || id === memberId)
   if (index > -1) {
     attendees.splice(index, 1)
   } else {
@@ -98,20 +92,7 @@ const toggleAttendee = (memberId) => {
 
 // Check if member is present
 const isPresent = (memberId) => {
-  return (formData.value.attendees || []).some(id => 
-    String(id) === String(memberId) || 
-    id === memberId
-  )
-}
-
-// Select all / Deselect all
-const selectAll = () => {
-  const allMemberIds = filteredMembers.value.map(m => m.id || m.firestoreId)
-  emit('update:attendanceData', { ...formData.value, attendees: allMemberIds })
-}
-
-const deselectAll = () => {
-  emit('update:attendanceData', { ...formData.value, attendees: [] })
+  return (formData.value.attendees || []).some(id => String(id) === String(memberId) || id === memberId)
 }
 
 const handleSave = () => {
@@ -124,213 +105,137 @@ const handleCancel = () => {
   emit('cancel')
 }
 
-const presentCount = computed(() => {
-  return formData.value.attendees?.length || 0
-})
+const presentCount = computed(() => formData.value.attendees?.length || 0)
+const totalCount = computed(() => members.value?.length || 0)
 
-const totalCount = computed(() => {
-  return members.value?.length || 0
-})
+const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'outreach', 'meeting', 'other']
 </script>
 
 <template>
   <Transition name="drawer">
     <div
       v-if="show"
-      class="attendance-checker border-l-4 border-[#01779b] bg-white dark:bg-gray-800 max-w-3xl w-[48rem] h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col flex-shrink-0 border-l border-gray-200 dark:border-gray-700"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <Users class="h-6 w-6" />
-            {{ isEdit ? 'Edit Attendance' : 'Record Attendance' }}
+      <div class="flex-shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-gray-900 dark:text-white">
+            {{ isNewAttendance ? 'New Attendance' : (isEdit ? 'Edit Attendance' : formData.eventTitle || 'Record Attendance') }}
           </h3>
           <button
             @click="handleCancel"
-            class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <X class="h-5 w-5" />
           </button>
         </div>
-        
-        <!-- Event Info Summary -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-          <div class="flex items-center gap-2">
-            <Calendar class="h-4 w-4 text-[#01779b]" />
-            <div>
-              <p class="text-xs text-gray-500 dark:text-gray-400">Event</p>
-              <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ formData.eventTitle || 'Untitled' }}</p>
-            </div>
+      </div>
+
+      <!-- Event Details Form (only for new attendance) -->
+      <div v-if="isNewAttendance || isEdit" class="flex-shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Title *</label>
+          <input
+            :value="formData.eventTitle"
+            @input="updateField('eventTitle', $event.target.value)"
+            type="text"
+            placeholder="e.g. Sunday Worship Service"
+            class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-[#01779b] focus:border-[#01779b]"
+          />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Date *</label>
+            <input
+              :value="formData.date"
+              @input="updateField('date', $event.target.value)"
+              type="date"
+              class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-[#01779b] focus:border-[#01779b]"
+            />
           </div>
-          <div class="flex items-center gap-2">
-            <Calendar class="h-4 w-4 text-[#01779b]" />
-            <div>
-              <p class="text-xs text-gray-500 dark:text-gray-400">Date</p>
-              <p class="text-sm font-medium text-gray-900 dark:text-white">{{ formData.date || 'Not set' }}</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <Clock class="h-4 w-4 text-[#01779b]" />
-            <div>
-              <p class="text-xs text-gray-500 dark:text-gray-400">Time</p>
-              <p class="text-sm font-medium text-gray-900 dark:text-white">{{ formData.time || 'Not set' }}</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <MapPin class="h-4 w-4 text-[#01779b]" />
-            <div>
-              <p class="text-xs text-gray-500 dark:text-gray-400">Location</p>
-              <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ formData.location || 'Not set' }}</p>
-            </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Type</label>
+            <select
+              :value="formData.eventType"
+              @change="updateField('eventType', $event.target.value)"
+              class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-[#01779b] focus:border-[#01779b]"
+            >
+              <option value="">Select type</option>
+              <option v-for="type in eventTypes" :key="type" :value="type" class="capitalize">
+                {{ type.charAt(0).toUpperCase() + type.slice(1) }}
+              </option>
+            </select>
           </div>
         </div>
       </div>
 
-      <!-- Content -->
-      <div class="flex-1 overflow-hidden flex flex-col">
-        <!-- Stats Bar -->
-        <div class="flex-shrink-0 px-6 py-3 bg-[#01779b]/5 dark:bg-[#01779b]/10 border-b border-gray-200 dark:border-gray-700">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-4">
-              <div class="flex items-center gap-2">
-                <CheckCircle2 class="h-5 w-5 text-green-600 dark:text-green-400" />
-                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ presentCount }}</span>
-                <span class="text-sm text-gray-600 dark:text-gray-400">present</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <User class="h-5 w-5 text-gray-400" />
-                <span class="text-sm text-gray-600 dark:text-gray-400">{{ totalCount - presentCount }}</span>
-                <span class="text-sm text-gray-600 dark:text-gray-400">absent</span>
-              </div>
-              <div class="text-sm text-gray-600 dark:text-gray-400">
-                of <span class="font-semibold text-gray-900 dark:text-white">{{ totalCount }}</span> total
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <button
-                @click="selectAll"
-                class="px-3 py-1.5 text-xs font-medium text-[#01779b] hover:bg-[#01779b]/10 dark:hover:bg-[#01779b]/20 rounded-lg transition-colors"
-              >
-                Select All
-              </button>
-              <button
-                @click="deselectAll"
-                class="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                Clear All
-              </button>
-            </div>
-          </div>
-        </div>
+      <!-- Event Info (when recording for existing event) -->
+      <div v-else class="flex-shrink-0 px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ formData.eventTitle }}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          {{ formData.date }}
+          <span v-if="formData.eventType" class="ml-2 px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700">{{ formData.eventType }}</span>
+        </p>
+      </div>
 
-        <!-- Search and Filters -->
-        <div class="flex-shrink-0 px-6 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-          <div class="flex items-center gap-3">
-            <div class="relative flex-1">
-              <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="Search members..."
-                class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-              />
-            </div>
-            <button
-              @click="showOnlyPresent = !showOnlyPresent; showOnlyAbsent = false"
-              :class="[
-                'px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-                showOnlyPresent
-                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              ]"
-            >
-              Present
-            </button>
-            <button
-              @click="showOnlyAbsent = !showOnlyAbsent; showOnlyPresent = false"
-              :class="[
-                'px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-                showOnlyAbsent
-                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              ]"
-            >
-              Absent
-            </button>
-          </div>
+      <!-- Search -->
+      <div class="flex-shrink-0 px-5 py-3 border-b border-gray-100 dark:border-gray-700">
+        <div class="relative">
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search members..."
+            class="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-1 focus:ring-[#01779b] text-gray-900 dark:text-white"
+          />
         </div>
+      </div>
 
-        <!-- Members List -->
-        <div class="flex-1 overflow-y-auto min-h-0">
-          <div class="p-6">
-            <div v-if="filteredMembers.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
-              <Users class="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p class="text-sm">No members found</p>
+      <!-- Members List -->
+      <div class="flex-1 overflow-y-auto">
+        <div v-if="filteredMembers.length === 0" class="p-8 text-center text-gray-400 text-sm">
+          No members found
+        </div>
+        <div v-else class="divide-y divide-gray-100 dark:divide-gray-700">
+          <button
+            v-for="member in filteredMembers"
+            :key="member.id || member.firestoreId"
+            @click="toggleAttendee(member.id || member.firestoreId)"
+            class="w-full px-5 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors text-left"
+          >
+            <div :class="[
+              'w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors',
+              isPresent(member.id || member.firestoreId)
+                ? 'bg-green-500'
+                : 'border-2 border-gray-300 dark:border-gray-600'
+            ]">
+              <Check v-if="isPresent(member.id || member.firestoreId)" class="h-3 w-3 text-white" />
             </div>
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <button
-                v-for="member in filteredMembers"
-                :key="member.id || member.firestoreId"
-                @click="toggleAttendee(member.id || member.firestoreId)"
-                :class="[
-                  'px-4 py-3 rounded-lg border-2 transition-all text-left',
-                  isPresent(member.id || member.firestoreId)
-                    ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'
-                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-[#01779b]/50 dark:hover:border-[#01779b]/50'
-                ]"
-              >
-                <div class="flex items-center gap-3">
-                  <div :class="[
-                    'flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors',
-                    isPresent(member.id || member.firestoreId)
-                      ? 'bg-green-500 border-green-500'
-                      : 'border-gray-300 dark:border-gray-600'
-                  ]">
-                    <Check v-if="isPresent(member.id || member.firestoreId)" class="h-4 w-4 text-white" />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {{ `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'Unknown' }}
-                    </p>
-                    <p v-if="member.nickname" class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      {{ member.nickname }}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
+            <span class="text-sm text-gray-900 dark:text-white truncate">
+              {{ `${member.firstName || ''} ${member.lastName || ''}`.trim() }}
+            </span>
+          </button>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
-        <div class="text-sm text-gray-600 dark:text-gray-400">
-          <span class="font-semibold text-gray-900 dark:text-white">{{ presentCount }}</span> of 
-          <span class="font-semibold text-gray-900 dark:text-white">{{ totalCount }}</span> members present
-        </div>
-        <div class="flex items-center gap-3">
-          <button
-            @click="handleCancel"
-            class="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            @click="handleSave"
-            :disabled="!isFormValid"
-            :class="[
-              'px-6 py-2 rounded-lg transition-colors flex items-center gap-2 font-medium',
-              isFormValid
-                ? 'bg-[#01779b] text-white hover:bg-[#015a77]'
-                : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-            ]"
-          >
-            <Save class="h-4 w-4" />
-            {{ isEdit ? 'Update Attendance' : 'Save Attendance' }}
-          </button>
-        </div>
+      <div class="flex-shrink-0 px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <span class="text-sm text-gray-500 dark:text-gray-400">
+          <span class="font-semibold text-gray-900 dark:text-white">{{ presentCount }}</span> / {{ totalCount }} present
+        </span>
+        <button
+          @click="handleSave"
+          :disabled="!isFormValid"
+          :class="[
+            'px-5 py-2 text-sm font-medium rounded-lg transition-colors',
+            isFormValid
+              ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white hover:bg-[#015a77] dark:hover:bg-[#1ca3b8]'
+              : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+          ]"
+        >
+          Save Attendance
+        </button>
       </div>
     </div>
   </Transition>

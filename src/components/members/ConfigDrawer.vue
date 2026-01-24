@@ -30,7 +30,7 @@ const toggleField = (field) => {
   <Transition name="drawer">
     <div
       v-if="showConfig && viewMode === 'detailed'"
-      class="config-drawer border-l-4 border-[#01779b] bg-blue-50/30 dark:bg-gray-900/80 max-w-xl w-[28rem] h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="config-drawer border-l-4 border-[#01779b] bg-blue-50/30 dark:bg-gray-900/80 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
     >
       <!-- Header -->
       <div class="flex-shrink-0 bg-blue-50/30 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">

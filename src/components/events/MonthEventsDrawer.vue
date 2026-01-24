@@ -116,7 +116,7 @@ const getIconComponent = (iconName) => {
   <Transition name="drawer">
     <div
       v-if="show"
-      class="month-events-drawer border-l-4 border-[#01779b] bg-gray-50 dark:bg-gray-900 max-w-xl w-[28rem] h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="month-events-drawer border-l-4 border-[#01779b] bg-gray-50 dark:bg-gray-900 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
     >
       <div class="flex-shrink-0 p-6 border-b border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between mb-4">

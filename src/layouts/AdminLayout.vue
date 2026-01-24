@@ -15,7 +15,7 @@ import BottomBar from '../components/BottomBar.vue'
       <Topbar />
 
       <!-- Main content -->
-      <main class="flex-1 overflow-hidden pb-16 lg:pb-0 bg-white">
+      <main class="flex-1 overflow-hidden pb-16 lg:pb-0 bg-white dark:bg-gray-900">
         <div class="h-full p-4 sm:p-6 lg:px-8 lg:py-3">
           <router-view />
         </div>

@@ -16,7 +16,7 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
     contactNumber: '',
     occupation: '',
     tags: [],
-    isMember: true,
+    isMember: false,
     familyRole: '',
     image: null, // Add image field
   });
@@ -106,7 +106,7 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
         contactNumber: '',
         occupation: '',
         tags: [],
-        isMember: true,
+        isMember: false,
         familyRole: '',
         image: null, // Reset image field
       };

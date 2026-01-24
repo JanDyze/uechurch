@@ -22,6 +22,10 @@ const props = defineProps({
     type: [String, Number],
     default: null,
   },
+  isDrawerOpen: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(["memberClick"]);
@@ -36,7 +40,10 @@ const emit = defineEmits(["memberClick"]);
     <!-- Grid Layout for Family Members -->
     <div
       v-if="layoutMode === 'grid'"
-      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"
+      :class="[
+        'grid gap-3',
+        isDrawerOpen ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
+      ]"
     >
       <div
         v-for="member in family.members"

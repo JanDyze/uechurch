@@ -62,7 +62,7 @@ const navigate = (path) => {
     <!-- Minimize Button -->
     <button
       @click="isMinimized = !isMinimized"
-      class="absolute right-0 top-8 z-50 w-8 h-8 rounded-full bg-white dark:bg-[#01779b] text-[#01779b] shadow-sm hover:bg-white/90 flex items-center justify-center  dark:border-gray-800"
+      class="absolute right-0 top-8 z-50 w-8 h-8 rounded-full bg-white dark:bg-gray-700 text-[#01779b] dark:text-[#22b8cf] shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center justify-center"
       :class="isHovered ? 'opacity-100' : 'opacity-0'"
       :style="`transform: translateX(50%); transition: opacity ${isHovered ? '0.3s' : '2s'} ease-in-out;`"
       aria-label="Toggle sidebar"
@@ -77,8 +77,8 @@ const navigate = (path) => {
         <div class="flex items-center gap-2 min-w-0">
           <img :src="logo" alt="UEC Logo" :class="['w-auto transition-all flex-shrink-0', isMinimized ? 'h-15' : 'h-15']" />
           <div v-if="!isMinimized" class="min-w-0 overflow-hidden">
-            <h2 class="text-lg font-bold text-[#01779b] dark:text-[#01779b] whitespace-nowrap">UEC Canubing II</h2>
-            <p class="text-xs text-[#01779b]/70 dark:text-[#01779b]/70 whitespace-nowrap">United Evangelical Church</p>
+            <h2 class="text-lg font-bold text-[#01779b] dark:text-[#22b8cf] whitespace-nowrap">UEC Canubing II</h2>
+            <p class="text-xs text-[#01779b]/70 dark:text-[#22b8cf]/70 whitespace-nowrap">United Evangelical Church</p>
           </div>
         </div>
       </div>
@@ -92,8 +92,8 @@ const navigate = (path) => {
           :class="[
             'group flex items-center p-2 text-base font-medium rounded-lg w-full transition-all relative',
             isActive(item.path)
-              ? 'active text-white dark:text-white font-semibold border-l-4 border-[#01779b]'
-              : 'text-[#01779b] dark:text-[#01779b] border-l-4 border-transparent hover:border-[#01779b]/50',
+              ? 'active text-white dark:text-white font-semibold border-l-4 border-[#01779b] dark:border-[#22b8cf]'
+              : 'text-[#01779b] dark:text-[#22b8cf] border-l-4 border-transparent hover:border-[#01779b]/50 dark:hover:border-[#22b8cf]/50',
             isMinimized ? 'justify-center' : ''
           ]"
           :title="isMinimized ? item.name : ''"
@@ -115,18 +115,24 @@ nav button.active {
   background-color: #01779b !important;
 }
 
+.dark nav button.active {
+  background-color: #22b8cf !important;
+}
+
 nav button.active:hover {
   background-color: rgba(1, 119, 155, 0.9) !important;
+}
+
+.dark nav button.active:hover {
+  background-color: rgba(34, 184, 207, 0.9) !important;
 }
 
 nav button:hover:not(.active) {
   background-color: rgba(1, 119, 155, 0.1) !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  nav button:hover:not(.active) {
-    background-color: rgba(1, 119, 155, 0.2) !important;
-  }
+.dark nav button:hover:not(.active) {
+  background-color: rgba(34, 184, 207, 0.15) !important;
 }
 </style>
 

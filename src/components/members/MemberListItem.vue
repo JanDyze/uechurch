@@ -27,7 +27,7 @@ const emit = defineEmits(["click"]);
   <div 
     @click="emit('click', member)"
     :class="[
-      'p-4 transition-all cursor-pointer border-l-4',
+      'p-4 transition-all cursor-pointer border-l-4 select-none',
       selected
         ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20 border-[#01779b] shadow-sm'
         : 'hover:bg-gray-50 dark:hover:bg-gray-700 border-transparent'

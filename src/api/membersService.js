@@ -22,7 +22,7 @@ const normalizeMember = (data, docId) => {
     lastName: data.lastName || '',
     nickname: data.nickname || '',
     sex: data.sex || 'Male',
-    dateOfBirth: data.dateOfBirth || undefined,
+    dateOfBirth: data.dateOfBirth || null,
     age: data.age || null,
     civilStatus: data.civilStatus || 'Single',
     address: data.address || '',
@@ -32,7 +32,7 @@ const normalizeMember = (data, docId) => {
     tags: Array.isArray(data.tags) ? data.tags : [],
     isMember: data.isMember !== undefined ? data.isMember : true,
     familyRole: data.familyRole || '',
-    image: data.image || undefined, // Include image field
+    image: data.image || null,
   };
 };
 
@@ -95,8 +95,11 @@ export const addMember = async (memberData) => {
 export const updateMember = async (firestoreId, memberData) => {
   try {
     const memberRef = doc(db, MEMBERS_COLLECTION, firestoreId);
-    // Remove firestoreId from data if present
-    const { firestoreId: _, ...dataToUpdate } = memberData;
+    // Remove firestoreId and filter out undefined values (Firebase doesn't accept undefined)
+    const { firestoreId: _, ...rest } = memberData;
+    const dataToUpdate = Object.fromEntries(
+      Object.entries(rest).filter(([, v]) => v !== undefined)
+    );
     await updateDoc(memberRef, dataToUpdate);
   } catch (error) {
     console.error("Error updating member:", error);

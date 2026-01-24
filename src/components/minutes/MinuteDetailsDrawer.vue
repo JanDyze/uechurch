@@ -100,7 +100,7 @@ const exportToText = () => {
   <Transition name="drawer">
     <div
       v-if="show && minute"
-      class="minute-details-drawer border-l-4 border-[#01779b] bg-gray-50 dark:bg-gray-900 max-w-4xl w-[42rem] h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="minute-details-drawer border-l-4 border-[#01779b] bg-gray-50 dark:bg-gray-900 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
     >
       <!-- Header -->
       <div class="flex-shrink-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">

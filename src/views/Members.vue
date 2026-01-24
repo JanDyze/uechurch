@@ -77,10 +77,11 @@ const showFilters = computed({
   set: (value) => {
     if (value) {
       showAddMember.value = false;
+      showDetails.value = false;
+      selectedMember.value = null;
       activeDrawer.value = 'filter';
     } else {
       activeDrawer.value = null;
-      showAddMember.value = false;
     }
   }
 });
@@ -89,13 +90,12 @@ const showConfig = computed({
   get: () => activeDrawer.value === 'config',
   set: (value) => {
     if (value) {
-      // Opening config drawer - close other drawers
       showAddMember.value = false;
+      showDetails.value = false;
+      selectedMember.value = null;
       activeDrawer.value = 'config';
     } else {
-      // Closing config drawer
       activeDrawer.value = null;
-      showAddMember.value = false;
     }
   }
 });
@@ -106,8 +106,10 @@ const showAddMemberComputed = computed({
   set: (value) => {
     if (value) {
       activeDrawer.value = null;
+      showDetails.value = false;
+      selectedMember.value = null;
       showAddMember.value = true;
-  } else {
+    } else {
       showAddMember.value = false;
     }
   }
@@ -214,6 +216,11 @@ const showDetailsComputed = computed({
 const selectedMemberId = computed(() => {
   return selectedMember.value?.id || selectedMember.value?.firestoreId || null;
 });
+
+// Check if any drawer is open
+const isDrawerOpen = computed(() => {
+  return showFilters.value || showConfig.value || showAddMember.value || showDetails.value;
+});
 </script>
 
 <template>
@@ -244,6 +251,7 @@ const selectedMemberId = computed(() => {
             :viewMode="viewMode"
             :visibleFields="visibleFields"
             :selectedMemberId="selectedMemberId"
+            :isDrawerOpen="isDrawerOpen"
             @memberClick="handleMemberClick"
           />
         <div v-if="familyGroups.length === 0" class="p-8 text-center text-gray-500 dark:text-gray-400">
@@ -252,7 +260,10 @@ const selectedMemberId = computed(() => {
       </div>
 
       <!-- Grid Layout -->
-        <div v-else-if="!groupByFamily && layoutMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-3">
+        <div v-else-if="!groupByFamily && layoutMode === 'grid'" :class="[
+          'grid gap-3 p-3',
+          isDrawerOpen ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
+        ]">
           <template v-if="loading">
             <MemberCardSkeleton
               v-for="i in 12"

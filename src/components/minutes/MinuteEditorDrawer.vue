@@ -170,7 +170,7 @@ watch(
   <Transition name="drawer">
     <div
       v-if="show"
-      class="minute-editor-drawer border-l-4 border-[#01779b] bg-green-50/20 dark:bg-gray-800 max-w-4xl w-[42rem] h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="minute-editor-drawer border-l-4 border-[#01779b] bg-green-50/20 dark:bg-gray-800 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
     >
       <!-- Header -->
       <div class="flex-shrink-0 bg-green-50/20 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">

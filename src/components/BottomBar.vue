@@ -36,7 +36,7 @@ const navigate = (path) => {
         :class="[
           'flex flex-col items-center justify-center flex-1 h-full transition-colors',
           isActive(item.path)
-            ? 'text-[#01779b] dark:text-[#01779b]'
+            ? 'text-[#01779b] dark:text-[#22b8cf]'
             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
         ]"
       >

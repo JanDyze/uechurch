@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
-import { Bell } from "lucide-vue-next";
+import { Bell, Sun, Moon } from "lucide-vue-next";
+import { useTheme } from "../composables/useTheme";
 import logo from "../assets/uec-logo.png";
 
 const route = useRoute();
+const { isDark, toggleTheme } = useTheme();
 const isMenuOpen = ref(false);
 
 const toggleMenu = () => {
@@ -31,16 +33,26 @@ const pageTitle = computed(() => {
       <div class="flex items-center justify-between h-16">
         <div class="flex items-center gap-3">
           <div>
-            <div class="text-xl font-bold text-[#01779b] dark:text-[#01779b]">
+            <div class="text-xl font-bold text-[#01779b] dark:text-[#22b8cf]">
               {{ pageTitle }}
             </div>
           </div>
         </div>
         <!-- Right: User menu and notifications -->
         <div class="flex items-center gap-2">
+          <!-- Theme Toggle -->
+          <button
+            @click="toggleTheme($event)"
+            class="p-2 rounded-full text-[#01779b] dark:text-[#22b8cf] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+          >
+            <Sun v-if="isDark" class="w-5 h-5" />
+            <Moon v-else class="w-5 h-5" />
+          </button>
+
           <!-- Notifications -->
           <button
-            class="p-2 rounded-full text-[#01779b] dark:text-[#01779b] hover:bg-gray-100 dark:hover:bg-gray-700 relative"
+            class="p-2 rounded-full text-[#01779b] dark:text-[#22b8cf] hover:bg-gray-100 dark:hover:bg-gray-700 relative"
           >
             <Bell class="w-6 h-6" />
             <span
