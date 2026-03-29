@@ -27,6 +27,12 @@ const routes = [
         component: () => import('../views/Events.vue')
       },
       {
+        path: 'gallery/:id?',
+        name: 'Gallery',
+        component: () => import('../views/Gallery.vue'),
+        props: true
+      },
+      {
         path: 'fb-test',
         name: 'FBTest',
         component: () => import('../views/FBTest.vue')

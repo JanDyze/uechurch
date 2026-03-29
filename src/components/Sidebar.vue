@@ -14,7 +14,8 @@ import {
   Facebook,
   FileText,
   ClipboardCheck,
-  Heart
+  Heart,
+  Image
 } from 'lucide-vue-next'
 import { ref } from 'vue'
 
@@ -30,6 +31,7 @@ const navigation = [
   { name: 'Minutes', path: '/minutes', icon: FileText },
   { name: 'Attendance', path: '/attendance', icon: ClipboardCheck },
   { name: 'Prayer Concerns', path: '/prayer-concerns', icon: Heart },
+  { name: 'Gallery', path: '/gallery', icon: Image },
   { name: 'FB Test', path: '/fb-test', icon: Facebook },
   { name: 'Sermons', path: '/sermons', icon: Music },
   { name: 'Finances', path: '/finances', icon: DollarSign },
@@ -52,8 +54,8 @@ const navigate = (path) => {
 <template>
   <aside 
     :class="[
-      'group hidden lg:flex lg:flex-col relative bg-[#bc1c09]/5 dark:bg-[#bc1c09]/10 border-r border-gray-200 dark:border-gray-700 transition-all duration-300',
-      isMinimized ? 'lg:w-20' : 'lg:w-64'
+      'group hidden lg:flex lg:flex-col relative bg-white dark:bg-slate-950 border-r border-gray-200 dark:border-slate-800 transition-all duration-300 shadow-xl dark:shadow-2xl z-50',
+      isMinimized ? 'lg:w-24' : 'lg:w-72'
     ]"
     style="overflow: visible;"
     @mouseenter="isHovered = true"
@@ -62,7 +64,7 @@ const navigate = (path) => {
     <!-- Minimize Button -->
     <button
       @click="isMinimized = !isMinimized"
-      class="absolute right-0 top-8 z-50 w-8 h-8 rounded-full bg-white dark:bg-gray-700 text-[#01779b] dark:text-[#22b8cf] shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center justify-center"
+      class="absolute right-0 top-8 z-50 w-8 h-8 rounded-full bg-white dark:bg-slate-800 text-[#01779b] dark:text-slate-300 shadow-md hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center border border-gray-200 dark:border-slate-700"
       :class="isHovered ? 'opacity-100' : 'opacity-0'"
       :style="`transform: translateX(50%); transition: opacity ${isHovered ? '0.3s' : '2s'} ease-in-out;`"
       aria-label="Toggle sidebar"
@@ -71,14 +73,14 @@ const navigate = (path) => {
       <ChevronRight v-else class="h-4 w-4" />
     </button>
 
-    <div class="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+    <div class="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto no-scrollbar">
       <!-- Logo/Branding -->
       <div class="flex items-center flex-shrink-0 px-2 mb-8 overflow-hidden">
         <div class="flex items-center gap-2 min-w-0">
-          <img :src="logo" alt="UEC Logo" :class="['w-auto transition-all flex-shrink-0', isMinimized ? 'h-15' : 'h-15']" />
+          <img :src="logo" alt="UEC Logo" :class="['w-auto transition-all flex-shrink-0 dark:brightness-0 dark:invert dark:opacity-90', isMinimized ? 'h-15' : 'h-15']" />
           <div v-if="!isMinimized" class="min-w-0 overflow-hidden">
-            <h2 class="text-lg font-bold text-[#01779b] dark:text-[#22b8cf] whitespace-nowrap">UEC Canubing II</h2>
-            <p class="text-xs text-[#01779b]/70 dark:text-[#22b8cf]/70 whitespace-nowrap">United Evangelical Church</p>
+            <h2 class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap tracking-tight">UEC Canubing II</h2>
+            <p class="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 whitespace-nowrap tracking-widest mt-0.5">United Evangelical Church</p>
           </div>
         </div>
       </div>
@@ -90,16 +92,16 @@ const navigate = (path) => {
           :key="item.name"
           @click="navigate(item.path)"
           :class="[
-            'group flex items-center p-2 text-base font-medium rounded-lg w-full transition-all relative',
+            'group flex items-center p-2.5 text-sm font-semibold rounded-xl w-full transition-all relative mt-1',
             isActive(item.path)
-              ? 'active text-white dark:text-white font-semibold border-l-4 border-[#01779b] dark:border-[#22b8cf]'
-              : 'text-[#01779b] dark:text-[#22b8cf] border-l-4 border-transparent hover:border-[#01779b]/50 dark:hover:border-[#22b8cf]/50',
+              ? 'active text-white shadow-lg shadow-[#01779b]/20 border-l-4 border-[#01779b] dark:border-[#22b8cf]'
+              : 'text-gray-500 dark:text-slate-400 hover:text-[#01779b] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border-l-4 border-transparent hover:border-gray-300 dark:hover:border-slate-700',
             isMinimized ? 'justify-center' : ''
           ]"
           :title="isMinimized ? item.name : ''"
         >
           <component :is="item.icon" :class="['flex-shrink-0 h-6 w-6', isMinimized ? '' : 'mr-3']" />
-          <span v-if="!isMinimized">{{ item.name }}</span>
+          <span v-if="!isMinimized" class="truncate whitespace-nowrap">{{ item.name }}</span>
         </button>
       </nav>
     </div>
@@ -116,23 +118,29 @@ nav button.active {
 }
 
 .dark nav button.active {
-  background-color: #22b8cf !important;
+  background-color: #01779b !important; /* Keep consistent or use #22b8cf if preferred */
 }
 
 nav button.active:hover {
-  background-color: rgba(1, 119, 155, 0.9) !important;
-}
-
-.dark nav button.active:hover {
-  background-color: rgba(34, 184, 207, 0.9) !important;
+  background-color: #015a77 !important;
 }
 
 nav button:hover:not(.active) {
-  background-color: rgba(1, 119, 155, 0.1) !important;
+  background-color: rgba(1, 119, 155, 0.05) !important;
 }
 
 .dark nav button:hover:not(.active) {
-  background-color: rgba(34, 184, 207, 0.15) !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 </style>
 
