@@ -111,23 +111,19 @@ export function useCalendar() {
 
   // Calendar navigation
   const navigateMonth = (direction) => {
-    const currentMonthYear = `${currentDate.value.getFullYear()}-${currentDate.value.getMonth()}`
-    const newDate = new Date(currentDate.value)
+    const year = currentDate.value.getFullYear()
+    const month = currentDate.value.getMonth()
     
+    let newDate
     if (direction === 'prev') {
-      newDate.setMonth(newDate.getMonth() - 1)
+      newDate = new Date(year, month - 1, 1)
     } else if (direction === 'next') {
-      newDate.setMonth(newDate.getMonth() + 1)
+      newDate = new Date(year, month + 1, 1)
     } else {
       return // Invalid direction
     }
     
-    const newMonthYear = `${newDate.getFullYear()}-${newDate.getMonth()}`
-    
-    // Only update if we're actually changing to a different month
-    if (currentMonthYear !== newMonthYear) {
-      currentDate.value = newDate
-    }
+    currentDate.value = newDate
   }
 
   // Handle wheel scroll for month navigation

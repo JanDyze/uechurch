@@ -64,8 +64,13 @@ const {
   getHolidayForDate,
   navigateMonth,
   handleCalendarWheel,
-  goToToday
+  goToToday: baseGoToToday
 } = useCalendar()
+
+const goToToday = () => {
+  baseGoToToday()
+  handleDayClick({ fullDate: new Date() })
+}
 
 // Event filters
 const {
@@ -458,9 +463,14 @@ const monthEvents = computed(() => {
     />
 
     <!-- Main Content -->
-    <div class="flex-1 overflow-hidden flex relative">
+    <div class="flex-1 overflow-hidden flex flex-col md:flex-row relative">
       <!-- Calendar View -->
-      <div class="flex-1 overflow-hidden transition-[flex-basis] duration-300 ease-out">
+      <div 
+        :class="[
+          'flex-1 overflow-hidden transition-all duration-300 ease-out',
+          (showDayEvents || showAddEvent || showEditEvent || showEventDetails || showMonthEvents) ? 'hidden md:block' : 'block'
+        ]"
+      >
         <CalendarView
           :current-date="currentDate"
           :current-month="currentMonth"
@@ -488,6 +498,7 @@ const monthEvents = computed(() => {
         @update:show="showDayEvents = $event"
         @event-click="openEventDetails"
         @add-event="handleAddEventFromDay"
+        @back="showDayEvents = false; showMonthEvents = true"
       />
 
       <!-- Month Events Drawer -->

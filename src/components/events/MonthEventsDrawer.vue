@@ -1,5 +1,5 @@
 <script setup>
-import { Clock, MapPin, Users, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Check } from 'lucide-vue-next'
+import { Clock, MapPin, Users, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Check, Filter } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { computed, ref } from 'vue'
@@ -51,6 +51,9 @@ const showTypeDropdown = ref(false)
 
 // Done section accordion state (collapsed by default)
 const showDoneEvents = ref(false)
+
+// Filter section visibility toggle
+const showFilters = ref(false)
 
 const toggleTypeFilter = (type) => {
   const currentFilters = [...props.eventTypeFilter]
@@ -175,7 +178,7 @@ const upcomingEvents = computed(() => {
 <template>
   <div
     v-if="show"
-    class="m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20"
+    class="m-2 md:m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20 transition-all duration-300"
   >
     <!-- Header -->
     <div class="shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-t-2xl border-b border-[#01779b]/20 dark:border-[#22b8cf]/20 px-5 py-4">
@@ -184,106 +187,124 @@ const upcomingEvents = computed(() => {
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ currentMonth }}</h2>
           <p class="text-sm text-[#01779b] dark:text-[#22b8cf] font-medium mt-0.5">Events</p>
         </div>
-        <button
-          @click="$emit('update:show', false)"
-          class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-        >
-          <X class="h-5 w-5" />
-        </button>
-      </div>
-
-      <!-- Filter and Sort Options -->
-      <div class="grid grid-cols-2 gap-3">
-        <!-- Event Type Filter (Multi-select dropdown) -->
-        <div class="relative">
-          <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Filter by Type
-          </label>
+        <div class="flex items-center gap-2">
           <button
-            @click="showTypeDropdown = !showTypeDropdown"
-            class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center justify-between"
+            @click="showFilters = !showFilters"
+            :class="[
+              'p-2 rounded-lg transition-colors',
+              showFilters 
+                ? 'bg-[#01779b] text-white' 
+                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            ]"
+            title="Toggle Filters"
           >
-            <span :class="eventTypeFilter.length === 0 ? 'text-gray-500' : ''">{{ filterButtonLabel }}</span>
-            <ChevronDown :class="['h-4 w-4 transition-transform', showTypeDropdown ? 'rotate-180' : '']" />
+            <Filter class="h-5 w-5" />
           </button>
-          
-          <!-- Dropdown Menu -->
-          <div
-            v-if="showTypeDropdown"
-            class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1 max-h-64 overflow-y-auto"
+          <button
+            @click="$emit('update:show', false)"
+            class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
-            <!-- Quick actions -->
-            <div class="flex items-center gap-1 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
-              <button
-                @click="selectAllTypes"
-                class="flex-1 text-xs px-2 py-1 rounded text-[#01779b] dark:text-[#22b8cf] hover:bg-[#01779b]/10 dark:hover:bg-[#22b8cf]/10 transition-colors"
-              >
-                Select All
-              </button>
-              <button
-                @click="clearTypeFilters"
-                class="flex-1 text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-            
-            <!-- Type options -->
-            <button
-              v-for="type in eventTypes"
-              :key="type"
-              @click="toggleTypeFilter(type)"
-              class="w-full px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
-            >
-              <div
-                :class="[
-                  'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
-                  eventTypeFilter.includes(type)
-                    ? 'bg-[#01779b] dark:bg-[#22b8cf] border-[#01779b] dark:border-[#22b8cf]'
-                    : 'border-gray-300 dark:border-gray-600'
-                ]"
-              >
-                <Check v-if="eventTypeFilter.includes(type)" class="h-3 w-3 text-white" />
-              </div>
-              <span class="text-gray-900 dark:text-white">{{ type.charAt(0).toUpperCase() + type.slice(1) }}</span>
-            </button>
-          </div>
-          
-          <!-- Click outside to close -->
-          <div
-            v-if="showTypeDropdown"
-            @click="showTypeDropdown = false"
-            class="fixed inset-0 z-40"
-          ></div>
-        </div>
-
-        <!-- Sort Options -->
-        <div>
-          <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Sort by
-          </label>
-          <div class="flex items-center gap-2">
-            <select
-              :value="sortBy"
-              @change="$emit('update:sortBy', $event.target.value)"
-              class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
-            >
-              <option value="date">Date</option>
-              <option value="time">Time</option>
-              <option value="title">Title</option>
-              <option value="type">Type</option>
-            </select>
-            <button
-              @click="$emit('update:sortOrder', sortOrder === 'asc' ? 'desc' : 'asc')"
-              class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
-              :title="sortOrder === 'asc' ? 'Ascending' : 'Descending'"
-            >
-              <ArrowUp v-if="sortOrder === 'asc'" class="h-4 w-4" />
-              <ArrowDown v-else class="h-4 w-4" />
-            </button>
-          </div>
+            <X class="h-5 w-5" />
+          </button>
         </div>
       </div>
+
+      <!-- Filter and Sort Options - Toggleable -->
+      <Transition name="expand">
+        <div v-if="showFilters">
+          <div class="grid grid-cols-2 gap-3 pb-2 pt-1 border-t border-[#01779b]/10 dark:border-[#22b8cf]/10 mt-1">
+            <!-- Event Type Filter (Multi-select dropdown) -->
+            <div class="relative">
+              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Filter by Type
+              </label>
+              <button
+                @click="showTypeDropdown = !showTypeDropdown"
+                class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center justify-between"
+              >
+                <span :class="eventTypeFilter.length === 0 ? 'text-gray-500' : ''">{{ filterButtonLabel }}</span>
+                <ChevronDown :class="['h-4 w-4 transition-transform', showTypeDropdown ? 'rotate-180' : '']" />
+              </button>
+              
+              <!-- Dropdown Menu -->
+              <div
+                v-if="showTypeDropdown"
+                class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1 max-h-64 overflow-y-auto"
+              >
+                <!-- Quick actions -->
+                <div class="flex items-center gap-1 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
+                  <button
+                    @click="selectAllTypes"
+                    class="flex-1 text-xs px-2 py-1 rounded text-[#01779b] dark:text-[#22b8cf] hover:bg-[#01779b]/10 dark:hover:bg-[#22b8cf]/10 transition-colors"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    @click="clearTypeFilters"
+                    class="flex-1 text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+                
+                <!-- Type options -->
+                <button
+                  v-for="type in eventTypes"
+                  :key="type"
+                  @click="toggleTypeFilter(type)"
+                  class="w-full px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
+                >
+                  <div
+                    :class="[
+                      'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
+                      eventTypeFilter.includes(type)
+                        ? 'bg-[#01779b] dark:bg-[#22b8cf] border-[#01779b] dark:border-[#22b8cf]'
+                        : 'border-gray-300 dark:border-gray-600'
+                    ]"
+                  >
+                    <Check v-if="eventTypeFilter.includes(type)" class="h-3 w-3 text-white" />
+                  </div>
+                  <span class="text-gray-900 dark:text-white">{{ type.charAt(0).toUpperCase() + type.slice(1) }}</span>
+                </button>
+              </div>
+              
+              <!-- Click outside to close -->
+              <div
+                v-if="showTypeDropdown"
+                @click="showTypeDropdown = false"
+                class="fixed inset-0 z-40"
+              ></div>
+            </div>
+
+            <!-- Sort Options -->
+            <div>
+              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Sort by
+              </label>
+              <div class="flex items-center gap-2">
+                <select
+                  :value="sortBy"
+                  @change="$emit('update:sortBy', $event.target.value)"
+                  class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                >
+                  <option value="date">Date</option>
+                  <option value="time">Time</option>
+                  <option value="title">Title</option>
+                  <option value="type">Type</option>
+                </select>
+                <button
+                  @click="$emit('update:sortOrder', sortOrder === 'asc' ? 'desc' : 'asc')"
+                  class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
+                  :title="sortOrder === 'asc' ? 'Ascending' : 'Descending'"
+                >
+                  <ArrowUp v-if="sortOrder === 'asc'" class="h-4 w-4" />
+                  <ArrowDown v-else class="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </div>
     
     <!-- Content -->
@@ -410,3 +431,23 @@ const upcomingEvents = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 200px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  transform: translateY(-10px);
+}
+</style>

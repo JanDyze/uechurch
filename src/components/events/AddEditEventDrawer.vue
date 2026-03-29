@@ -52,7 +52,7 @@ const isFormValid = computed(() => {
 <template>
   <div
     v-if="show"
-    class="m-3 rounded-2xl border-2 border-green-500/30 dark:border-green-400/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-green-500/25 dark:shadow-green-400/20"
+    class="m-2 md:m-3 rounded-2xl border-2 border-green-500/30 dark:border-green-400/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-green-500/25 dark:shadow-green-400/20 transition-all duration-300"
   >
     <!-- Header -->
     <div class="flex-shrink-0 bg-gradient-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-t-2xl border-b border-green-500/20 dark:border-green-400/20 px-5 py-4">

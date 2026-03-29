@@ -1,5 +1,5 @@
 <script setup>
-import { Clock, MapPin, X, Plus } from 'lucide-vue-next'
+import { Clock, MapPin, X, Plus, ArrowLeft } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 
@@ -26,7 +26,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:show', 'eventClick', 'addEvent'])
+const emit = defineEmits(['update:show', 'eventClick', 'addEvent', 'back'])
 
 const getEventTypeColor = (type) => {
   const colors = {
@@ -50,23 +50,30 @@ const getIconComponent = (iconName) => {
 <template>
   <div
     v-if="show"
-    class="m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20"
+    class="m-2 md:m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20 transition-all duration-300"
   >
     <!-- Header -->
     <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-t-2xl border-b border-[#01779b]/20 dark:border-[#22b8cf]/20 px-5 py-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ formattedSelectedDay }}</h2>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            {{ dayEvents.length }} event{{ dayEvents.length !== 1 ? 's' : '' }}
-          </p>
-        </div>
+      <div class="flex items-center justify-between mb-3 border-b border-[#01779b]/10 dark:border-[#22b8cf]/10 pb-3">
+        <button
+          @click="$emit('back')"
+          class="flex items-center gap-1.5 text-[#01779b] dark:text-[#22b8cf] hover:opacity-80 transition-opacity"
+        >
+          <ArrowLeft class="h-4 w-4" />
+          <span class="text-xs font-semibold uppercase tracking-wider">Month Events</span>
+        </button>
         <button
           @click="$emit('update:show', false)"
-          class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
-          <X class="h-5 w-5" />
+          <X class="h-4 w-4" />
         </button>
+      </div>
+      <div>
+        <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ formattedSelectedDay }}</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+          {{ dayEvents.length }} event{{ dayEvents.length !== 1 ? 's' : '' }}
+        </p>
       </div>
     </div>
     
