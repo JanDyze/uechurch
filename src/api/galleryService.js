@@ -167,3 +167,15 @@ export const deleteAlbum = async (albumId) => {
     throw error
   }
 }
+/**
+ * Delete a specific photo document
+ */
+export const deletePhoto = async (photoId) => {
+  try {
+    const photoRef = doc(db, PHOTOS_COLLECTION, photoId)
+    await deleteDoc(photoRef)
+  } catch (error) {
+    console.error('Error deleting photo:', error)
+    throw error
+  }
+}

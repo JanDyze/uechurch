@@ -5,17 +5,14 @@ import {
   Home,
   Users,
   Calendar,
-  Music,
   DollarSign,
-  Building2,
-  Settings,
   ChevronLeft,
   ChevronRight,
-  Facebook,
   FileText,
   ClipboardCheck,
   Heart,
-  Image
+  Image,
+  Link2
 } from 'lucide-vue-next'
 import { ref } from 'vue'
 
@@ -32,11 +29,8 @@ const navigation = [
   { name: 'Attendance', path: '/attendance', icon: ClipboardCheck },
   { name: 'Prayer Concerns', path: '/prayer-concerns', icon: Heart },
   { name: 'Gallery', path: '/gallery', icon: Image },
-  { name: 'FB Test', path: '/fb-test', icon: Facebook },
-  { name: 'Sermons', path: '/sermons', icon: Music },
+  { name: 'Links', path: '/links', icon: Link2 },
   { name: 'Finances', path: '/finances', icon: DollarSign },
-  { name: 'Ministries', path: '/ministries', icon: Building2 },
-  { name: 'Settings', path: '/settings', icon: Settings },
 ]
 
 const isActive = (path) => {

@@ -27,15 +27,15 @@ const routes = [
         component: () => import('../views/Events.vue')
       },
       {
-        path: 'gallery/:id?',
+        path: 'gallery/:id?/:view?/:photoId?',
         name: 'Gallery',
         component: () => import('../views/Gallery.vue'),
         props: true
       },
       {
-        path: 'fb-test',
-        name: 'FBTest',
-        component: () => import('../views/FBTest.vue')
+        path: 'links',
+        name: 'Links',
+        component: () => import('../views/Links.vue')
       },
       {
         path: 'minutes',
@@ -56,6 +56,16 @@ const routes = [
         path: 'prayer-concerns',
         name: 'PrayerConcerns',
         component: () => import('../views/PrayerConcerns.vue')
+      },
+      {
+        path: 'finances',
+        name: 'Finances',
+        component: () => import('../views/Finances.vue')
+      },
+      {
+        path: 'finances/audit',
+        name: 'FinanceAudit',
+        component: () => import('../views/FinanceAudit.vue')
       }
     ]
   }
@@ -67,4 +77,3 @@ const router = createRouter({
 })
 
 export default router
-
