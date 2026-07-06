@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useMembers } from "../composables/useMembers";
+import { useMediaQuery } from "../composables/useMediaQuery";
 import { useMemberFilters } from "../composables/useMemberFilters";
 import { useMemberSorting } from "../composables/useMemberSorting";
 import { useMemberForm } from "../composables/useMemberForm";
@@ -24,6 +25,7 @@ const toast = useToast();
 
 const router = useRouter();
 const route = useRoute();
+const isMobile = useMediaQuery("(max-width: 1023px)");
 
 const searchQuery = ref("");
 
@@ -384,9 +386,10 @@ const selectedMemberId = computed(() => {
   return selectedMember.value?.id || selectedMember.value?.firestoreId || null;
 });
 
-// Check if any drawer is open
+// Check if any side drawer is open (member details uses modal on mobile)
 const isDrawerOpen = computed(() => {
-  return showFilters.value || showConfig.value || showAddMemberComputed.value || showDetailsComputed.value;
+  const memberDetailsOpen = showDetailsComputed.value && !isMobile.value;
+  return showFilters.value || showConfig.value || showAddMemberComputed.value || memberDetailsOpen;
 });
 </script>
 
@@ -412,7 +415,9 @@ const isDrawerOpen = computed(() => {
       <!-- Grid Layout -->
         <div v-if="layoutMode === 'grid'" :class="[
           'grid gap-3 p-3',
-          isDrawerOpen ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
+          isMobile
+            ? 'grid-cols-2'
+            : (isDrawerOpen ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4')
         ]">
           <template v-if="loading">
             <MemberCardSkeleton

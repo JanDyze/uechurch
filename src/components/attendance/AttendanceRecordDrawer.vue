@@ -115,10 +115,10 @@ const handleCancel = () => {
   <Transition name="drawer">
     <div
       v-if="show"
-      class="attendance-record-drawer border-l-4 border-[#01779b] bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="attendance-record-drawer border-l-4 border-primary bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+      <div class="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Users class="h-5 w-5" />
           {{ isEdit ? 'Edit Attendance' : 'Record Attendance' }}
@@ -144,14 +144,14 @@ const handleCancel = () => {
               @input="emit('update:attendanceData', { ...formData, eventTitle: $event.target.value })"
               type="text"
               placeholder="Event or meeting name"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
           <!-- Date and Time -->
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 items-center gap-1">
                 <Calendar class="h-4 w-4" />
                 Date
               </label>
@@ -159,11 +159,11 @@ const handleCancel = () => {
                 :value="formData.date"
                 @input="emit('update:attendanceData', { ...formData, date: $event.target.value })"
                 type="date"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 items-center gap-1">
                 <Clock class="h-4 w-4" />
                 Time
               </label>
@@ -171,14 +171,14 @@ const handleCancel = () => {
                 :value="formData.time"
                 @input="emit('update:attendanceData', { ...formData, time: $event.target.value })"
                 type="time"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
           </div>
 
           <!-- Location -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 items-center gap-1">
               <MapPin class="h-4 w-4" />
               Location
             </label>
@@ -187,7 +187,7 @@ const handleCancel = () => {
               @input="emit('update:attendanceData', { ...formData, location: $event.target.value })"
               type="text"
               placeholder="Event location"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
@@ -201,7 +201,7 @@ const handleCancel = () => {
               @input="emit('update:attendanceData', { ...formData, notes: $event.target.value })"
               rows="2"
               placeholder="Additional notes..."
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent resize-none"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
             ></textarea>
           </div>
 
@@ -223,7 +223,7 @@ const handleCancel = () => {
                 v-model="searchQuery"
                 type="text"
                 placeholder="Search members..."
-                class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
 
@@ -238,13 +238,13 @@ const handleCancel = () => {
                 @click="toggleAttendee(member.id || member.firestoreId)"
                 :class="[
                   'w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0',
-                  isPresent(member.id || member.firestoreId) ? 'bg-[#01779b]/5 dark:bg-[#01779b]/10' : ''
+                  isPresent(member.id || member.firestoreId) ? 'bg-primary/5 dark:bg-primary/10' : ''
                 ]"
               >
                 <div :class="[
-                  'flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
+                  'shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
                   isPresent(member.id || member.firestoreId)
-                    ? 'bg-[#01779b] border-[#01779b]'
+                    ? 'bg-primary border-primary'
                     : 'border-gray-300 dark:border-gray-600'
                 ]">
                   <Check v-if="isPresent(member.id || member.firestoreId)" class="h-3 w-3 text-white" />
@@ -264,7 +264,7 @@ const handleCancel = () => {
       </div>
 
       <!-- Footer -->
-      <div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3">
+      <div class="shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3">
         <button
           @click="handleCancel"
           class="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -277,7 +277,7 @@ const handleCancel = () => {
           :class="[
             'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
             isFormValid
-              ? 'bg-[#01779b] text-white hover:bg-[#015a77]'
+              ? 'bg-primary text-white hover:bg-primary-hover'
               : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
           ]"
         >

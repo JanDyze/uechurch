@@ -53,7 +53,7 @@ const handleCancel = () => {
         @click.stop
       >
         <!-- Header -->
-        <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ title }}</h3>
           <button
             @click="handleCancel"
@@ -69,7 +69,7 @@ const handleCancel = () => {
         </div>
 
         <!-- Footer -->
-        <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+        <div class="shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
           <button
             v-if="cancelText"
             @click="handleCancel"

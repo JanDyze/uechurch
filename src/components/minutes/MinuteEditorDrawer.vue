@@ -170,10 +170,10 @@ watch(
   <Transition name="drawer">
     <div
       v-if="show"
-      class="minute-editor-drawer border-l-4 border-[#01779b] bg-green-50/20 dark:bg-gray-800 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="minute-editor-drawer border-l-4 border-primary bg-green-50/20 dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-green-50/20 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+      <div class="shrink-0 bg-green-50/20 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
           {{ isEdit ? 'Edit Minutes' : 'New Meeting Minutes' }}
         </h3>
@@ -198,7 +198,7 @@ watch(
               @input="$emit('update:minuteData', { ...minuteData, title: $event.target.value })"
               type="text"
               placeholder="e.g., Board Meeting, Committee Meeting"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
@@ -212,7 +212,7 @@ watch(
                 :value="minuteData.date"
                 @input="$emit('update:minuteData', { ...minuteData, date: $event.target.value })"
                 type="date"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
             <div>
@@ -223,7 +223,7 @@ watch(
                 :value="minuteData.startTime"
                 @input="$emit('update:minuteData', { ...minuteData, startTime: $event.target.value })"
                 type="time"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
             <div>
@@ -234,7 +234,7 @@ watch(
                 :value="minuteData.endTime"
                 @input="$emit('update:minuteData', { ...minuteData, endTime: $event.target.value })"
                 type="time"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
           </div>
@@ -249,7 +249,7 @@ watch(
               @input="$emit('update:minuteData', { ...minuteData, location: $event.target.value })"
               type="text"
               placeholder="Meeting location"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
@@ -262,12 +262,12 @@ watch(
               <span
                 v-for="attendeeId in minuteData.attendees || []"
                 :key="attendeeId"
-                class="inline-flex items-center gap-1 px-3 py-1 bg-[#01779b]/10 dark:bg-[#01779b]/20 text-[#01779b] rounded-full text-sm"
+                class="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 dark:bg-primary/20 text-primary rounded-full text-sm"
               >
                 {{ getMemberName(attendeeId) }}
                 <button
                   @click="toggleAttendee(attendeeId)"
-                  class="hover:text-[#015a77]"
+                  class="hover:text-primary-hover"
                 >
                   <X class="h-3 w-3" />
                 </button>
@@ -278,7 +278,7 @@ watch(
               <button
                 @click="toggleDropdown"
                 type="button"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent flex items-center justify-between"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent flex items-center justify-between"
               >
                 <span class="text-gray-500 dark:text-gray-400">Add attendee...</span>
                 <ChevronDown 
@@ -300,7 +300,7 @@ watch(
                         v-model="attendeeSearchQuery"
                         type="text"
                         placeholder="Search members..."
-                        class="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                        class="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
                         @click.stop
                         autofocus
                       />
@@ -345,7 +345,7 @@ watch(
                   :value="item"
                   @input="updateAgendaItem(index, $event.target.value)"
                   type="text"
-                  class="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                  class="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                   placeholder="Agenda item..."
                 />
                 <button
@@ -363,11 +363,11 @@ watch(
                 @keyup.enter="addAgendaItem"
                 type="text"
                 placeholder="Add agenda item..."
-                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               />
               <button
                 @click="addAgendaItem"
-                class="p-1.5 text-[#01779b] hover:text-[#015a77] hover:bg-[#01779b]/10 dark:hover:bg-[#01779b]/20 rounded transition-colors"
+                class="p-1.5 text-primary hover:text-primary-hover hover:bg-primary/10 dark:hover:bg-primary/20 rounded transition-colors"
                 title="Add agenda item"
               >
                 <Plus class="h-4 w-4" />
@@ -378,7 +378,7 @@ watch(
       </div>
 
       <!-- Footer -->
-      <div class="flex-shrink-0 bg-green-50/20 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+      <div class="shrink-0 bg-green-50/20 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
         <div class="flex justify-end gap-3">
           <div class="flex-1 relative group">
             <button
@@ -387,7 +387,7 @@ watch(
               :class="[
                 'w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2',
                 isFormValid
-                  ? 'text-white bg-[#01779b] dark:bg-[#01779b] hover:bg-[#015a77] dark:hover:bg-[#015a77] cursor-pointer'
+                  ? 'text-white bg-primary dark:bg-primary hover:bg-primary-hover dark:hover:bg-primary-hover cursor-pointer'
                   : 'text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 cursor-not-allowed opacity-50'
               ]"
             >

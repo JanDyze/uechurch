@@ -212,7 +212,7 @@ const formatDate = (dateStr) => {
 <template>
   <div class="h-full flex flex-col space-y-6 overflow-hidden">
     <!-- Header Section -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
       <div>
         <h1 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Financial Stewardship</h1>
         <p class="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-0.5">Tracking Resources for God's Kingdom</p>
@@ -222,7 +222,7 @@ const formatDate = (dateStr) => {
           <Download class="h-4 w-4" />
           <span class="text-xs font-bold uppercase tracking-wider hidden sm:inline">Export</span>
         </button>
-        <button @click="showAddModal = true" class="px-5 py-2.5 rounded-xl bg-[#01779b] text-white hover:bg-[#015a77] transition-all shadow-lg shadow-[#01779b]/20 flex items-center gap-2">
+        <button @click="showAddModal = true" class="px-5 py-2.5 rounded-xl bg-primary text-white hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 flex items-center gap-2">
           <Plus class="h-5 w-5" />
           <span class="text-xs font-black uppercase tracking-wider">New Transaction</span>
         </button>
@@ -230,9 +230,9 @@ const formatDate = (dateStr) => {
     </div>
 
     <!-- Metrics Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
       <!-- Balance Card -->
-      <div class="relative overflow-hidden bg-gradient-to-br from-[#01779b] to-[#22b8cf] rounded-[2rem] p-6 text-white shadow-xl">
+      <div class="relative overflow-hidden bg-linear-to-br from-primary to-primary-light rounded-4xl p-6 text-white shadow-xl">
         <div class="relative z-10">
           <div class="flex items-center justify-between mb-4">
             <div class="p-2 bg-white/20 backdrop-blur-md rounded-xl">
@@ -248,7 +248,7 @@ const formatDate = (dateStr) => {
       </div>
 
       <!-- Monthly Income -->
-      <div class="bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-gray-100 dark:border-slate-700 shadow-sm">
+      <div class="bg-white dark:bg-slate-800 rounded-4xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm">
         <div class="flex items-center justify-between mb-4">
           <div class="p-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl text-emerald-500">
             <ArrowUpRight class="h-5 w-5" />
@@ -260,7 +260,7 @@ const formatDate = (dateStr) => {
       </div>
 
       <!-- Monthly Expense -->
-      <div class="bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-gray-100 dark:border-slate-700 shadow-sm">
+      <div class="bg-white dark:bg-slate-800 rounded-4xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm">
         <div class="flex items-center justify-between mb-4">
           <div class="p-2 bg-rose-50 dark:bg-rose-500/10 rounded-xl text-rose-500">
             <ArrowDownRight class="h-5 w-5" />
@@ -272,7 +272,7 @@ const formatDate = (dateStr) => {
       </div>
 
       <!-- Active Entries -->
-      <div class="bg-white dark:bg-slate-800 rounded-[2rem] p-6 border border-gray-100 dark:border-slate-700 shadow-sm">
+      <div class="bg-white dark:bg-slate-800 rounded-4xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm">
         <div class="flex items-center justify-between mb-4">
           <div class="p-2 bg-amber-50 dark:bg-amber-500/10 rounded-xl text-amber-500">
             <Loader2 class="h-5 w-5" />
@@ -297,13 +297,13 @@ const formatDate = (dateStr) => {
               v-model="searchQuery"
               type="text" 
               placeholder="Search by description, payee, or category..." 
-              class="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800/50 border-none rounded-xl text-sm focus:ring-2 focus:ring-[#01779b] transition-all"
+              class="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800/50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary transition-all"
             />
           </div>
           <div class="flex items-center gap-2">
             <select 
               v-model="selectedType"
-              class="bg-gray-50 dark:bg-slate-800/50 border-none rounded-xl text-xs font-black uppercase tracking-wider px-4 py-2 focus:ring-2 focus:ring-[#01779b]"
+              class="bg-gray-50 dark:bg-slate-800/50 border-none rounded-xl text-xs font-black uppercase tracking-wider px-4 py-2 focus:ring-2 focus:ring-primary"
             >
               <option value="all">All Types</option>
               <option value="income">Income</option>
@@ -346,13 +346,13 @@ const formatDate = (dateStr) => {
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-3">
                     <div :class="[
-                      'p-2 rounded-xl flex-shrink-0',
+                      'p-2 rounded-xl shrink-0',
                       t.type === 'income' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500' : 'bg-rose-50 dark:bg-rose-500/10 text-rose-500'
                     ]">
                       <component :is="getCategoryIcon(t.category)" class="h-4 w-4" />
                     </div>
                     <div class="flex flex-col">
-                      <p class="text-sm font-bold text-gray-900 dark:text-white truncate max-w-[200px]">{{ t.description }}</p>
+                      <p class="text-sm font-bold text-gray-900 dark:text-white truncate max-w-50">{{ t.description }}</p>
                       <p class="text-[10px] text-gray-500 dark:text-slate-400 font-medium">From/To: {{ t.payerPayee || 'Internal' }}</p>
                     </div>
                   </div>
@@ -393,7 +393,7 @@ const formatDate = (dateStr) => {
         <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] p-6 shadow-sm">
           <div class="flex items-center justify-between mb-6">
             <h3 class="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Top Categories</h3>
-            <PieIcon class="h-4 w-4 text-[#01779b]" />
+            <PieIcon class="h-4 w-4 text-primary" />
           </div>
           
           <div class="space-y-4">
@@ -404,7 +404,7 @@ const formatDate = (dateStr) => {
               </div>
               <div class="h-2 w-full bg-gray-50 dark:bg-slate-800 rounded-full overflow-hidden">
                 <div 
-                  class="h-full bg-gradient-to-r from-[#01779b] to-[#22b8cf] rounded-full transition-all duration-1000"
+                  class="h-full bg-linear-to-r from-primary to-primary-light rounded-full transition-all duration-1000"
                   :style="{ width: `${(val / Math.max(...groupedByCategory.map(x => x[1]))) * 100}%` }"
                 ></div>
               </div>
@@ -428,7 +428,7 @@ const formatDate = (dateStr) => {
               <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </router-link>
           </div>
-          <div class="absolute -right-10 -top-10 w-40 h-40 bg-[#01779b]/10 rounded-full blur-3xl opacity-50"></div>
+          <div class="absolute -right-10 -top-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl opacity-50"></div>
         </div>
       </div>
     </div>
@@ -436,13 +436,13 @@ const formatDate = (dateStr) => {
     <!-- Modals -->
     <!-- Add Transaction Modal -->
     <Transition name="modal">
-      <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div v-if="showAddModal" class="fixed inset-0 z-100 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showAddModal = false"></div>
         <div class="relative bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-slate-800 overflow-hidden transform transition-all p-8">
           <div class="flex items-center justify-between mb-8">
             <div>
               <h3 class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Record stewardship</h3>
-              <p class="text-[10px] font-black text-[#01779b] dark:text-[#22b8cf] uppercase tracking-widest mt-1">Transaction Ledger Entry</p>
+              <p class="text-[10px] font-black text-primary dark:text-primary-light uppercase tracking-widest mt-1">Transaction Ledger Entry</p>
             </div>
             <button @click="showAddModal = false" class="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
               <MoreHorizontal class="h-6 w-6" />
@@ -470,29 +470,29 @@ const formatDate = (dateStr) => {
 
               <div class="space-y-2">
                 <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Date</label>
-                <input v-model="form.date" type="date" required class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-[#01779b]" />
+                <input v-model="form.date" type="date" required class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary" />
               </div>
 
               <div class="space-y-2">
                 <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Category</label>
-                <select v-model="form.category" class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-[#01779b]">
+                <select v-model="form.category" class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary">
                   <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
                 </select>
               </div>
 
               <div class="space-y-2">
                 <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Description</label>
-                <input v-model="form.description" type="text" required placeholder="e.g. Weekly Tithes" class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-[#01779b]" />
+                <input v-model="form.description" type="text" required placeholder="e.g. Weekly Tithes" class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary" />
               </div>
 
               <div class="space-y-2">
                 <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Amount (PHP)</label>
-                <input v-model="form.amount" type="number" step="0.01" required class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-[#01779b]" />
+                <input v-model="form.amount" type="number" step="0.01" required class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary" />
               </div>
 
               <div class="space-y-2 col-span-full">
                 <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Payer / Payee</label>
-                <input v-model="form.payerPayee" type="text" placeholder="Individual name or Company" class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-[#01779b]" />
+                <input v-model="form.payerPayee" type="text" placeholder="Individual name or Company" class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary" />
               </div>
             </div>
 
@@ -505,7 +505,7 @@ const formatDate = (dateStr) => {
               <button 
                 type="submit"
                 :disabled="isSubmitting"
-                class="flex-[2] py-4 bg-[#01779b] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[#01779b]/20 hover:bg-[#015a77] transition-all flex items-center justify-center gap-2"
+                class="flex-2 py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all flex items-center justify-center gap-2"
               >
                 <Loader2 v-if="isSubmitting" class="h-4 w-4 animate-spin" />
                 Confirm Record
@@ -518,10 +518,10 @@ const formatDate = (dateStr) => {
 
     <!-- Delete Confirm Modal -->
     <Transition name="modal">
-      <div v-if="showDeleteConfirm" class="fixed inset-0 z-[110] flex items-center justify-center p-4">
+      <div v-if="showDeleteConfirm" class="fixed inset-0 z-110 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showDeleteConfirm = false"></div>
         <div class="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8 text-center">
-          <div class="w-16 h-16 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6">
+          <div class="w-16 h-16 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
             <Trash2 class="h-8 w-8" />
           </div>
           <h3 class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">Void Transaction?</h3>

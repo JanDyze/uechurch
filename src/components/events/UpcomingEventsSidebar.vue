@@ -49,7 +49,7 @@ const getIconComponent = (iconName) => {
 
 <template>
   <div class="flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-    <div class="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
+    <div class="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Upcoming Events</h2>
       </div>
@@ -65,7 +65,7 @@ const getIconComponent = (iconName) => {
             :class="[
               'px-3 py-1 text-xs rounded-full transition-colors',
               upcomingDaysFilter === days
-                ? 'bg-[#01779b] text-white'
+                ? 'bg-primary text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
             ]"
           >
@@ -82,7 +82,7 @@ const getIconComponent = (iconName) => {
             :class="[
               'px-3 py-1 text-xs rounded-full transition-colors',
               eventTypeFilter === null
-                ? 'bg-[#01779b] text-white'
+                ? 'bg-primary text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
             ]"
           >
@@ -95,7 +95,7 @@ const getIconComponent = (iconName) => {
             :class="[
               'px-3 py-1 text-xs rounded-full transition-colors capitalize',
               eventTypeFilter === type
-                ? 'bg-[#01779b] text-white'
+                ? 'bg-primary text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
             ]"
           >
@@ -127,7 +127,7 @@ const getIconComponent = (iconName) => {
         <div class="flex items-start gap-3">
           <div
             :class="[
-              'w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0',
+              'w-12 h-12 rounded-lg flex items-center justify-center shrink-0',
               getEventTypeColor(event.type),
             ]"
           >

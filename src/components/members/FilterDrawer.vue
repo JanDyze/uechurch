@@ -117,14 +117,14 @@ const hasLocalActiveFilters = () => {
   <Transition name="drawer">
     <div
       v-if="showFilters"
-      class="filter-drawer m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20"
+      class="filter-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-t-2xl border-b border-[#01779b]/20 dark:border-[#22b8cf]/20 px-5 py-4">
+      <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-5 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div class="p-2 bg-[#01779b]/10 dark:bg-[#22b8cf]/10 rounded-lg">
-              <Filter class="h-5 w-5 text-[#01779b] dark:text-[#22b8cf]" />
+            <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
+              <Filter class="h-5 w-5 text-primary dark:text-primary-light" />
             </div>
             <div>
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Filters</h3>
@@ -171,7 +171,7 @@ const hasLocalActiveFilters = () => {
                 :class="[
                   'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-all',
                   localSortBy === option.value
-                    ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white shadow-sm'
+                    ? 'bg-primary dark:bg-primary-light text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 ]"
               >
@@ -184,7 +184,7 @@ const hasLocalActiveFilters = () => {
               @click="localSortOrder = localSortOrder === 'asc' ? 'desc' : 'asc'"
               class="flex items-center gap-1.5 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
-              <component :is="localSortOrder === 'asc' ? ArrowUp : ArrowDown" class="h-4 w-4 text-[#01779b] dark:text-[#22b8cf]" />
+              <component :is="localSortOrder === 'asc' ? ArrowUp : ArrowDown" class="h-4 w-4 text-primary dark:text-primary-light" />
               {{ localSortBy === 'age' || localSortBy === 'dateOfBirth' 
                 ? (localSortOrder === 'asc' ? 'Youngest' : 'Oldest') 
                 : (localSortOrder === 'asc' ? 'A→Z' : 'Z→A') }}
@@ -207,7 +207,7 @@ const hasLocalActiveFilters = () => {
               :class="[
                 'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-all',
                 localFilters.isMember === option.value
-                  ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white shadow-sm'
+                  ? 'bg-primary dark:bg-primary-light text-white shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               ]"
             >
@@ -235,7 +235,7 @@ const hasLocalActiveFilters = () => {
                 :class="[
                   'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-all',
                   localFilters.sex === option.value
-                    ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white shadow-sm'
+                    ? 'bg-primary dark:bg-primary-light text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 ]"
               >
@@ -260,7 +260,7 @@ const hasLocalActiveFilters = () => {
                 :class="[
                   'flex-1 px-2 py-2 text-sm font-medium rounded-md transition-all',
                   localFilters.civilStatus === option.value
-                    ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white shadow-sm'
+                    ? 'bg-primary dark:bg-primary-light text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 ]"
               >
@@ -289,7 +289,7 @@ const hasLocalActiveFilters = () => {
                 :class="[
                   'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-all',
                   localFilters.hasAddress === option.value
-                    ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white shadow-sm'
+                    ? 'bg-primary dark:bg-primary-light text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 ]"
               >
@@ -313,7 +313,7 @@ const hasLocalActiveFilters = () => {
                 :class="[
                   'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-all',
                   localFilters.hasOccupation === option.value
-                    ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white shadow-sm'
+                    ? 'bg-primary dark:bg-primary-light text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 ]"
               >
@@ -334,8 +334,8 @@ const hasLocalActiveFilters = () => {
               :class="[
                 'px-3 py-1.5 text-sm font-medium rounded-full transition-all border',
                 localFilters.tags.includes(tag)
-                  ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white border-transparent'
-                  : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-[#01779b] dark:hover:border-[#22b8cf]'
+                  ? 'bg-primary dark:bg-primary-light text-white border-transparent'
+                  : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-primary dark:hover:border-primary-light'
               ]"
             >
               {{ tag }}
@@ -345,7 +345,7 @@ const hasLocalActiveFilters = () => {
       </div>
 
       <!-- Footer -->
-      <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-b-2xl border-t border-[#01779b]/20 dark:border-[#22b8cf]/20 px-5 py-4">
+      <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-b-2xl border-t border-primary/20 dark:border-primary-light/20 px-5 py-4">
         <div class="flex gap-3">
           <button
             @click="$emit('update:showFilters', false)"
@@ -355,7 +355,7 @@ const hasLocalActiveFilters = () => {
           </button>
           <button
             @click="applyFilters"
-            class="flex-1 px-4 py-3 text-sm font-semibold text-white bg-[#01779b] dark:bg-[#22b8cf] rounded-xl hover:bg-[#015a77] dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-[#01779b]/25 dark:shadow-[#22b8cf]/25"
+            class="flex-1 px-4 py-3 text-sm font-semibold text-white bg-primary dark:bg-primary-light rounded-xl hover:bg-primary-hover dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-primary/25 dark:shadow-primary-light/25"
           >
             Apply Filters
           </button>

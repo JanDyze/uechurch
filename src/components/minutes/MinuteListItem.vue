@@ -36,13 +36,13 @@ const formatTime = (startTime, endTime) => {
     :class="[
       'p-4 transition-all cursor-pointer border-l-4',
       selected
-        ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20 border-[#01779b]'
+        ? 'bg-primary/10 dark:bg-primary/20 border-primary'
         : 'hover:bg-gray-50 dark:hover:bg-gray-700 border-transparent'
     ]"
   >
     <div class="flex items-center gap-4">
-      <div class="flex-shrink-0 h-12 w-12 rounded-lg bg-[#01779b]/10 dark:bg-[#01779b]/20 flex items-center justify-center">
-        <FileText class="h-6 w-6 text-[#01779b]" />
+      <div class="shrink-0 h-12 w-12 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+        <FileText class="h-6 w-6 text-primary" />
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-3 flex-wrap">

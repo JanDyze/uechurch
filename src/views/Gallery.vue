@@ -441,29 +441,29 @@ const formatDate = (dateStr) => {
     <input type="file" ref="fileInput" @change="handleFileUpload" accept="image/*" multiple class="hidden" />
 
     <!-- Action Bar -->
-    <div class="flex-shrink-0 flex items-center gap-3 bg-white dark:bg-gray-900 py-2 w-full px-1">
-      <button v-if="selectedEvent && !showDetails && route.params.id" @click="closeEvent" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-[#01779b] hover:bg-[#01779b]/10 transition-colors">
+    <div class="shrink-0 flex items-center gap-3 bg-white dark:bg-gray-900 py-2 w-full px-1">
+      <button v-if="selectedEvent && !showDetails && route.params.id" @click="closeEvent" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-primary hover:bg-primary/10 transition-colors">
         <ArrowLeft class="h-5 w-5" />
       </button>
 
       <div class="relative flex-1">
         <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-        <input v-model="searchQuery" type="text" :placeholder="selectedEvent ? 'Search in album...' : 'Search albums...'" class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent text-sm transition-all" />
+        <input v-model="searchQuery" type="text" :placeholder="selectedEvent ? 'Search in album...' : 'Search albums...'" class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all" />
       </div>
 
       <div class="flex items-center gap-2">
         <div v-if="!selectedEvent || (selectedEvent && !route.params.id)" class="relative">
-          <button @click="showFilterDropdown = !showFilterDropdown" :class="[ 'p-2 rounded-lg transition-colors border', selectedCategory !== 'All' ? 'bg-[#01779b] text-white border-transparent' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white border-transparent hover:bg-gray-200' ]" title="Filter by Category">
+          <button @click="showFilterDropdown = !showFilterDropdown" :class="[ 'p-2 rounded-lg transition-colors border', selectedCategory !== 'All' ? 'bg-primary text-white border-transparent' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white border-transparent hover:bg-gray-200' ]" title="Filter by Category">
             <ListFilter class="h-5 w-5" />
           </button>
           <Transition name="fade"><div v-if="showFilterDropdown" @click="showFilterDropdown = false" class="fixed inset-0 z-40"></div></Transition>
           <Transition name="fade">
             <div v-if="showFilterDropdown" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 py-2 overflow-hidden">
-              <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat; showFilterDropdown = false" :class="[ 'w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors', selectedCategory === cat ? 'text-[#01779b] bg-[#01779b]/5' : 'text-gray-500 dark:text-gray-400' ]">{{ cat }}</button>
+              <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat; showFilterDropdown = false" :class="[ 'w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors', selectedCategory === cat ? 'text-primary bg-primary/5' : 'text-gray-500 dark:text-gray-400' ]">{{ cat }}</button>
             </div>
           </Transition>
         </div>
-        <button v-if="selectedEvent && route.params.id" @click="triggerUpload" :class="[ 'p-2 rounded-lg transition-all bg-[#01779b] text-white hover:bg-[#015a77]', isUploading ? 'opacity-50 cursor-not-allowed' : '' ]" :disabled="isUploading"><Loader2 v-if="isUploading" class="h-5 w-5 animate-spin" /><Upload v-else class="h-5 w-5" /></button>
+        <button v-if="selectedEvent && route.params.id" @click="triggerUpload" :class="[ 'p-2 rounded-lg transition-all bg-primary text-white hover:bg-primary-hover', isUploading ? 'opacity-50 cursor-not-allowed' : '' ]" :disabled="isUploading"><Loader2 v-if="isUploading" class="h-5 w-5 animate-spin" /><Upload v-else class="h-5 w-5" /></button>
       </div>
     </div>
 
@@ -475,7 +475,7 @@ const formatDate = (dateStr) => {
         <Transition name="fade">
           <div v-if="isUploading" class="sticky top-0 z-50 flex items-center justify-center p-4">
              <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-full px-6 py-3 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
-               <Loader2 class="h-4 w-4 animate-spin text-[#01779b]" /><span class="text-[11px] font-black uppercase tracking-widest text-gray-900 dark:text-white">{{ uploadProgress || 'Processing...' }}</span>
+               <Loader2 class="h-4 w-4 animate-spin text-primary" /><span class="text-[11px] font-black uppercase tracking-widest text-gray-900 dark:text-white">{{ uploadProgress || 'Processing...' }}</span>
              </div>
           </div>
         </Transition>
@@ -484,7 +484,7 @@ const formatDate = (dateStr) => {
         <div v-if="isLoading && !route.params.id" class="space-y-10">
           <div v-for="i in 2" :key="i" class="space-y-6">
             <div class="flex items-center gap-4 py-2 animate-pulse"><div class="w-32 h-6 bg-gray-200 dark:bg-gray-800 rounded-lg"></div><div class="flex-1 h-px bg-gray-100 dark:bg-gray-800"></div></div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6"><div v-for="j in 5" :key="j" class="bg-white dark:bg-gray-800 rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-700 animate-pulse"><div class="aspect-[4/3] bg-gray-100 dark:bg-gray-900"></div><div class="p-5 space-y-3"><div class="w-12 h-2 bg-gray-100 dark:bg-gray-800 rounded"></div><div class="w-full h-4 bg-gray-100 dark:bg-gray-800 rounded"></div></div></div></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6"><div v-for="j in 5" :key="j" class="bg-white dark:bg-gray-800 rounded-4xl overflow-hidden border border-gray-100 dark:border-gray-700 animate-pulse"><div class="aspect-4/3 bg-gray-100 dark:bg-gray-900"></div><div class="p-5 space-y-3"><div class="w-12 h-2 bg-gray-100 dark:bg-gray-800 rounded"></div><div class="w-full h-4 bg-gray-100 dark:bg-gray-800 rounded"></div></div></div></div>
           </div>
         </div>
 
@@ -508,7 +508,7 @@ const formatDate = (dateStr) => {
                 @contextmenu.prevent="openAlbumContext(album, $event)"
                 class="group relative bg-white dark:bg-gray-800 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700 transition-all cursor-pointer aspect-square"
                 :class="{ 
-                  'border-[#01779b] ring-2 ring-[#01779b]/10 bg-gray-50 dark:bg-gray-700/30': selectedEvent?.id === album.id && showDetails,
+                  'border-primary ring-2 ring-primary/10 bg-gray-50 dark:bg-gray-700/30': selectedEvent?.id === album.id && showDetails,
                   'opacity-80 scale-[0.98]': contextMenu.show && contextMenu.album?.id === album.id
                 }"
               >
@@ -517,21 +517,21 @@ const formatDate = (dateStr) => {
                   <img :src="album.coverUrl || churchCover" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   
                   <!-- Gradient Overlay -->
-                  <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent"></div>
+                  <div class="absolute inset-0 bg-linear-to-t from-black via-black/30 to-transparent"></div>
                   
                   <div v-if="!album.existsInGallery" class="absolute top-4 left-4">
-                    <p class="text-[8px] text-[#01779b] dark:text-[#22b8cf] font-black uppercase tracking-widest bg-white/90 dark:bg-black/40 px-3 py-1.5 rounded-full border border-white/20 shadow-sm backdrop-blur-sm">No photos yet</p>
+                    <p class="text-[8px] text-primary dark:text-primary-light font-black uppercase tracking-widest bg-white/90 dark:bg-black/40 px-3 py-1.5 rounded-full border border-white/20 shadow-sm backdrop-blur-sm">No photos yet</p>
                   </div>
                 </div>
 
                 <!-- Text Container (Overlayed) -->
-                <div class="absolute bottom-0 inset-x-0 p-5 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/40 to-transparent h-1/2">
+                <div class="absolute bottom-0 inset-x-0 p-5 flex flex-col justify-end bg-linear-to-t from-black/90 via-black/40 to-transparent h-1/2">
                    <div class="flex items-center justify-between mb-1 text-[8px] font-black uppercase tracking-[0.2em] text-white/70">
-                    <span class="truncate truncate max-w-[120px]">{{ album.category }}</span>
+                    <span class="truncate max-w-30">{{ album.category }}</span>
                     <span>{{ formatDate(album.date).split(',')[1] }}</span>
                   </div>
-                  <h3 class="text-sm font-bold text-white group-hover:text-[#22b8cf] transition-colors line-clamp-2 leading-snug tracking-tight mb-1">{{ album.title }}</h3>
-                  <div class="w-8 h-1 bg-[#01779b] rounded-full group-hover:w-full transition-all duration-500"></div>
+                  <h3 class="text-sm font-bold text-white group-hover:text-primary-light transition-colors line-clamp-2 leading-snug tracking-tight mb-1">{{ album.title }}</h3>
+                  <div class="w-8 h-1 bg-primary rounded-full group-hover:w-full transition-all duration-500"></div>
                 </div>
               </div>
             </div>
@@ -546,7 +546,7 @@ const formatDate = (dateStr) => {
           <div v-else-if="albumPhotos.length === 0" class="flex flex-col items-center justify-center py-24 text-gray-500">
             <ImageIcon class="h-16 w-16 mb-4 opacity-10" /><h3 class="text-lg font-bold">This album is empty</h3>
             <p class="text-[11px] mt-1 max-w-xs text-center font-black uppercase tracking-widest opacity-40">Add photos to this album.</p>
-            <button @click="triggerUpload" :disabled="isUploading" class="mt-8 px-8 py-3 bg-[#01779b] text-white rounded-xl flex items-center gap-2 font-black uppercase tracking-widest text-[10px] transition-all"><Upload class="h-4 w-4" /><span>Add Photo</span></button>
+            <button @click="triggerUpload" :disabled="isUploading" class="mt-8 px-8 py-3 bg-primary text-white rounded-xl flex items-center gap-2 font-black uppercase tracking-widest text-[10px] transition-all"><Upload class="h-4 w-4" /><span>Add Photo</span></button>
           </div>
           <div v-else class="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 space-y-3">
             <div v-for="photo in albumPhotos" :key="photo.id" 
@@ -556,7 +556,7 @@ const formatDate = (dateStr) => {
               :class="{ 'opacity-80 scale-[0.98]': contextMenu.show && contextMenu.photo?.id === photo.id }"
             >
               <img :src="photo.url" class="w-full h-auto transition-transform duration-500 group-hover:scale-105" />
-              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4"><p class="text-white text-[10px] font-black tracking-widest uppercase">Photo View</p></div>
+              <div class="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4"><p class="text-white text-[10px] font-black tracking-widest uppercase">Photo View</p></div>
             </div>
           </div>
         </template>
@@ -565,15 +565,15 @@ const formatDate = (dateStr) => {
       <!-- Panel Flow Sibling -->
       <Transition name="panel">
         <div v-if="showDetails && selectedEvent" 
-          class="member-details-drawer m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(40%-1rem)] h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20 relative overflow-hidden"
+          class="member-details-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(40%-1rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 relative overflow-hidden"
         >
           <!-- Header -->
-          <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent border-b border-[#01779b]/20 dark:border-[#22b8cf]/20 px-6 py-4 flex items-center justify-between">
+          <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-b border-primary/20 dark:border-primary-light/20 px-6 py-4 flex items-center justify-between">
             <div>
               <h3 class="text-md font-bold text-gray-900 dark:text-white uppercase tracking-tight">Album Details</h3>
               <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 font-black uppercase tracking-widest">{{ selectedEvent.category }} Archive</p>
             </div>
-            <button @click="showDetails = false" class="p-2 rounded-lg text-gray-400 hover:text-[#01779b] dark:hover:text-[#22b8cf] hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
+            <button @click="showDetails = false" class="p-2 rounded-lg text-gray-400 hover:text-primary dark:hover:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
               <X class="h-5 w-5 transition-transform group-hover:rotate-90" />
             </button>
           </div>
@@ -588,20 +588,20 @@ const formatDate = (dateStr) => {
               <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4 space-y-4 border border-gray-100 dark:border-gray-800">
                 <div class="grid grid-cols-2 gap-4">
                   <div class="space-y-1">
-                    <p class="text-[8px] font-black uppercase tracking-widest text-[#01779b]/60">Date Taken</p>
+                    <p class="text-[8px] font-black uppercase tracking-widest text-primary/60">Date Taken</p>
                     <p class="text-xs font-bold text-gray-900 dark:text-white leading-tight">{{ formatDate(selectedEvent.date) }}</p>
                   </div>
                   <div class="space-y-1">
-                    <p class="text-[8px] font-black uppercase tracking-widest text-[#01779b]/60">Location</p>
+                    <p class="text-[8px] font-black uppercase tracking-widest text-primary/60">Location</p>
                     <p class="text-xs font-bold text-gray-900 dark:text-white leading-tight truncate">{{ selectedEvent.location || 'N/A' }}</p>
                   </div>
                 </div>
                 <div class="pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <p class="text-[8px] font-black uppercase tracking-widest text-[#01779b]/60 mb-1">Title</p>
+                    <p class="text-[8px] font-black uppercase tracking-widest text-primary/60 mb-1">Title</p>
                     <h2 class="text-md font-black text-gray-900 dark:text-white leading-snug">{{ selectedEvent.title }}</h2>
                 </div>
                 <div v-if="selectedEvent.description" class="pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <p class="text-[8px] font-black uppercase tracking-widest text-[#01779b]/60 mb-1">Description</p>
+                    <p class="text-[8px] font-black uppercase tracking-widest text-primary/60 mb-1">Description</p>
                     <p class="text-[11px] text-gray-500 dark:text-gray-400 font-medium leading-relaxed">{{ selectedEvent.description }}</p>
                 </div>
               </div>
@@ -613,16 +613,16 @@ const formatDate = (dateStr) => {
                 <Grid class="h-3.5 w-3.5" /> Photos
               </h4>
                <div v-if="isPhotosLoading" class="grid grid-cols-3 gap-2"><div v-for="i in 6" :key="i" class="aspect-square bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div></div>
-               <div v-else-if="albumPhotos.length" class="grid grid-cols-3 gap-2"><div v-for="photo in albumPhotos.slice(0, 9)" :key="photo.id" @click="openImage(photo)" class="aspect-square rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-white shadow-sm hover:shadow-md transition-shadow cursor-zoom-in"><img :src="photo.url" class="w-full h-full object-cover" /></div><div v-if="albumPhotos.length > 9" class="aspect-square rounded-xl bg-[#01779b]/5 border border-dashed border-[#01779b]/20 flex items-center justify-center"><p class="text-sm font-black text-[#01779b]">+{{ albumPhotos.length - 9 }}</p></div></div>
+               <div v-else-if="albumPhotos.length" class="grid grid-cols-3 gap-2"><div v-for="photo in albumPhotos.slice(0, 9)" :key="photo.id" @click="openImage(photo)" class="aspect-square rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-white shadow-sm hover:shadow-md transition-shadow cursor-zoom-in"><img :src="photo.url" class="w-full h-full object-cover" /></div><div v-if="albumPhotos.length > 9" class="aspect-square rounded-xl bg-primary/5 border border-dashed border-primary/20 flex items-center justify-center"><p class="text-sm font-black text-primary">+{{ albumPhotos.length - 9 }}</p></div></div>
                <div v-else class="py-12 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-3xl flex flex-col items-center justify-center text-gray-300"><ImageIcon class="h-8 w-8 mb-3 opacity-20" /><p class="text-[8px] font-black uppercase tracking-widest opacity-40">No photos</p></div>
             </section>
           </div>
 
           <!-- Panel Footer Actions -->
-          <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent border-t border-[#01779b]/20 dark:border-[#22b8cf]/20 px-6 py-4">
+          <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-t border-primary/20 dark:border-primary-light/20 px-6 py-4">
             <div class="flex items-center gap-2 relative">
                <!-- Major: Enter -->
-              <button @click="enterAlbum" class="flex-1 py-3 bg-[#01779b] text-white rounded-xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-[#01779b]/20 hover:bg-[#015a77] hover:shadow-xl transition-all flex items-center justify-center gap-2 group">
+              <button @click="enterAlbum" class="flex-1 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 hover:bg-primary-hover hover:shadow-xl transition-all flex items-center justify-center gap-2 group">
                 Enter Album <ChevronRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
 
@@ -633,7 +633,7 @@ const formatDate = (dateStr) => {
                 </button>
 
                 <Transition name="fade">
-                  <div v-if="showAlbumActions" class="absolute bottom-full right-0 mb-3 w-48 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden py-1.5 z-[120]">
+                  <div v-if="showAlbumActions" class="absolute bottom-full right-0 mb-3 w-48 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden py-1.5 z-120">
                     <button 
                       @click="showAlbumDeleteModal = true; showAlbumActions = false" 
                       class="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-[10px] font-black uppercase tracking-widest text-red-500"
@@ -643,7 +643,7 @@ const formatDate = (dateStr) => {
                     </button>
                   </div>
                 </Transition>
-                <div v-if="showAlbumActions" @click="showAlbumActions = false" class="fixed inset-0 z-[115]"></div>
+                <div v-if="showAlbumActions" @click="showAlbumActions = false" class="fixed inset-0 z-115"></div>
               </div>
             </div>
           </div>
@@ -654,7 +654,7 @@ const formatDate = (dateStr) => {
     <!-- Context Menu Portal -->
     <Transition name="fade">
       <div v-if="contextMenu.show" 
-        class="fixed z-[500] w-56 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl py-2 overflow-hidden animate-in fade-in zoom-in duration-200"
+        class="fixed z-500 w-56 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl py-2 overflow-hidden animate-in fade-in zoom-in duration-200"
         :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
         @click.stop
       >
@@ -664,11 +664,11 @@ const formatDate = (dateStr) => {
             <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Album Actions</p>
             <p class="text-[11px] font-bold text-gray-900 dark:text-white truncate">{{ contextMenu.album.title }}</p>
           </div>
-          <button @click="openEvent(contextMenu.album); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[#01779b]/10 dark:hover:bg-[#22b8cf]/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
-            <Info class="h-3.5 w-3.5 text-[#01779b]" /> <span>View Details</span>
+          <button @click="openEvent(contextMenu.album); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 dark:hover:bg-primary-light/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
+            <Info class="h-3.5 w-3.5 text-primary" /> <span>View Details</span>
           </button>
-          <button @click="selectedEvent = contextMenu.album; enterAlbum(); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[#01779b]/10 dark:hover:bg-[#22b8cf]/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
-            <LogIn class="h-3.5 w-3.5 text-[#01779b]" /> <span>Enter Album</span>
+          <button @click="selectedEvent = contextMenu.album; enterAlbum(); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 dark:hover:bg-primary-light/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
+            <LogIn class="h-3.5 w-3.5 text-primary" /> <span>Enter Album</span>
           </button>
           <template v-if="contextMenu.album.existsInGallery">
             <div class="h-px bg-gray-100 dark:bg-gray-800 my-1"></div>
@@ -684,17 +684,17 @@ const formatDate = (dateStr) => {
             <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Photo Actions</p>
             <p class="text-[11px] font-bold text-gray-900 dark:text-white">Quick Access</p>
           </div>
-          <button @click="openImage(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[#01779b]/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
-            <Maximize2 class="h-3.5 w-3.5 text-[#01779b]" /> <span>Expand View</span>
+          <button @click="openImage(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
+            <Maximize2 class="h-3.5 w-3.5 text-primary" /> <span>Expand View</span>
           </button>
-          <button @click="handleSharePhoto(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[#01779b]/10 text-[10px] font-black uppercase tracking-widest text-[#01779b] transition-colors">
+          <button @click="handleSharePhoto(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest text-primary transition-colors">
             <Share2 class="h-3.5 w-3.5" /> <span>Copy Link</span>
           </button>
-          <button @click="downloadPhoto(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[#01779b]/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
+          <button @click="downloadPhoto(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
             <DownloadIcon class="h-3.5 w-3.5" /> <span>Download JPEG</span>
           </button>
           <div class="h-px bg-gray-100 dark:bg-gray-800 my-1"></div>
-          <button @click="updateCover(null, contextMenu.photo.url); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-[#01779b]/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
+          <button @click="updateCover(null, contextMenu.photo.url); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
             <Check class="h-3.5 w-3.5 text-green-500" /> <span>Set as Cover</span>
           </button>
           <button @click="handleDeletePhoto(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-red-500/10 text-[10px] font-black uppercase tracking-widest text-red-500 transition-colors">
@@ -706,17 +706,17 @@ const formatDate = (dateStr) => {
 
     <!-- Lightbox -->
     <Transition name="modal">
-      <div v-if="selectedImage" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 md:p-10" @click="closeImage">
+      <div v-if="selectedImage" class="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 md:p-10" @click="closeImage">
         
         <!-- Navigation Arrows -->
-        <button @click="nextImage" class="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 z-[110] p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md group">
+        <button @click="nextImage" class="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 z-110 p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md group">
           <ChevronRight class="h-8 w-8 transition-transform group-hover:translate-x-1" />
         </button>
-        <button @click="prevImage" class="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 z-[110] p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md group">
+        <button @click="prevImage" class="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 z-110 p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md group">
           <ChevronLeft class="h-8 w-8 transition-transform group-hover:-translate-x-1" />
         </button>
 
-        <button @click="closeImage" class="absolute top-6 right-6 p-4 text-white/50 hover:text-white transition-colors z-[110]"><X class="h-8 w-8" /></button>
+        <button @click="closeImage" class="absolute top-6 right-6 p-4 text-white/50 hover:text-white transition-colors z-110"><X class="h-8 w-8" /></button>
         
         <div class="max-w-7xl w-full h-full flex flex-col md:flex-row items-center gap-8 relative" @click.stop>
           <div class="flex-1 h-full flex items-center justify-center relative">
@@ -724,12 +724,12 @@ const formatDate = (dateStr) => {
               <img :key="selectedImage.url" :src="selectedImage.url" class="max-h-full max-w-full rounded-xl object-contain shadow-2xl border border-white/5" />
             </Transition>
           </div>
-          <div class="w-full md:w-80 flex-shrink-0 text-white space-y-6">
-            <div><span class="px-3 py-1 rounded-full bg-[#01779b]/20 border border-[#01779b]/50 text-[#22b8cf] text-[10px] font-black uppercase tracking-wider mb-3 block w-fit">{{ selectedImage.category }}</span><h2 class="text-2xl font-black leading-tight">{{ selectedEvent.title }}</h2></div>
+          <div class="w-full md:w-80 shrink-0 text-white space-y-6">
+            <div><span class="px-3 py-1 rounded-full bg-primary/20 border border-primary/50 text-primary-light text-[10px] font-black uppercase tracking-wider mb-3 block w-fit">{{ selectedImage.category }}</span><h2 class="text-2xl font-black leading-tight">{{ selectedEvent.title }}</h2></div>
             <p class="text-white/70 leading-relaxed text-[11px] font-medium opacity-60">{{ selectedImage.description || 'Photo view.' }}</p>
             <div class="space-y-4 pt-4 border-t border-white/10 text-[10px] tracking-widest font-black uppercase">
-              <div class="flex items-center gap-3"><Calendar class="h-3.5 w-3.5 text-[#22b8cf]" /><span>{{ selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString(undefined, { dateStyle: 'full' }) : 'No date' }}</span></div>
-              <div class="flex items-center gap-3"><MapPin class="h-3.5 w-3.5 text-[#22b8cf]" /><span>{{ selectedEvent.location || 'Church Campus' }}</span></div>
+              <div class="flex items-center gap-3"><Calendar class="h-3.5 w-3.5 text-primary-light" /><span>{{ selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString(undefined, { dateStyle: 'full' }) : 'No date' }}</span></div>
+              <div class="flex items-center gap-3"><MapPin class="h-3.5 w-3.5 text-primary-light" /><span>{{ selectedEvent.location || 'Church Campus' }}</span></div>
             </div>
             
             <!-- Minimal Action Row -->
@@ -751,7 +751,7 @@ const formatDate = (dateStr) => {
                 
                 <!-- More Actions Menu -->
                 <Transition name="fade">
-                  <div v-if="showMoreActions" class="absolute bottom-full right-0 mb-3 w-48 bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1.5 z-[120]">
+                  <div v-if="showMoreActions" class="absolute bottom-full right-0 mb-3 w-48 bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1.5 z-120">
                     <button 
                       @click="updateCover()" 
                       :disabled="isSettingCover || selectedEvent.coverUrl === selectedImage.url"
@@ -770,7 +770,7 @@ const formatDate = (dateStr) => {
                     </button>
                   </div>
                 </Transition>
-                <div v-if="showMoreActions" @click="showMoreActions = false" class="fixed inset-0 z-[115]"></div>
+                <div v-if="showMoreActions" @click="showMoreActions = false" class="fixed inset-0 z-115"></div>
               </div>
             </div>
           </div>
@@ -780,7 +780,7 @@ const formatDate = (dateStr) => {
 
     <!-- Custom Delete Modal -->
     <Transition name="modal">
-      <div v-if="showDeleteModal || showAlbumDeleteModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click="cancelDelete">
+      <div v-if="showDeleteModal || showAlbumDeleteModal" class="fixed inset-0 z-200 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click="cancelDelete">
         <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden transform transition-all" @click.stop>
           <div class="p-8 text-center">
             <div class="mx-auto w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mb-6">

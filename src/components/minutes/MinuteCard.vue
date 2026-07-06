@@ -51,7 +51,7 @@ const formatDate = (dateString) => {
           </span>
         </div>
         <div v-if="minute.actionItems && minute.actionItems.length > 0" class="mt-2">
-          <span class="text-xs text-[#01779b] font-medium">
+          <span class="text-xs text-primary font-medium">
             {{ minute.actionItems.length }} action item{{ minute.actionItems.length !== 1 ? 's' : '' }}
           </span>
         </div>

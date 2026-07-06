@@ -46,10 +46,10 @@ const emit = defineEmits([
   <Transition name="drawer">
     <div
       v-if="showFilters"
-      class="filter-drawer border-l-4 border-[#01779b] bg-gray-50 dark:bg-gray-900 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="filter-drawer border-l-4 border-primary bg-gray-50 dark:bg-gray-900 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+      <div class="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Filter class="h-5 w-5" />
           Filters
@@ -69,7 +69,7 @@ const emit = defineEmits([
           <div v-if="hasActiveFilters" class="flex justify-end">
             <button
               @click="$emit('clearFilters')"
-              class="text-sm text-[#01779b] hover:text-[#015a77] flex items-center gap-1"
+              class="text-sm text-primary hover:text-primary-hover flex items-center gap-1"
             >
               <X class="h-4 w-4" />
               Clear all filters
@@ -78,7 +78,7 @@ const emit = defineEmits([
 
           <!-- Date Filter -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 items-center gap-2">
               <Calendar class="h-4 w-4" />
               Date
             </label>
@@ -86,7 +86,7 @@ const emit = defineEmits([
               :value="dateFilter"
               @input="$emit('update:dateFilter', $event.target.value || null)"
               type="date"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
@@ -98,7 +98,7 @@ const emit = defineEmits([
             <select
               :value="eventTypeFilter"
               @change="$emit('update:eventTypeFilter', $event.target.value || null)"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value="">All Types</option>
               <option v-for="type in eventTypes" :key="type" :value="type">
@@ -109,14 +109,14 @@ const emit = defineEmits([
 
           <!-- Member Filter -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 items-center gap-2">
               <Users class="h-4 w-4" />
               Member
             </label>
             <select
               :value="memberFilter"
               @change="$emit('update:memberFilter', $event.target.value || null)"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value="">All Members</option>
               <option v-for="member in members" :key="member.id || member.firestoreId" :value="member.id || member.firestoreId">

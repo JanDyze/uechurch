@@ -118,7 +118,7 @@ const getIconComponent = (iconName) => {
 <template>
   <div class="h-full flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
     <!-- Calendar Header -->
-    <div class="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+    <div class="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
       <div class="flex items-center gap-2">
         <button
           @click="emit('navigateMonth', 'prev')"
@@ -131,7 +131,7 @@ const getIconComponent = (iconName) => {
         <div class="relative">
           <button
             @click="showMonthYearPicker = !showMonthYearPicker"
-            class="px-2 md:px-3 py-1 md:py-1.5 text-base md:text-lg font-semibold text-gray-900 dark:text-white min-w-[140px] md:min-w-[200px] text-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            class="px-2 md:px-3 py-1 md:py-1.5 text-base md:text-lg font-semibold text-gray-900 dark:text-white min-w-35 md:min-w-50 text-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             {{ currentMonth }}
           </button>
@@ -139,7 +139,7 @@ const getIconComponent = (iconName) => {
           <!-- Month/Year Picker Dropdown -->
           <div
             v-if="showMonthYearPicker"
-            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50 min-w-[300px]"
+            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50 min-w-75"
           >
             <!-- Year Selector -->
             <div class="mb-4">
@@ -154,7 +154,7 @@ const getIconComponent = (iconName) => {
                 <select
                   :value="currentYear"
                   @change="selectYear(Number($event.target.value))"
-                  class="flex-1 px-3 py-2 text-center font-semibold bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] cursor-pointer"
+                  class="flex-1 px-3 py-2 text-center font-semibold bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary cursor-pointer"
                 >
                   <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
                 </select>
@@ -178,7 +178,7 @@ const getIconComponent = (iconName) => {
                   :class="[
                     'px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                     currentMonthIndex === index
-                      ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white'
+                      ? 'bg-primary dark:bg-primary-light text-white'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   ]"
                 >
@@ -214,7 +214,7 @@ const getIconComponent = (iconName) => {
     <!-- Calendar Grid -->
     <div :ref="calendarScrollRef" @wheel="emit('calendarWheel', $event)" class="flex-1 flex flex-col p-2 md:p-4 min-h-0">
       <!-- Day Headers -->
-      <div class="grid grid-cols-7 gap-1 md:gap-1.5 mb-1 md:mb-2 flex-shrink-0">
+      <div class="grid grid-cols-7 gap-1 md:gap-1.5 mb-1 md:mb-2 shrink-0">
         <div
           v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']"
           :key="day"
@@ -245,7 +245,7 @@ const getIconComponent = (iconName) => {
                 'min-h-0 p-1 md:p-1.5 rounded-lg transition-all cursor-pointer overflow-hidden flex flex-col',
                 day.isCurrentMonth
                   ? selectedDate === formatDateString(day.fullDate)
-                    ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20 border-2 border-[#01779b] shadow-lg shadow-[#01779b]/20'
+                    ? 'bg-primary/10 dark:bg-primary/20 border-2 border-primary shadow-lg shadow-primary/20'
                     : isToday(day.fullDate)
                     ? 'bg-amber-500/10 dark:bg-amber-500/20 border-2 border-amber-500 shadow-lg shadow-amber-500/20'
                     : getHolidayForDate(day.fullDate)

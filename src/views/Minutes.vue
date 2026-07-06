@@ -278,7 +278,7 @@ const handleCancelMinute = () => {
           <button
             v-if="!searchQuery"
             @click="handleNewMinute"
-            class="px-4 py-2 bg-[#01779b] text-white rounded-lg hover:bg-[#015a77] transition-colors"
+            class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
           >
             Create First Minutes
           </button>

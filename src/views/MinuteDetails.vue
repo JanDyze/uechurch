@@ -703,12 +703,12 @@ watch(() => minute.value, (newMinute, oldMinute) => {
 <template>
   <div class="flex flex-col h-full">
     <!-- Header -->
-    <div class="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+    <div class="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
       <div class="flex items-center justify-between pb-4">
         <div class="flex items-center gap-4 flex-1 min-w-0">
           <button
             @click="router.push('/minutes')"
-            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 flex-shrink-0"
+            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 shrink-0"
           >
             <ArrowLeft class="h-5 w-5" />
           </button>
@@ -732,7 +732,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             </div>
           </div>
         </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
+        <div class="flex items-center gap-2 shrink-0">
           <button
             @click="showAttendeesDrawer = true"
             class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
@@ -761,7 +761,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
     <!-- Main Content Area -->
     <div class="flex-1 overflow-hidden flex">
       <!-- Sidebar - Summary & Agenda -->
-      <div v-if="minute" class="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col flex-shrink-0">
+      <div v-if="minute" class="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col shrink-0">
         <!-- Summary Section - Standalone -->
         <div class="p-3 border-b-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50">
           <button
@@ -769,12 +769,12 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             :class="[
               'w-full text-left px-4 py-3 rounded-lg transition-all duration-200 font-semibold',
               showSummary
-                ? 'bg-[#01779b] text-white shadow-md'
+                ? 'bg-primary text-white shadow-md'
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
             ]"
           >
             <div class="flex items-center gap-2">
-              <FileText :class="['h-5 w-5', showSummary ? 'text-white' : 'text-[#01779b]']" />
+              <FileText :class="['h-5 w-5', showSummary ? 'text-white' : 'text-primary']" />
               <span class="text-sm">Meeting Summary</span>
             </div>
           </button>
@@ -789,7 +789,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             </h2>
             <button
               @click="handleAddAgendaClick"
-              class="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-[#01779b] transition-colors"
+              class="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-primary transition-colors"
               title="Add agenda item"
             >
               <Plus class="h-4 w-4" />
@@ -805,16 +805,16 @@ watch(() => minute.value, (newMinute, oldMinute) => {
                   :class="[
                     'w-full text-left px-3 py-2.5 rounded-md transition-all duration-150 group',
                     selectedAgendaIndex === index
-                      ? 'bg-[#01779b] text-white shadow-sm'
+                      ? 'bg-primary text-white shadow-sm'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-600'
                   ]"
                 >
                   <div class="flex items-start gap-2">
                     <span :class="[
-                      'text-xs font-bold mt-0.5 flex-shrink-0',
+                      'text-xs font-bold mt-0.5 shrink-0',
                       selectedAgendaIndex === index 
                         ? 'text-white/90' 
-                        : 'text-gray-400 dark:text-gray-500 group-hover:text-[#01779b]'
+                        : 'text-gray-400 dark:text-gray-500 group-hover:text-primary'
                     ]">
                       {{ toRomanNumeral(index + 1) }}.
                     </span>
@@ -836,7 +836,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
       <div class="flex-1 overflow-y-auto bg-white dark:bg-gray-800">
         <div v-if="loading" class="flex items-center justify-center h-full">
           <div class="text-center">
-            <div class="h-12 w-12 border-4 border-[#01779b] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div class="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p class="text-gray-500 dark:text-gray-400">Loading...</p>
           </div>
         </div>
@@ -847,7 +847,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             <p class="text-gray-500 dark:text-gray-400 mb-4">The minute you're looking for doesn't exist.</p>
             <button
               @click="router.push('/minutes')"
-              class="px-4 py-2 bg-[#01779b] text-white rounded-lg hover:bg-[#015a77] transition-colors"
+              class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
             >
               Back to Minutes
             </button>
@@ -861,7 +861,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
               <button
                 @click="enhanceOverallSummary"
                 :disabled="isEnhancingOverall"
-                class="p-2 bg-[#01779b] text-white rounded-lg hover:bg-[#015a77] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                class="p-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 :title="currentStructure.overallSummary ? 'Re-enhance overall summary' : 'Generate overall summary from all agenda items'"
               >
                 <Sparkles class="h-4 w-4" />
@@ -874,7 +874,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             >
               <div v-html="markdownToHtml(currentStructure.overallSummary)"></div>
             </div>
-            <div v-else class="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-center text-gray-500 dark:text-gray-400 min-h-[200px] flex items-center justify-center">
+            <div v-else class="p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-center text-gray-500 dark:text-gray-400 min-h-50 flex items-center justify-center">
               <div>
                 <p class="mb-4">Click "Generate Summary" to create an overall meeting summary from all agenda items.</p>
                 <p class="text-sm text-gray-400 dark:text-gray-500">The summary will synthesize information from all agenda items into a strategic, executive-level overview.</p>
@@ -894,13 +894,13 @@ watch(() => minute.value, (newMinute, oldMinute) => {
                     @blur="handleAgendaNameBlur(currentAgendaItem.index)"
                     @keyup.enter="handleAgendaNameBlur(currentAgendaItem.index)"
                     @keyup.esc="editingAgendaIndex = null"
-                    class="text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-[#01779b] focus:outline-none w-full"
+                    class="text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-primary focus:outline-none w-full"
                     autofocus
                   />
                   <h1
                     v-else
                     @dblclick="handleAgendaNameDblClick(currentAgendaItem.index)"
-                    class="text-3xl font-bold text-gray-900 dark:text-white cursor-text hover:text-[#01779b] dark:hover:text-[#01779b] transition-colors"
+                    class="text-3xl font-bold text-gray-900 dark:text-white cursor-text hover:text-primary dark:hover:text-primary transition-colors"
                     title="Double-click to edit"
                   >
                     {{ toRomanNumeral(currentAgendaItem.index + 1) }}. {{ currentAgendaItem.title }}
@@ -927,7 +927,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
                     v-if="currentStructure.discussions?.[currentAgendaItem.index]"
                     @click="enhanceMinutes"
                     :disabled="isEnhancing"
-                    class="p-2 bg-[#01779b] text-white rounded-lg hover:bg-[#015a77] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="p-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Enhance notes with AI"
                   >
                     <Sparkles class="h-4 w-4" />
@@ -950,12 +950,12 @@ watch(() => minute.value, (newMinute, oldMinute) => {
                 contenteditable="true"
                 @input="handleContentInput"
                 @blur="handleContentBlur(currentAgendaItem.index)"
-                class="min-h-[200px] p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#01779b] text-gray-900 dark:text-white prose prose-sm dark:prose-invert max-w-none [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_li]:my-1 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2"
+                class="min-h-50 p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white prose prose-sm dark:prose-invert max-w-none [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_li]:my-1 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2"
               ></div>
               <div
                 v-else
                 @dblclick="handleContentClick(currentAgendaItem.index)"
-                class="min-h-[200px] p-4 border border-transparent hover:border-gray-300 dark:hover:border-gray-600 rounded-lg cursor-text text-gray-900 dark:text-white prose prose-sm dark:prose-invert max-w-none [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_li]:my-1 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2"
+                class="min-h-50 p-4 border border-transparent hover:border-gray-300 dark:hover:border-gray-600 rounded-lg cursor-text text-gray-900 dark:text-white prose prose-sm dark:prose-invert max-w-none [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_li]:my-1 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2"
                 :class="{
                   'bg-gray-50 dark:bg-gray-700/50': currentStructure.discussions?.[currentAgendaItem.index],
                   'text-gray-400 dark:text-gray-500 italic': !currentStructure.discussions?.[currentAgendaItem.index]
@@ -1005,10 +1005,10 @@ watch(() => minute.value, (newMinute, oldMinute) => {
       <Transition name="drawer">
         <div
           v-if="showAttendeesDrawer && minute"
-          class="attendees-drawer border-l-4 border-[#01779b] bg-white dark:bg-gray-800 max-w-md w-80 h-full flex flex-col flex-shrink-0 shadow-2xl"
+          class="attendees-drawer border-l-4 border-primary bg-white dark:bg-gray-800 max-w-md w-80 h-full flex flex-col shrink-0 shadow-2xl"
         >
           <!-- Header -->
-          <div class="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+          <div class="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Users class="h-5 w-5" />
               Attendees
@@ -1055,7 +1055,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
           @click.stop
         >
           <!-- Header -->
-          <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Add Agenda Item</h3>
             <button
               @click="closeAddAgendaModal"
@@ -1073,13 +1073,13 @@ watch(() => minute.value, (newMinute, oldMinute) => {
               @keydown.esc="closeAddAgendaModal"
               type="text"
               placeholder="Enter agenda item..."
-              class="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               autofocus
             />
           </div>
 
           <!-- Footer -->
-          <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+          <div class="shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
             <button
               @click="closeAddAgendaModal"
               class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -1089,7 +1089,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             <button
               @click="handleAddAgendaSubmit"
               :disabled="!newAgendaItem.trim()"
-              class="px-4 py-2 bg-[#01779b] text-white rounded-lg hover:bg-[#015a77] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Add
             </button>

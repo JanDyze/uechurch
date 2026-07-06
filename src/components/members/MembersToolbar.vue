@@ -94,7 +94,7 @@ const handleListModeToggle = () => {
 </script>
 
 <template>
-  <div class="sticky top-0 z-40 mb-4 flex-shrink-0 flex items-center gap-3 bg-white dark:bg-gray-900 py-2">
+  <div class="sticky top-0 z-40 mb-4 shrink-0 flex items-center gap-3 bg-white dark:bg-gray-900 py-2">
     <div class="relative flex-1">
       <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
       <input
@@ -102,7 +102,7 @@ const handleListModeToggle = () => {
         @input="$emit('update:searchQuery', $event.target.value)"
         type="text"
         placeholder="Search members..."
-        class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+        class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
       />
     </div>
 
@@ -112,7 +112,7 @@ const handleListModeToggle = () => {
       :class="[
         'p-2 rounded-lg transition-colors relative',
         showFilters || hasActiveFilters
-          ? 'bg-[#01779b] dark:bg-[#01779b] text-white shadow-sm'
+          ? 'bg-primary dark:bg-primary text-white shadow-sm'
           : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
       ]"
       title="Filter members"
@@ -133,7 +133,7 @@ const handleListModeToggle = () => {
         viewMode === 'simple'
           ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
           : showConfig
-          ? 'bg-[#01779b] dark:bg-[#01779b] text-white shadow-sm'
+          ? 'bg-primary dark:bg-primary text-white shadow-sm'
           : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600',
       ]"
       :title="viewMode === 'simple' ? 'Configure visible fields (available in detailed view)' : 'Configure visible fields'"
@@ -148,7 +148,7 @@ const handleListModeToggle = () => {
         :class="[
           'p-1.5 rounded transition-colors',
           props.layoutMode === 'grid'
-            ? 'bg-white dark:bg-gray-600 text-[#01779b] dark:text-[#01779b] shadow-sm'
+            ? 'bg-white dark:bg-gray-600 text-primary dark:text-primary shadow-sm'
             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white',
         ]"
         :title="
@@ -166,7 +166,7 @@ const handleListModeToggle = () => {
         :class="[
           'p-1.5 rounded transition-colors',
           props.layoutMode === 'list'
-            ? 'bg-white dark:bg-gray-600 text-[#01779b] dark:text-[#01779b] shadow-sm'
+            ? 'bg-white dark:bg-gray-600 text-primary dark:text-primary shadow-sm'
             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white',
         ]"
         :title="
@@ -197,7 +197,7 @@ const handleListModeToggle = () => {
         emit('update:showConfig', false);
         emit('update:showAddMember', !showAddMember);
       "
-      class="p-2 px-4 rounded-lg bg-[#01779b] dark:bg-[#01779b] text-white hover:bg-[#015a77] dark:hover:bg-[#015a77] transition-colors shadow-sm"
+      class="p-2 px-4 rounded-lg bg-primary dark:bg-primary text-white hover:bg-primary-hover dark:hover:bg-primary-hover transition-colors shadow-sm"
       :title="showAddMember ? 'Close add member form' : 'Add new member'"
     >
       <Plus 

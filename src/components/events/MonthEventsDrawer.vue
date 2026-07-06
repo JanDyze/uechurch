@@ -178,14 +178,14 @@ const upcomingEvents = computed(() => {
 <template>
   <div
     v-if="show"
-    class="m-2 md:m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20 transition-all duration-300"
+    class="m-2 md:m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 transition-all duration-300"
   >
     <!-- Header -->
-    <div class="shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-t-2xl border-b border-[#01779b]/20 dark:border-[#22b8cf]/20 px-5 py-4">
+    <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-5 py-4">
       <div class="flex items-start justify-between mb-4">
         <div>
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ currentMonth }}</h2>
-          <p class="text-sm text-[#01779b] dark:text-[#22b8cf] font-medium mt-0.5">Events</p>
+          <p class="text-sm text-primary dark:text-primary-light font-medium mt-0.5">Events</p>
         </div>
         <div class="flex items-center gap-2">
           <button
@@ -193,7 +193,7 @@ const upcomingEvents = computed(() => {
             :class="[
               'p-2 rounded-lg transition-colors',
               showFilters 
-                ? 'bg-[#01779b] text-white' 
+                ? 'bg-primary text-white' 
                 : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             ]"
             title="Toggle Filters"
@@ -212,7 +212,7 @@ const upcomingEvents = computed(() => {
       <!-- Filter and Sort Options - Toggleable -->
       <Transition name="expand">
         <div v-if="showFilters">
-          <div class="grid grid-cols-2 gap-3 pb-2 pt-1 border-t border-[#01779b]/10 dark:border-[#22b8cf]/10 mt-1">
+          <div class="grid grid-cols-2 gap-3 pb-2 pt-1 border-t border-primary/10 dark:border-primary-light/10 mt-1">
             <!-- Event Type Filter (Multi-select dropdown) -->
             <div class="relative">
               <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -235,7 +235,7 @@ const upcomingEvents = computed(() => {
                 <div class="flex items-center gap-1 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
                   <button
                     @click="selectAllTypes"
-                    class="flex-1 text-xs px-2 py-1 rounded text-[#01779b] dark:text-[#22b8cf] hover:bg-[#01779b]/10 dark:hover:bg-[#22b8cf]/10 transition-colors"
+                    class="flex-1 text-xs px-2 py-1 rounded text-primary dark:text-primary-light hover:bg-primary/10 dark:hover:bg-primary-light/10 transition-colors"
                   >
                     Select All
                   </button>
@@ -258,7 +258,7 @@ const upcomingEvents = computed(() => {
                     :class="[
                       'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
                       eventTypeFilter.includes(type)
-                        ? 'bg-[#01779b] dark:bg-[#22b8cf] border-[#01779b] dark:border-[#22b8cf]'
+                        ? 'bg-primary dark:bg-primary-light border-primary dark:border-primary-light'
                         : 'border-gray-300 dark:border-gray-600'
                     ]"
                   >
@@ -285,7 +285,7 @@ const upcomingEvents = computed(() => {
                 <select
                   :value="sortBy"
                   @change="$emit('update:sortBy', $event.target.value)"
-                  class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                  class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
                   <option value="date">Date</option>
                   <option value="time">Time</option>

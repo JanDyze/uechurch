@@ -100,10 +100,10 @@ const exportToText = () => {
   <Transition name="drawer">
     <div
       v-if="show && minute"
-      class="minute-details-drawer border-l-4 border-[#01779b] bg-gray-50 dark:bg-gray-900 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="minute-details-drawer border-l-4 border-primary bg-gray-50 dark:bg-gray-900 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+      <div class="shrink-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Meeting Minutes</h3>
         <div class="flex items-center gap-2">
           <button
@@ -161,7 +161,7 @@ const exportToText = () => {
               <span
                 v-for="attendeeId in minute.attendees"
                 :key="attendeeId"
-                class="px-3 py-1 bg-[#01779b]/10 dark:bg-[#01779b]/20 text-[#01779b] rounded-full text-sm"
+                class="px-3 py-1 bg-primary/10 dark:bg-primary/20 text-primary rounded-full text-sm"
               >
                 {{ getMemberName(attendeeId) }}
               </span>
@@ -210,10 +210,10 @@ const exportToText = () => {
       </div>
 
       <!-- Footer -->
-      <div class="flex-shrink-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center gap-3">
+      <div class="shrink-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center gap-3">
         <button
           @click="router.push(`/minutes/${minute.id || minute.firestoreId}`)"
-          class="px-4 py-2 bg-[#01779b] text-white rounded-lg hover:bg-[#015a77] transition-colors flex items-center gap-2"
+          class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors flex items-center gap-2"
         >
           <ExternalLink class="h-4 w-4" />
           View Full Details

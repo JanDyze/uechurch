@@ -153,7 +153,7 @@ const civilStatusOptions = [
 
     <!-- Loading -->
     <div v-if="loading" class="flex-1 flex items-center justify-center">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#01779b]"></div>
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
     </div>
 
     <!-- Not Found -->
@@ -162,7 +162,7 @@ const civilStatusOptions = [
       <p class="text-lg">Member not found</p>
       <button
         @click="router.push('/members')"
-        class="mt-4 px-4 py-2 bg-[#01779b] text-white rounded-lg hover:bg-[#015a77] transition-colors"
+        class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
       >
         Back to Members
       </button>
@@ -172,7 +172,7 @@ const civilStatusOptions = [
     <div v-else class="flex-1 overflow-y-auto">
       <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <!-- Profile Header -->
-        <div class="p-8 bg-gradient-to-br from-[#01779b]/10 via-[#01779b]/5 to-transparent dark:from-[#22b8cf]/15 dark:via-[#22b8cf]/5">
+        <div class="p-8 bg-linear-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary-light/15 dark:via-primary-light/5">
           <div class="flex items-start gap-6">
             <!-- Avatar with edit overlay -->
             <div class="relative group">
@@ -223,7 +223,7 @@ const civilStatusOptions = [
         <!-- Editable Fields -->
         <div class="p-6">
           <p class="text-xs text-gray-500 dark:text-gray-400 mb-6 flex items-center gap-2">
-            <span class="inline-block w-2 h-2 rounded-full bg-[#01779b] dark:bg-[#22b8cf] animate-pulse"></span>
+            <span class="inline-block w-2 h-2 rounded-full bg-primary dark:bg-primary-light animate-pulse"></span>
             Double-click any field to edit
           </p>
           
@@ -333,7 +333,7 @@ const civilStatusOptions = [
 
           <!-- Member Status Toggle -->
           <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between p-5 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-800/50">
+            <div class="flex items-center justify-between p-5 bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-800/50">
               <div class="flex items-center gap-4">
                 <div class="p-3 bg-green-100 dark:bg-green-900/50 rounded-xl">
                   <Users class="h-6 w-6 text-green-600 dark:text-green-400" />

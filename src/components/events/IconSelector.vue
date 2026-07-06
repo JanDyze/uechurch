@@ -61,7 +61,7 @@ const closeModal = () => {
     <button
       @click="openModal"
       type="button"
-      class="w-full flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:border-[#01779b] dark:hover:border-[#01779b] transition-colors"
+      class="w-full flex items-center justify-between gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:border-primary dark:hover:border-primary transition-colors"
     >
       <div class="flex items-center gap-2">
         <component :is="getIconComponent(selectedIcon)" class="h-5 w-5" />
@@ -80,7 +80,7 @@ const closeModal = () => {
           class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
         >
           <!-- Header -->
-          <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Select Icon</h3>
             <button
               @click="closeModal"
@@ -91,14 +91,14 @@ const closeModal = () => {
           </div>
 
           <!-- Search Bar -->
-          <div class="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
+          <div class="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
             <div class="relative">
               <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 v-model="searchQuery"
                 type="text"
                 :placeholder="searchPlaceholder"
-                class="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                class="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                 @keydown.esc="closeModal"
                 autofocus
               />
@@ -115,12 +115,12 @@ const closeModal = () => {
                 :class="[
                   'aspect-square p-0.5 rounded border transition-colors flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700',
                   selectedIcon === iconName
-                    ? 'border-[#01779b] bg-[#01779b]/10 dark:bg-[#01779b]/20'
+                    ? 'border-primary bg-primary/10 dark:bg-primary/20'
                     : 'border-gray-200 dark:border-gray-700'
                 ]"
                 :title="iconName"
               >
-                <component :is="getIconComponent(iconName)" class="h-4 w-4 text-gray-700 dark:text-gray-300 flex-shrink-0" />
+                <component :is="getIconComponent(iconName)" class="h-4 w-4 text-gray-700 dark:text-gray-300 shrink-0" />
               </button>
             </div>
             <div v-if="filteredIcons.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
