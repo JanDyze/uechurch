@@ -28,7 +28,7 @@ const emit = defineEmits([
 </script>
 
 <template>
-  <div class="sticky top-0 z-40 mb-4 flex-shrink-0 flex items-center gap-2 bg-white dark:bg-gray-900 py-2">
+  <div class="sticky top-0 z-40 mb-4 shrink-0 flex items-center gap-2 bg-white dark:bg-gray-900 py-2">
     <div class="relative flex-1">
       <Search
         class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400"
@@ -38,7 +38,7 @@ const emit = defineEmits([
         @input="emit('update:searchQuery', $event.target.value)"
         type="text"
         placeholder="Search..."
-        class="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+        class="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
       />
     </div>
 
@@ -48,7 +48,7 @@ const emit = defineEmits([
       :class="[
         'p-2 rounded-lg transition-colors relative',
         showFilters || hasActiveFilters
-          ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white'
+          ? 'bg-primary dark:bg-primary-light text-white'
           : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
       ]"
     >
@@ -65,8 +65,8 @@ const emit = defineEmits([
       :class="[
         'p-2 rounded-lg transition-all',
         showRecordAttendance
-          ? 'bg-[#015a77] dark:bg-[#1ca3b8] text-white'
-          : 'bg-[#01779b] dark:bg-[#22b8cf] text-white hover:bg-[#015a77] dark:hover:bg-[#1ca3b8]'
+          ? 'bg-primary-hover dark:bg-[#1ca3b8] text-white'
+          : 'bg-primary dark:bg-primary-light text-white hover:bg-primary-hover dark:hover:bg-[#1ca3b8]'
       ]"
     >
       <Plus 

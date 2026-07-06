@@ -57,7 +57,7 @@ const handleBlur = () => {
           'floating-input peer w-full px-3 pt-4 pb-1.5 text-sm rounded-lg border bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 appearance-none',
           error
             ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-            : 'border-gray-300 dark:border-gray-600 focus:border-[#01779b] dark:focus:border-[#22b8cf] focus:ring-[#01779b]/20 dark:focus:ring-[#22b8cf]/20',
+            : 'border-gray-300 dark:border-gray-600 focus:border-primary dark:focus:border-primary-light focus:ring-primary/20 dark:focus:ring-primary-light/20',
           'focus:outline-none focus:ring-2',
           disabled ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed' : ''
         ]"

@@ -115,10 +115,10 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
   <Transition name="drawer">
     <div
       v-if="show"
-      class="bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col flex-shrink-0 border-l border-gray-200 dark:border-gray-700"
+      class="bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 border-l border-gray-200 dark:border-gray-700"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+      <div class="shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between">
           <h3 class="font-semibold text-gray-900 dark:text-white">
             {{ isNewAttendance ? 'New Attendance' : (isEdit ? 'Edit Attendance' : formData.eventTitle || 'Record Attendance') }}
@@ -133,7 +133,7 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
       </div>
 
       <!-- Event Details Form (only for new attendance) -->
-      <div v-if="isNewAttendance || isEdit" class="flex-shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
+      <div v-if="isNewAttendance || isEdit" class="shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
         <div>
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Title *</label>
           <input
@@ -141,7 +141,7 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
             @input="updateField('eventTitle', $event.target.value)"
             type="text"
             placeholder="e.g. Sunday Worship Service"
-            class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-[#01779b] focus:border-[#01779b]"
+            class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
           />
         </div>
         <div class="grid grid-cols-2 gap-3">
@@ -151,7 +151,7 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
               :value="formData.date"
               @input="updateField('date', $event.target.value)"
               type="date"
-              class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-[#01779b] focus:border-[#01779b]"
+              class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
             />
           </div>
           <div>
@@ -159,7 +159,7 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
             <select
               :value="formData.eventType"
               @change="updateField('eventType', $event.target.value)"
-              class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-[#01779b] focus:border-[#01779b]"
+              class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
             >
               <option value="">Select type</option>
               <option v-for="type in eventTypes" :key="type" :value="type" class="capitalize">
@@ -171,7 +171,7 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
       </div>
 
       <!-- Event Info (when recording for existing event) -->
-      <div v-else class="flex-shrink-0 px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+      <div v-else class="shrink-0 px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
         <p class="text-sm font-medium text-gray-900 dark:text-white">{{ formData.eventTitle }}</p>
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
           {{ formData.date }}
@@ -180,14 +180,14 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
       </div>
 
       <!-- Search -->
-      <div class="flex-shrink-0 px-5 py-3 border-b border-gray-100 dark:border-gray-700">
+      <div class="shrink-0 px-5 py-3 border-b border-gray-100 dark:border-gray-700">
         <div class="relative">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             v-model="searchQuery"
             type="text"
             placeholder="Search members..."
-            class="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-1 focus:ring-[#01779b] text-gray-900 dark:text-white"
+            class="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-1 focus:ring-primary text-gray-900 dark:text-white"
           />
         </div>
       </div>
@@ -205,7 +205,7 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
             class="w-full px-5 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors text-left"
           >
             <div :class="[
-              'w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors',
+              'w-5 h-5 rounded flex items-center justify-center shrink-0 transition-colors',
               isPresent(member.id || member.firestoreId)
                 ? 'bg-green-500'
                 : 'border-2 border-gray-300 dark:border-gray-600'
@@ -220,7 +220,7 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
       </div>
 
       <!-- Footer -->
-      <div class="flex-shrink-0 px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      <div class="shrink-0 px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <span class="text-sm text-gray-500 dark:text-gray-400">
           <span class="font-semibold text-gray-900 dark:text-white">{{ presentCount }}</span> / {{ totalCount }} present
         </span>
@@ -230,7 +230,7 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
           :class="[
             'px-5 py-2 text-sm font-medium rounded-lg transition-colors',
             isFormValid
-              ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white hover:bg-[#015a77] dark:hover:bg-[#1ca3b8]'
+              ? 'bg-primary dark:bg-primary-light text-white hover:bg-primary-hover dark:hover:bg-[#1ca3b8]'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
           ]"
         >

@@ -121,23 +121,23 @@ const printReport = () => {
     <!-- Audit Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
       <div class="flex items-center gap-4">
-        <router-link to="/finances" class="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 text-gray-500 hover:text-[#01779b] transition-all shadow-sm">
+        <router-link to="/finances" class="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 text-gray-500 hover:text-primary transition-all shadow-sm">
           <ArrowLeft class="h-5 w-5" />
         </router-link>
         <div>
           <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight leading-tight uppercase">Audit Center</h1>
-          <p class="text-xs font-black text-[#01779b] dark:text-[#22b8cf] uppercase tracking-widest mt-1">Full Accountability & Transparency</p>
+          <p class="text-xs font-black text-primary dark:text-primary-light uppercase tracking-widest mt-1">Full Accountability & Transparency</p>
         </div>
       </div>
       
       <div class="flex items-center gap-3">
-        <select v-model="selectedYear" class="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 shadow-sm rounded-xl px-4 py-2.5 text-sm font-black uppercase tracking-widest focus:ring-2 focus:ring-[#01779b]">
+        <select v-model="selectedYear" class="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 shadow-sm rounded-xl px-4 py-2.5 text-sm font-black uppercase tracking-widest focus:ring-2 focus:ring-primary">
           <option v-for="y in years" :key="y" :value="y">{{ y }} FISCAL YEAR</option>
         </select>
-        <button @click="exportFullReport" class="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 text-gray-600 hover:text-[#01779b] transition-all shadow-sm group">
+        <button @click="exportFullReport" class="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 text-gray-600 hover:text-primary transition-all shadow-sm group">
           <Download class="h-5 w-5 transition-transform group-hover:translate-y-0.5" />
         </button>
-        <button @click="printReport" class="p-2.5 rounded-xl bg-[#01779b] text-white shadow-lg shadow-[#01779b]/20 hover:bg-[#015a77] transition-all group">
+        <button @click="printReport" class="p-2.5 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all group">
           <Printer class="h-5 w-5 transition-transform group-hover:scale-110" />
         </button>
       </div>
@@ -145,18 +145,18 @@ const printReport = () => {
 
     <!-- Annual Summary Section -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 px-2">
-      <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-8 border border-gray-100 dark:border-slate-800 shadow-sm">
+      <div class="bg-white dark:bg-slate-900 rounded-4xl p-8 border border-gray-100 dark:border-slate-800 shadow-sm">
         <div class="flex items-center gap-3 mb-6">
           <div class="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl text-emerald-500"><TrendingUp class="h-6 w-6" /></div>
           <p class="text-xs font-black text-gray-400 uppercase tracking-widest">Total Annual Income</p>
         </div>
         <p class="text-3xl font-black tracking-tighter text-gray-900 dark:text-white">{{ formatCurrency(totals.income) }}</p>
         <div class="mt-4 pt-4 border-t border-gray-50 dark:border-slate-800">
-           <p class="text-[10px] font-black uppercase tracking-widest text-[#01779b]">All Sources Consolidated</p>
+           <p class="text-[10px] font-black uppercase tracking-widest text-primary">All Sources Consolidated</p>
         </div>
       </div>
 
-      <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-8 border border-gray-100 dark:border-slate-800 shadow-sm">
+      <div class="bg-white dark:bg-slate-900 rounded-4xl p-8 border border-gray-100 dark:border-slate-800 shadow-sm">
         <div class="flex items-center gap-3 mb-6">
           <div class="p-3 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500"><TrendingDown class="h-6 w-6" /></div>
           <p class="text-xs font-black text-gray-400 uppercase tracking-widest">Total Annual Expense</p>
@@ -167,7 +167,7 @@ const printReport = () => {
         </div>
       </div>
 
-      <div class="bg-slate-950 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-2xl">
+      <div class="bg-slate-950 rounded-4xl p-8 text-white relative overflow-hidden shadow-2xl">
         <div class="relative z-10">
           <div class="flex items-center gap-3 mb-6">
             <div class="p-3 bg-white/10 rounded-2xl"><DollarSign class="h-6 w-6" /></div>
@@ -175,10 +175,10 @@ const printReport = () => {
           </div>
           <p class="text-3xl font-black tracking-tighter">{{ formatCurrency(totals.net) }}</p>
           <div class="mt-4 pt-4 border-t border-white/10">
-             <p class="text-[10px] font-black uppercase tracking-widest text-[#22b8cf]">Fiscal Integrity Report</p>
+             <p class="text-[10px] font-black uppercase tracking-widest text-primary-light">Fiscal Integrity Report</p>
           </div>
         </div>
-        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-[#01779b]/20 rounded-full blur-3xl opacity-50"></div>
+        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl opacity-50"></div>
       </div>
     </div>
 
@@ -190,7 +190,7 @@ const printReport = () => {
           <h2 class="text-xl font-black text-gray-900 dark:text-white leading-tight uppercase">Monthly Performance Ledger</h2>
           <p class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mt-1">Detailed Breakdown by Month - {{ selectedYear }}</p>
         </div>
-        <PieIcon class="h-6 w-6 text-[#01779b]" />
+        <PieIcon class="h-6 w-6 text-primary" />
       </div>
 
       <!-- Report Table/Body -->
@@ -209,7 +209,7 @@ const printReport = () => {
             <tr v-if="isLoading" v-for="i in 12" :key="i" class="animate-pulse">
                <td colspan="5" class="px-8 py-5"><div class="h-4 bg-gray-50 dark:bg-slate-800 rounded-lg"></div></td>
             </tr>
-            <tr v-for="m in monthlySummary" :key="m.name" class="group hover:bg-[#01779b]/5 dark:hover:bg-[#22b8cf]/5 transition-all">
+            <tr v-for="m in monthlySummary" :key="m.name" class="group hover:bg-primary/5 dark:hover:bg-primary-light/5 transition-all">
               <td class="px-8 py-5">
                 <span class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">{{ m.name }}</span>
               </td>
@@ -233,13 +233,13 @@ const printReport = () => {
                   <!-- Minimalistic sparkline bar -->
                   <div class="w-10 bg-gray-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden relative">
                     <div 
-                      class="absolute h-full left-0 bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-1000"
+                      class="absolute h-full left-0 bg-linear-to-r from-emerald-400 to-emerald-600 transition-all duration-1000"
                       :style="{ width: `${m.income > 0 ? (m.income / totals.income) * 100 * 5 : 0}%` }"
                     ></div>
                   </div>
                   <div class="w-10 bg-gray-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden relative">
                     <div 
-                      class="absolute h-full left-0 bg-gradient-to-r from-rose-400 to-rose-600 transition-all duration-1000"
+                      class="absolute h-full left-0 bg-linear-to-r from-rose-400 to-rose-600 transition-all duration-1000"
                       :style="{ width: `${m.expense > 0 ? (m.expense / totals.expense) * 100 * 5 : 0}%` }"
                     ></div>
                   </div>
@@ -255,7 +255,7 @@ const printReport = () => {
         <div>
           <p class="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 mb-3">Top Sector</p>
           <div class="flex items-center gap-3">
-             <div class="p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-[#01779b]"><Building2 class="h-4 w-4" /></div>
+             <div class="p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-primary"><Building2 class="h-4 w-4" /></div>
              <span class="text-sm font-black text-gray-900 dark:text-white uppercase truncate">{{ categoryDistribution[0]?.name || 'N/A' }}</span>
           </div>
         </div>
@@ -268,7 +268,7 @@ const printReport = () => {
         </div>
         <div class="col-span-2 flex flex-col justify-end items-end">
            <p class="text-[10px] font-medium text-gray-400 italic">Audit timestamp: {{ new Date().toLocaleString() }}</p>
-           <p class="text-[9px] font-black text-[#01779b] uppercase tracking-widest mt-1">UEC Financial Verification Service</p>
+           <p class="text-[9px] font-black text-primary uppercase tracking-widest mt-1">UEC Financial Verification Service</p>
         </div>
       </div>
     </div>

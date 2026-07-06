@@ -55,12 +55,12 @@ const hasAttendance = () => props.record.totalAttendees > 0
     :class="[
       'px-4 py-3 flex items-center gap-4 cursor-pointer transition-colors select-none',
       selected
-        ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20'
+        ? 'bg-primary/10 dark:bg-primary/20'
         : 'hover:bg-gray-50 dark:hover:bg-gray-750'
     ]"
   >
     <!-- Big Day Display -->
-    <div class="flex-shrink-0 w-14 text-center">
+    <div class="shrink-0 w-14 text-center">
       <div class="text-2xl font-bold text-gray-900 dark:text-white leading-none">
         {{ getDay(record.date) }}
       </div>
@@ -92,7 +92,7 @@ const hasAttendance = () => props.record.totalAttendees > 0
     <!-- Status indicator -->
     <div 
       :class="[
-        'w-2 h-2 rounded-full flex-shrink-0',
+        'w-2 h-2 rounded-full shrink-0',
         hasAttendance() ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
       ]"
     />

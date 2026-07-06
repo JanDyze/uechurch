@@ -58,7 +58,7 @@ const navigate = (path) => {
     <!-- Minimize Button -->
     <button
       @click="isMinimized = !isMinimized"
-      class="absolute right-0 top-8 z-50 w-8 h-8 rounded-full bg-white dark:bg-slate-800 text-[#01779b] dark:text-slate-300 shadow-md hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center border border-gray-200 dark:border-slate-700"
+      class="absolute right-0 top-8 z-50 w-8 h-8 rounded-full bg-white dark:bg-slate-800 text-primary dark:text-slate-300 shadow-md hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center border border-gray-200 dark:border-slate-700"
       :class="isHovered ? 'opacity-100' : 'opacity-0'"
       :style="`transform: translateX(50%); transition: opacity ${isHovered ? '0.3s' : '2s'} ease-in-out;`"
       aria-label="Toggle sidebar"
@@ -69,9 +69,9 @@ const navigate = (path) => {
 
     <div class="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto no-scrollbar">
       <!-- Logo/Branding -->
-      <div class="flex items-center flex-shrink-0 px-2 mb-8 overflow-hidden">
+      <div class="flex items-center shrink-0 px-2 mb-8 overflow-hidden">
         <div class="flex items-center gap-2 min-w-0">
-          <img :src="logo" alt="UEC Logo" :class="['w-auto transition-all flex-shrink-0 dark:brightness-0 dark:invert dark:opacity-90', isMinimized ? 'h-15' : 'h-15']" />
+          <img :src="logo" alt="UEC Logo" :class="['w-auto transition-all shrink-0 dark:brightness-0 dark:invert dark:opacity-90', isMinimized ? 'h-15' : 'h-15']" />
           <div v-if="!isMinimized" class="min-w-0 overflow-hidden">
             <h2 class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap tracking-tight">UEC Canubing II</h2>
             <p class="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 whitespace-nowrap tracking-widest mt-0.5">United Evangelical Church</p>
@@ -88,13 +88,13 @@ const navigate = (path) => {
           :class="[
             'group flex items-center p-2.5 text-sm font-semibold rounded-xl w-full transition-all relative mt-1',
             isActive(item.path)
-              ? 'active text-white shadow-lg shadow-[#01779b]/20 border-l-4 border-[#01779b] dark:border-[#22b8cf]'
-              : 'text-gray-500 dark:text-slate-400 hover:text-[#01779b] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border-l-4 border-transparent hover:border-gray-300 dark:hover:border-slate-700',
+              ? 'active text-white shadow-lg shadow-primary/20 border-l-4 border-primary dark:border-primary-light'
+              : 'text-gray-500 dark:text-slate-400 hover:text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border-l-4 border-transparent hover:border-gray-300 dark:hover:border-slate-700',
             isMinimized ? 'justify-center' : ''
           ]"
           :title="isMinimized ? item.name : ''"
         >
-          <component :is="item.icon" :class="['flex-shrink-0 h-6 w-6', isMinimized ? '' : 'mr-3']" />
+          <component :is="item.icon" :class="['shrink-0 h-6 w-6', isMinimized ? '' : 'mr-3']" />
           <span v-if="!isMinimized" class="truncate whitespace-nowrap">{{ item.name }}</span>
         </button>
       </nav>

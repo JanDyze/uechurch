@@ -135,12 +135,12 @@ const saveName = async () => {
 </script>
 
 <template>
-  <header class="bg-white dark:bg-gray-800 sticky top-0 z-[70]">
+  <header class="bg-white dark:bg-gray-800 sticky top-0 z-70">
     <div class="px-4 sm:px-6 lg:px-4">
       <div class="flex items-center justify-between h-16">
         <div class="flex items-center gap-3">
           <div>
-            <div class="text-xl font-bold text-[#01779b] dark:text-[#22b8cf]">
+            <div class="text-xl font-bold text-primary dark:text-primary-light">
               {{ pageTitle }}
             </div>
           </div>
@@ -152,21 +152,21 @@ const saveName = async () => {
             <!-- Current User (YOU) with Rename Popup -->
             <div v-if="myAnimal" class="relative group">
               <div @click.stop="toggleRename" 
-                class="w-7.5 h-7.5 rounded-full border-2 border-[#01779b] dark:border-[#22b8cf] flex items-center justify-center cursor-pointer relative z-40 shadow-xl hover:scale-110 hover:rotate-12 active:scale-95 transition-all bg-white dark:bg-gray-800"
+                class="w-7.5 h-7.5 rounded-full border-2 border-primary dark:border-primary-light flex items-center justify-center cursor-pointer relative z-40 shadow-xl hover:scale-110 hover:rotate-12 active:scale-95 transition-all bg-white dark:bg-gray-800"
               >
                   <div class="w-full h-full overflow-hidden rounded-full">
                     <img :src="`https://api.dicebear.com/9.x/open-peeps/svg?seed=${mySessionId}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`" class="w-full h-full object-cover" />
                   </div>
-                  <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-[#01779b] text-white text-[9px] px-2 py-1.5 rounded-lg whitespace-nowrap shadow-2xl z-50 uppercase tracking-widest font-black pointer-events-none">
+                  <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-primary text-white text-[9px] px-2 py-1.5 rounded-lg whitespace-nowrap shadow-2xl z-50 uppercase tracking-widest font-black pointer-events-none">
                       {{ myAnimal.name }} (YOU)
                   </div>
               </div>
               
               <!-- Rename Popover -->
               <Transition name="fade">
-                <div v-if="isRenaming" class="absolute top-full right-0 mt-3 w-56 bg-white dark:bg-gray-900 border-2 border-[#01779b]/20 dark:border-[#22b8cf]/20 rounded-2xl shadow-2xl p-4 z-[100]" @click.stop>
+                <div v-if="isRenaming" class="absolute top-full right-0 mt-3 w-56 bg-white dark:bg-gray-900 border-2 border-primary/20 dark:border-primary-light/20 rounded-2xl shadow-2xl p-4 z-100" @click.stop>
                   <div class="flex items-center justify-between mb-3">
-                    <p class="text-[9px] font-black uppercase tracking-widest text-[#01779b]">Identity Setup</p>
+                    <p class="text-[9px] font-black uppercase tracking-widest text-primary">Identity Setup</p>
                     <button @click="isRenaming = false" class="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors">
                       <X class="w-3 h-3" />
                     </button>
@@ -174,11 +174,11 @@ const saveName = async () => {
                   <div class="flex flex-col gap-2.5">
                     <div class="relative">
                       <span class="absolute left-0 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-black">@</span>
-                      <input v-model="newName" class="w-full bg-transparent border-b-2 border-gray-100 dark:border-gray-800 pl-4 py-1.5 text-[11px] font-black text-gray-900 dark:text-white outline-none focus:border-[#01779b] transition-colors" @keyup.enter="saveName" placeholder="Enter name..." autofocus />
+                      <input v-model="newName" class="w-full bg-transparent border-b-2 border-gray-100 dark:border-gray-800 pl-4 py-1.5 text-[11px] font-black text-gray-900 dark:text-white outline-none focus:border-primary transition-colors" @keyup.enter="saveName" placeholder="Enter name..." autofocus />
                     </div>
                     <div class="flex gap-2">
                        <button @click="isRenaming = false" class="flex-1 py-2.5 border-2 border-gray-100 dark:border-gray-800 text-gray-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">Cancel</button>
-                       <button @click="saveName" class="flex-[1.5] py-2.5 bg-[#01779b] text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#015a77] transition-all shadow-lg shadow-[#01779b]/20 active:scale-95">Update</button>
+                       <button @click="saveName" class="flex-[1.5] py-2.5 bg-primary text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 active:scale-95">Update</button>
                     </div>
                   </div>
                 </div>
@@ -209,7 +209,7 @@ const saveName = async () => {
           <!-- Theme Toggle -->
           <button
             @click="toggleTheme($event)"
-            class="p-2 rounded-full text-[#01779b] dark:text-[#22b8cf] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            class="p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
           >
             <Sun v-if="isDark" class="w-5 h-5" />
@@ -218,7 +218,7 @@ const saveName = async () => {
 
           <!-- Notifications -->
           <button
-            class="p-2 rounded-full text-[#01779b] dark:text-[#22b8cf] hover:bg-gray-100 dark:hover:bg-gray-700 relative"
+            class="p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 relative"
           >
             <Bell class="w-6 h-6" />
             <span
@@ -243,16 +243,16 @@ const saveName = async () => {
 
     <!-- Active Visitors Modal -->
     <Transition name="fade">
-      <div v-if="isModalOpen" class="fixed inset-0 z-[110] flex items-center justify-center bg-gray-900/40 backdrop-blur-md" @click="isModalOpen = false">
-        <div class="w-full max-w-sm bg-white dark:bg-gray-900 rounded-[32px] shadow-2xl border-4 border-white dark:border-gray-800 p-8 m-4 max-h-[80vh] flex flex-col" @click.stop>
+      <div v-if="isModalOpen" class="fixed inset-0 z-110 flex items-center justify-center bg-gray-900/40 backdrop-blur-md" @click="isModalOpen = false">
+        <div class="w-full max-w-sm bg-white dark:bg-gray-900 rounded-4xl shadow-2xl border-4 border-white dark:border-gray-800 p-8 m-4 max-h-[80vh] flex flex-col" @click.stop>
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
-              <div class="p-2.5 bg-[#01779b]/10 rounded-2xl">
-                <Users class="w-5 h-5 text-[#01779b]" />
+              <div class="p-2.5 bg-primary/10 rounded-2xl">
+                <Users class="w-5 h-5 text-primary" />
               </div>
               <div>
                 <h3 class="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tighter">Live Presence</h3>
-                <p class="text-[10px] font-black uppercase tracking-widest text-[#01779b]">Currently Online</p>
+                <p class="text-[10px] font-black uppercase tracking-widest text-primary">Currently Online</p>
               </div>
             </div>
             <button @click="isModalOpen = false" class="p-2 rounded-xl border-2 border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
@@ -263,17 +263,17 @@ const saveName = async () => {
           <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
             <div class="space-y-3">
               <!-- You -->
-              <div class="flex items-center justify-between p-3.5 bg-[#01779b]/5 dark:bg-[#01779b]/10 rounded-2xl border-2 border-[#01779b]/10">
+              <div class="flex items-center justify-between p-3.5 bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 border-primary/10">
                 <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-full border-2 border-[#01779b] bg-white dark:bg-gray-800 overflow-hidden">
+                  <div class="w-10 h-10 rounded-full border-2 border-primary bg-white dark:bg-gray-800 overflow-hidden">
                     <img :src="`https://api.dicebear.com/9.x/open-peeps/svg?seed=${mySessionId}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`" class="w-full h-full object-cover" />
                   </div>
                   <div>
                     <p class="text-[11px] font-black text-gray-900 dark:text-white">{{ myAnimal.name }}</p>
-                    <p class="text-[9px] font-black uppercase tracking-widest text-[#01779b]">Your Persona</p>
+                    <p class="text-[9px] font-black uppercase tracking-widest text-primary">Your Persona</p>
                   </div>
                 </div>
-                <button @click="isModalOpen = false; startRename()" class="px-3 py-1.5 bg-[#01779b] text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Rename</button>
+                <button @click="isModalOpen = false; startRename()" class="px-3 py-1.5 bg-primary text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Rename</button>
               </div>
 
               <!-- Others -->
