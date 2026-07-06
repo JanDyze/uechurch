@@ -50,10 +50,10 @@ const formatDate = (dateStr) => {
 <template>
   <div
     v-if="show && event"
-    class="m-2 md:m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20 transition-all duration-300"
+    class="m-2 md:m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 transition-all duration-300"
   >
     <!-- Header with Back Button -->
-    <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-t-2xl border-b border-[#01779b]/20 dark:border-[#22b8cf]/20 px-5 py-4">
+    <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20t/20 px-5 py-4">
       <button
         @click="$emit('back')"
         class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-3"
@@ -87,8 +87,8 @@ const formatDate = (dateStr) => {
       <!-- Date & Time Card -->
       <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-3">
         <div class="flex items-center gap-3">
-          <div class="p-2 bg-[#01779b]/10 dark:bg-[#22b8cf]/10 rounded-lg">
-            <Calendar class="h-5 w-5 text-[#01779b] dark:text-[#22b8cf]" />
+          <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
+            <Calendar class="h-5 w-5 text-primary dark:text-primary-light" />
           </div>
           <div>
             <p class="text-xs text-gray-500 dark:text-gray-400">Date</p>
@@ -99,8 +99,8 @@ const formatDate = (dateStr) => {
         </div>
         
         <div class="flex items-center gap-3">
-          <div class="p-2 bg-[#01779b]/10 dark:bg-[#22b8cf]/10 rounded-lg">
-            <Clock class="h-5 w-5 text-[#01779b] dark:text-[#22b8cf]" />
+          <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
+            <Clock class="h-5 w-5 text-primaryark:text-[#22b8cf]" />
           </div>
           <div>
             <p class="text-xs text-gray-500 dark:text-gray-400">Time</p>
@@ -114,8 +114,8 @@ const formatDate = (dateStr) => {
       <!-- Location Card -->
       <div v-if="event.location" class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
         <div class="flex items-center gap-3">
-          <div class="p-2 bg-[#01779b]/10 dark:bg-[#22b8cf]/10 rounded-lg">
-            <MapPin class="h-5 w-5 text-[#01779b] dark:text-[#22b8cf]" />
+          <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
+            <MapPin class="h-5 w-5 text-primary dark:text-primary-light" />
           </div>
           <div>
             <p class="text-xs text-gray-500 dark:text-gray-400">Location</p>
@@ -129,8 +129,8 @@ const formatDate = (dateStr) => {
       <!-- Attendees Card -->
       <div v-if="event.attendees" class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
         <div class="flex items-center gap-3">
-          <div class="p-2 bg-[#01779b]/10 dark:bg-[#22b8cf]/10 rounded-lg">
-            <Users class="h-5 w-5 text-[#01779b] dark:text-[#22b8cf]" />
+          <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
+            <Users class="h-5 w-5 text-primary dark:text-primary-light" />
           </div>
           <div>
             <p class="text-xs text-gray-500 dark:text-gray-400">Expected Attendees</p>
@@ -154,11 +154,11 @@ const formatDate = (dateStr) => {
     </div>
 
     <!-- Footer Actions -->
-    <div v-if="isEditable" class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-b-2xl border-t border-[#01779b]/20 dark:border-[#22b8cf]/20 px-5 py-4">
+    <div v-if="isEditable" class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-b-2xl border-t border-primary/20 dark:border-primary-light/20 px-5 py-4">
       <div class="flex justify-end gap-2">
         <button
           @click="$emit('edit')"
-          class="p-2 text-white bg-[#01779b] dark:bg-[#22b8cf] rounded-lg hover:bg-[#015a77] dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-[#01779b]/25 dark:shadow-[#22b8cf]/25"
+          class="p-2 text-white bg-primary dark:bg-primary-light rounded-lg hover:bg-primary-hover dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-primary/25 dark:shadow-primary-light/25"
           :title="event.isVirtual ? 'Override' : 'Edit'"
         >
           <Edit2 class="h-5 w-5" />

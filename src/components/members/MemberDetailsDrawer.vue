@@ -115,10 +115,10 @@ const civilStatusOptions = [
   <Transition name="drawer">
     <div
       v-if="showDetails"
-      class="member-details-drawer m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20"
+      class="member-details-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-t-2xl border-b border-[#01779b]/20 dark:border-[#22b8cf]/20 px-6 py-4 flex items-center justify-between">
+      <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-6 py-4 flex items-center justify-between">
         <div>
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ isEditMode ? 'Edit Member' : 'Member Details' }}
@@ -344,7 +344,7 @@ const civilStatusOptions = [
                 <button
                   @click="handleFieldSave('isMember', !localMember.isMember)"
                   :class="[
-                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#01779b] focus:ring-offset-2',
+                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                     localMember.isMember ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
                   ]"
                 >
@@ -362,7 +362,7 @@ const civilStatusOptions = [
       </div>
 
       <!-- Footer -->
-      <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-b-2xl border-t border-[#01779b]/20 dark:border-[#22b8cf]/20 px-6 py-4">
+      <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-b-2xl border-t border-primary/20 dark:border-primary-light/20 px-6 py-4">
         <div class="flex justify-end gap-2">
           <button
             @click="handleViewPage"
@@ -383,7 +383,7 @@ const civilStatusOptions = [
           <button
             v-else
             @click="handleEdit"
-            class="p-2 text-white bg-[#01779b] dark:bg-[#22b8cf] rounded-lg hover:bg-[#015a77] dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-[#01779b]/25 dark:shadow-[#22b8cf]/25"
+            class="p-2 text-white bg-primary dark:bg-primary-light rounded-lg hover:bg-primary-hover dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-primary/25 dark:shadow-primary-light/25"
             title="Edit All Fields"
           >
             <Edit2 class="h-5 w-5" />

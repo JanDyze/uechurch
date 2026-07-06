@@ -159,7 +159,7 @@ const handleExport = () => {
         class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700"
       >
         <!-- Header -->
-        <div class="flex-shrink-0 px-6 py-5 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20 border-b border-gray-200 dark:border-gray-700">
+        <div class="shrink-0 px-6 py-5 bg-linear-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20 border-b border-gray-200 dark:border-gray-700">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <div class="p-2.5 bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/30">
@@ -310,7 +310,7 @@ const handleExport = () => {
         </div>
 
         <!-- Footer -->
-        <div class="flex-shrink-0 px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700">
+        <div class="shrink-0 px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700">
           <div class="flex items-center justify-between">
             <p class="text-sm text-gray-500 dark:text-gray-400">
               {{ estimatedRows }} records × {{ selectedFieldCount }} columns

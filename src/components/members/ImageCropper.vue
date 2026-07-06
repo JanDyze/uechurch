@@ -251,7 +251,7 @@ const close = () => {
     >
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
         <!-- Header -->
-        <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Upload & Crop Image</h3>
           <button
             @click="close"
@@ -278,7 +278,7 @@ const close = () => {
               />
               <button
                 @click="fileInput?.click()"
-                class="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-[#01779b] dark:hover:border-[#01779b] transition-colors flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400"
+                class="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary dark:hover:border-primary transition-colors flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400"
               >
                 <Upload class="h-5 w-5" />
                 <span>Choose Image</span>
@@ -404,7 +404,7 @@ const close = () => {
         </div>
 
         <!-- Footer -->
-        <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+        <div class="shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
           <button
             @click="close"
             class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -414,7 +414,7 @@ const close = () => {
           <button
             v-if="imageLoaded"
             @click="cropImage"
-            class="px-4 py-2 text-sm font-medium text-white bg-[#01779b] dark:bg-[#01779b] rounded-lg hover:bg-[#015a77] dark:hover:bg-[#015a77] transition-colors flex items-center gap-2"
+            class="px-4 py-2 text-sm font-medium text-white bg-primary dark:bg-primary rounded-lg hover:bg-primary-hover dark:hover:bg-primary-hover transition-colors flex items-center gap-2"
           >
             <Check class="h-4 w-4" />
             Apply Crop

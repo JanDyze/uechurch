@@ -155,7 +155,7 @@ const isTagSelected = (tag) => {
       <component
         v-if="icon"
         :is="icon"
-        class="h-5 w-5 text-[#01779b] dark:text-[#22b8cf] mt-0.5 flex-shrink-0"
+        class="h-5 w-5 text-primary dark:text-primary-light mt-0.5 shrink-0"
       />
       <div class="flex-1 min-w-0">
         <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{{ label }}</p>
@@ -165,7 +165,7 @@ const isTagSelected = (tag) => {
           <span
             v-for="tag in displayValue"
             :key="tag"
-            class="px-2 py-0.5 text-xs rounded-full bg-[#01779b]/10 text-[#01779b] dark:bg-[#22b8cf]/20 dark:text-[#22b8cf]"
+            class="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary dark:bg-primary-light/20 dark:text-primary-light"
           >
             {{ tag }}
           </span>
@@ -186,7 +186,7 @@ const isTagSelected = (tag) => {
       </div>
       
       <!-- Edit indicator -->
-      <Pencil class="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5" />
+      <Pencil class="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
     </div>
 
     <!-- Edit Mode -->
@@ -194,7 +194,7 @@ const isTagSelected = (tag) => {
       <component
         v-if="icon"
         :is="icon"
-        class="h-5 w-5 text-[#01779b] dark:text-[#22b8cf] mt-3 flex-shrink-0"
+        class="h-5 w-5 text-primary dark:text-primary-light mt-3 shrink-0"
       />
       
       <!-- Input row with inline buttons -->
@@ -202,7 +202,7 @@ const isTagSelected = (tag) => {
         <div class="flex-1 relative">
           <!-- Floating Label -->
           <label 
-            class="floating-label absolute -top-2 left-2 px-1 text-xs font-medium bg-white dark:bg-gray-800 text-[#01779b] dark:text-[#22b8cf] z-10"
+            class="floating-label absolute -top-2 left-2 px-1 text-xs font-medium bg-white dark:bg-gray-800 text-primary dark:text-primary-light z-10"
           >
             {{ label }}
           </label>
@@ -216,7 +216,7 @@ const isTagSelected = (tag) => {
             :placeholder="placeholder"
             @keydown="handleKeydown"
             @blur="handleBlur"
-            class="w-full px-3 pt-3 pb-2 text-sm border border-[#01779b] dark:border-[#22b8cf] rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#01779b]/20 dark:focus:ring-[#22b8cf]/20"
+            class="w-full px-3 pt-3 pb-2 text-sm border border-primary dark:border-primary-light rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 dark:focus:ring-primary-light/20"
           />
           
           <!-- Date Input -->
@@ -227,7 +227,7 @@ const isTagSelected = (tag) => {
             type="date"
             @keydown="handleKeydown"
             @blur="handleBlur"
-            class="w-full px-3 pt-3 pb-2 text-sm border border-[#01779b] dark:border-[#22b8cf] rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#01779b]/20 dark:focus:ring-[#22b8cf]/20"
+            class="w-full px-3 pt-3 pb-2 text-sm border border-primary dark:border-primary-light rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 dark:focus:ring-primary-light/20"
           />
           
           <!-- Select -->
@@ -237,7 +237,7 @@ const isTagSelected = (tag) => {
             v-model="editValue"
             @keydown="handleKeydown"
             @change="handleBlur"
-            class="w-full px-3 pt-3 pb-2 text-sm border border-[#01779b] dark:border-[#22b8cf] rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#01779b]/20 dark:focus:ring-[#22b8cf]/20 appearance-none"
+            class="w-full px-3 pt-3 pb-2 text-sm border border-primary dark:border-primary-light rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 dark:focus:ring-primary-light/20 appearance-none"
           >
             <option value="">Select...</option>
             <option v-for="opt in options" :key="opt.value" :value="opt.value">
@@ -254,11 +254,11 @@ const isTagSelected = (tag) => {
             :placeholder="placeholder"
             @keydown="handleKeydown"
             @blur="handleBlur"
-            class="w-full px-3 pt-3 pb-2 text-sm border border-[#01779b] dark:border-[#22b8cf] rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#01779b]/20 dark:focus:ring-[#22b8cf]/20 resize-none"
+            class="w-full px-3 pt-3 pb-2 text-sm border border-primary dark:border-primary-light rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 dark:focus:ring-primary-light/20 resize-none"
           />
           
           <!-- Tags -->
-          <div v-else-if="type === 'tags'" class="pt-3 pb-2 px-3 border border-[#01779b] dark:border-[#22b8cf] rounded-lg bg-white dark:bg-gray-800">
+          <div v-else-if="type === 'tags'" class="pt-3 pb-2 px-3 border border-primary dark:border-primary-light rounded-lg bg-white dark:bg-gray-800">
             <div class="flex flex-wrap gap-1.5">
               <button
                 v-for="tag in allTags"
@@ -268,7 +268,7 @@ const isTagSelected = (tag) => {
                 :class="[
                   'px-2.5 py-1 text-xs rounded-full transition-colors',
                   isTagSelected(tag)
-                    ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white'
+                    ? 'bg-primary dark:bg-primary-light text-white'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 ]"
               >
@@ -286,7 +286,7 @@ const isTagSelected = (tag) => {
         </div>
         
         <!-- Inline action buttons (hidden in forceEdit mode) -->
-        <div v-if="!forceEdit" class="flex items-center gap-0.5 flex-shrink-0 mt-1.5">
+        <div v-if="!forceEdit" class="flex items-center gap-0.5 shrink-0 mt-1.5">
           <button
             @click="cancelEdit"
             class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
@@ -296,7 +296,7 @@ const isTagSelected = (tag) => {
           </button>
           <button
             @click="saveEdit"
-            class="p-1 text-white bg-[#01779b] dark:bg-[#22b8cf] hover:bg-[#015a77] dark:hover:bg-[#1a9aab] rounded transition-colors"
+            class="p-1 text-white bg-primary dark:bg-primary-light hover:bg-primary-hover dark:hover:bg-[#1a9aab] rounded transition-colors"
             title="Save (Enter)"
           >
             <Check class="h-4 w-4" />

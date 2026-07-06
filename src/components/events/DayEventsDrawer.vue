@@ -50,14 +50,14 @@ const getIconComponent = (iconName) => {
 <template>
   <div
     v-if="show"
-    class="m-2 md:m-3 rounded-2xl border-2 border-[#01779b]/30 dark:border-[#22b8cf]/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-[#01779b]/25 dark:shadow-[#22b8cf]/20 transition-all duration-300"
+    class="m-2 md:m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 transition-all duration-300"
   >
     <!-- Header -->
-    <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-t-2xl border-b border-[#01779b]/20 dark:border-[#22b8cf]/20 px-5 py-4">
-      <div class="flex items-center justify-between mb-3 border-b border-[#01779b]/10 dark:border-[#22b8cf]/10 pb-3">
+    <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-5 py-4">
+      <div class="flex items-center justify-between mb-3 border-b border-primary/10 dark:border-primary-light/10 pb-3">
         <button
           @click="$emit('back')"
-          class="flex items-center gap-1.5 text-[#01779b] dark:text-[#22b8cf] hover:opacity-80 transition-opacity"
+          class="flex items-center gap-1.5 text-primary dark:text-primary-light hover:opacity-80 transition-opacity"
         >
           <ArrowLeft class="h-4 w-4" />
           <span class="text-xs font-semibold uppercase tracking-wider">Month Events</span>
@@ -101,7 +101,7 @@ const getIconComponent = (iconName) => {
         <div class="flex items-start gap-3">
           <div
             :class="[
-              'w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0',
+              'w-12 h-12 rounded-lg flex items-center justify-center shrink-0',
               getEventTypeColor(event.type),
             ]"
           >
@@ -125,10 +125,10 @@ const getIconComponent = (iconName) => {
     </div>
 
     <!-- Footer -->
-    <div class="flex-shrink-0 bg-gradient-to-r from-[#01779b]/10 to-transparent dark:from-[#22b8cf]/10 dark:to-transparent rounded-b-2xl border-t border-[#01779b]/20 dark:border-[#22b8cf]/20 px-5 py-4">
+    <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-b-2xl border-t border-primary/20 dark:border-primary-light/20 px-5 py-4">
       <button
         @click="$emit('addEvent')"
-        class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#01779b] dark:bg-[#22b8cf] text-white rounded-lg hover:bg-[#015a77] dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-[#01779b]/25 dark:shadow-[#22b8cf]/25"
+        class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-primary-light text-white rounded-lg hover:bg-primary-hover dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-primary/25 dark:shadow-primary-light/25"
       >
         <Plus class="h-5 w-5" />
         <span>Add Event</span>

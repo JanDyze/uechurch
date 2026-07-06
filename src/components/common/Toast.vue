@@ -63,12 +63,12 @@ const styles = computed(() => {
 <template>
   <div
     :class="[
-      'flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg backdrop-blur-sm min-w-[280px] max-w-md',
+      'flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg backdrop-blur-sm min-w-70 max-w-md',
       styles.bg,
       styles.border,
     ]"
   >
-    <component :is="icon" :class="['h-5 w-5 flex-shrink-0', styles.icon]" />
+    <component :is="icon" :class="['h-5 w-5 shrink-0', styles.icon]" />
     <p :class="['flex-1 text-sm font-medium', styles.text]">{{ message }}</p>
     <button
       @click="emit('close', id)"

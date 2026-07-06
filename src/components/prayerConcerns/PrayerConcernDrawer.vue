@@ -113,10 +113,10 @@ const handleCancel = () => {
   <Transition name="drawer">
     <div
       v-if="show"
-      class="prayer-concern-drawer border-l-4 border-[#01779b] bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="prayer-concern-drawer border-l-4 border-primary bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+      <div class="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Heart class="h-5 w-5 text-red-600 dark:text-red-400" />
           {{ isEdit ? 'Edit Prayer Concern' : 'Add Prayer Concern' }}
@@ -142,7 +142,7 @@ const handleCancel = () => {
               @input="$emit('update:concernData', { ...concernData, title: $event.target.value })"
               type="text"
               required
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="Prayer concern title"
             />
           </div>
@@ -176,7 +176,7 @@ const handleCancel = () => {
                   @focus="showMemberDropdown = true"
                   type="text"
                   placeholder="Search members..."
-                  class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+                  class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
                 <ChevronDown class="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               </div>
@@ -218,7 +218,7 @@ const handleCancel = () => {
               :value="concernData.description"
               @input="$emit('update:concernData', { ...concernData, description: $event.target.value })"
               rows="4"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent resize-none"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
               placeholder="Details about the prayer concern..."
             ></textarea>
           </div>
@@ -231,7 +231,7 @@ const handleCancel = () => {
             <select
               :value="concernData.status"
               @change="$emit('update:concernData', { ...concernData, status: $event.target.value })"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value="active">Active</option>
               <option value="ongoing">Ongoing</option>
@@ -247,7 +247,7 @@ const handleCancel = () => {
             <select
               :value="concernData.priority"
               @change="$emit('update:concernData', { ...concernData, priority: $event.target.value })"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value="low">Low</option>
               <option value="normal">Normal</option>
@@ -265,7 +265,7 @@ const handleCancel = () => {
               :value="concernData.date"
               @input="$emit('update:concernData', { ...concernData, date: $event.target.value })"
               type="date"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
@@ -278,7 +278,7 @@ const handleCancel = () => {
               :value="concernData.notes"
               @input="$emit('update:concernData', { ...concernData, notes: $event.target.value })"
               rows="3"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#01779b] focus:border-transparent resize-none"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
               placeholder="Additional notes..."
             ></textarea>
           </div>
@@ -286,7 +286,7 @@ const handleCancel = () => {
       </div>
 
       <!-- Footer -->
-      <div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3">
+      <div class="shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3">
         <button
           @click="handleCancel"
           class="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -299,7 +299,7 @@ const handleCancel = () => {
           :class="[
             'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
             isFormValid
-              ? 'bg-[#01779b] text-white hover:bg-[#015a77]'
+              ? 'bg-primary text-white hover:bg-primary-hover'
               : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
           ]"
         >

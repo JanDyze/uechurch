@@ -35,7 +35,7 @@ const handleContextMenu = (event) => {
     :class="[
       'p-3 rounded-lg transition-all cursor-pointer select-none',
       selected
-        ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20 border-2 border-[#01779b] shadow-lg shadow-[#01779b]/20'
+        ? 'bg-primary/10 dark:bg-primary/20 border-2 border-primary shadow-lg shadow-primary/20'
         : 'bg-gray-50 dark:bg-gray-700/50 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
     ]"
   >
@@ -45,7 +45,7 @@ const handleContextMenu = (event) => {
         <img
           :src="getAvatarUrl(member)"
           :alt="getFullName(member)"
-          class="h-12 w-12 rounded-full flex-shrink-0"
+          class="h-12 w-12 rounded-full shrink-0"
         />
         <div class="flex-1 min-w-0">
           <p class="text-xs font-semibold text-gray-900 dark:text-white truncate">
@@ -67,7 +67,7 @@ const handleContextMenu = (event) => {
         <img
           :src="getAvatarUrl(member)"
           :alt="getFullName(member)"
-          class="h-12 w-12 rounded-full flex-shrink-0"
+          class="h-12 w-12 rounded-full shrink-0"
         />
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">

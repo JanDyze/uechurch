@@ -35,7 +35,7 @@ const handleContextMenu = (event) => {
     :class="[
       'p-3 transition-all cursor-pointer select-none rounded-lg',
       selected
-        ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20 ring-1 ring-[#01779b]/30 dark:ring-[#22b8cf]/30'
+        ? 'bg-primary/10 dark:bg-primary/20 ring-1 ring-primary/30 dark:ring-primary-light/30'
         : 'hover:bg-gray-100 dark:hover:bg-gray-700/50'
     ]"
   >

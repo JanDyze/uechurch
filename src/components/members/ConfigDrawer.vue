@@ -30,10 +30,10 @@ const toggleField = (field) => {
   <Transition name="drawer">
     <div
       v-if="showConfig && viewMode === 'detailed'"
-      class="config-drawer border-l-4 border-[#01779b] bg-blue-50/30 dark:bg-gray-900/80 w-1/2 h-full flex flex-col flex-shrink-0 shadow-2xl shadow-[#01779b]/20"
+      class="config-drawer border-l-4 border-primary bg-blue-50/30 dark:bg-gray-900/80 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-blue-50/30 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+      <div class="shrink-0 bg-blue-50/30 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
           Display Fields
         </h3>
@@ -64,8 +64,8 @@ const toggleField = (field) => {
             <button
               @click="toggleField(field.key)"
               :class="[
-                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#01779b] focus:ring-offset-2',
-                visibleFields[field.key] ? 'bg-[#01779b]' : 'bg-gray-300 dark:bg-gray-600'
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+                visibleFields[field.key] ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
               ]"
             >
               <span
@@ -80,10 +80,10 @@ const toggleField = (field) => {
       </div>
 
       <!-- Sticky Footer -->
-      <div class="flex-shrink-0 bg-blue-50/30 dark:bg-gray-900/80 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+      <div class="shrink-0 bg-blue-50/30 dark:bg-gray-900/80 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
         <button
           @click="$emit('update:showConfig', false)"
-          class="w-full px-4 py-2 text-sm font-medium text-white bg-[#01779b] dark:bg-[#01779b] rounded-lg hover:bg-[#015a77] dark:hover:bg-[#015a77] transition-colors"
+          class="w-full px-4 py-2 text-sm font-medium text-white bg-primary dark:bg-primary rounded-lg hover:bg-primary-hover dark:hover:bg-primary-hover transition-colors"
         >
           Apply
         </button>

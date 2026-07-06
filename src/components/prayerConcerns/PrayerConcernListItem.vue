@@ -79,12 +79,12 @@ const getPriorityIcon = (priority) => {
     :class="[
       'p-4 transition-all cursor-pointer border-l-4',
       selected
-        ? 'bg-[#01779b]/10 dark:bg-[#01779b]/20 border-[#01779b]'
+        ? 'bg-primary/10 dark:bg-primary/20 border-primary'
         : 'hover:bg-gray-50 dark:hover:bg-gray-700 border-transparent'
     ]"
   >
     <div class="flex items-start gap-4">
-      <div class="flex-shrink-0 h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+      <div class="shrink-0 h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
         <Heart class="h-6 w-6 text-red-600 dark:text-red-400" />
       </div>
       <div class="flex-1 min-w-0">
@@ -128,7 +128,7 @@ const getPriorityIcon = (priority) => {
       </div>
       <button
         @click="handleDelete"
-        class="flex-shrink-0 p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+        class="shrink-0 p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
         title="Delete prayer concern"
       >
         <Trash2 class="h-4 w-4" />

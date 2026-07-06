@@ -90,10 +90,10 @@ const civilStatusOptions = [
   <Transition name="drawer">
     <div
       v-if="showAddMember"
-      class="add-member-drawer m-3 rounded-2xl border-2 border-green-500/30 dark:border-green-400/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col flex-shrink-0 shadow-xl shadow-green-500/25 dark:shadow-green-400/20"
+      class="add-member-drawer m-3 rounded-2xl border-2 border-green-500/30 dark:border-green-400/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-green-500/25 dark:shadow-green-400/20"
     >
       <!-- Header -->
-      <div class="flex-shrink-0 bg-gradient-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-t-2xl border-b border-green-500/20 dark:border-green-400/20 px-6 py-4 flex items-center justify-between">
+      <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-t-2xl border-b border-green-500/20 dark:border-green-400/20 px-6 py-4 flex items-center justify-between">
         <div>
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
             Add New Member
@@ -309,7 +309,7 @@ const civilStatusOptions = [
                     type="button"
                     @click="updateField('isMember', !newMember.isMember)"
                     :class="[
-                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#01779b] focus:ring-offset-2',
+                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                       newMember.isMember ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
                     ]"
                   >
@@ -334,7 +334,7 @@ const civilStatusOptions = [
                       :class="[
                         'px-3 py-1.5 text-xs font-medium rounded-full transition-all',
                         newMember.tags.includes(tag)
-                          ? 'bg-[#01779b] dark:bg-[#22b8cf] text-white shadow-sm'
+                          ? 'bg-primary dark:bg-primary-light text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
                       ]"
                     >
@@ -350,7 +350,7 @@ const civilStatusOptions = [
       </div>
 
       <!-- Sticky Footer -->
-      <div class="flex-shrink-0 bg-gradient-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-b-2xl border-t border-green-500/20 dark:border-green-400/20 px-6 py-4">
+      <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-b-2xl border-t border-green-500/20 dark:border-green-400/20 px-6 py-4">
         <div class="flex gap-3">
           <button
             type="button"
