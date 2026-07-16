@@ -71,7 +71,7 @@ const navigate = (path) => {
       <!-- Logo/Branding -->
       <div class="flex items-center shrink-0 px-2 mb-8 overflow-hidden">
         <div class="flex items-center gap-2 min-w-0">
-          <img :src="logo" alt="UEC Logo" :class="['w-auto transition-all shrink-0 dark:brightness-0 dark:invert dark:opacity-90', isMinimized ? 'h-15' : 'h-15']" />
+          <img :src="logo" alt="UEC Logo" :class="['w-auto transition-all shrink-0', isMinimized ? 'h-15' : 'h-15']" />
           <div v-if="!isMinimized" class="min-w-0 overflow-hidden">
             <h2 class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap tracking-tight">UEC Canubing II</h2>
             <p class="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 whitespace-nowrap tracking-widest mt-0.5">United Evangelical Church</p>

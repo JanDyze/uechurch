@@ -63,7 +63,7 @@ const emit = defineEmits([
         <!-- Record Attendance Button -->
         <button
           @click="emit('toggle-record-attendance')"
-          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"
+          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
           :class="{ 'bg-primary-hover dark:bg-primary-hover': showRecordAttendance }"
           :title="showRecordAttendance ? 'Close record attendance' : 'Record attendance'"
         >
@@ -71,7 +71,7 @@ const emit = defineEmits([
             class="h-5 w-5 transition-transform duration-200 shrink-0"
             :class="{ 'rotate-45': showRecordAttendance }"
           />
-          <span class="hidden sm:inline whitespace-nowrap">Add</span>
+          <span class="whitespace-nowrap text-xs sm:text-sm">Add</span>
         </button>
       </div>
     </div>

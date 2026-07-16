@@ -49,15 +49,15 @@ const mobileSearchOpen = ref(false)
         </button>
         <button
           @click="emit('addEvent')"
-          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"
+          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
           :class="{ 'bg-primary-hover dark:bg-primary-hover': showAddEvent }"
           :title="showAddEvent ? 'Close add event drawer' : 'Add new event'"
         >
-          <Plus 
+          <Plus
             class="h-5 w-5 transition-transform duration-300 shrink-0"
             :class="showAddEvent ? 'rotate-45' : 'rotate-0'"
           />
-          <span class="hidden sm:inline whitespace-nowrap">Add</span>
+          <span class="whitespace-nowrap text-xs sm:text-sm">Add</span>
         </button>
       </div>
     </div>

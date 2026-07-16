@@ -124,20 +124,6 @@ const handleListModeToggle = () => {
           ></span>
         </button>
 
-        <!-- Add Member Button -->
-        <button
-          @click="
-            emit('update:showFilters', false);
-            emit('update:showConfig', false);
-            emit('update:showAddMember', !showAddMember);
-          "
-          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"
-          :title="showAddMember ? 'Close add member form' : 'Add new member'"
-        >
-          <Plus class="h-5 w-5 transition-transform duration-300 ease-in-out shrink-0" :class="{ 'rotate-45': showAddMember }" />
-          <span class="hidden sm:inline whitespace-nowrap">Add</span>
-        </button>
-
         <!-- Configuration Button -->
         <button
           :disabled="viewMode === 'simple'"
@@ -198,10 +184,25 @@ const handleListModeToggle = () => {
         <!-- Export Button -->
         <button
           @click="emit('export')"
-          class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 shrink-0"
+          class="flex h-10 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
           title="Export to Google Sheets"
         >
-          <Download class="h-5 w-5" />
+          <Download class="h-5 w-5 shrink-0" />
+          <span class="whitespace-nowrap text-xs sm:text-sm">Export</span>
+        </button>
+
+        <!-- Add Member Button -->
+        <button
+          @click="
+            emit('update:showFilters', false);
+            emit('update:showConfig', false);
+            emit('update:showAddMember', !showAddMember);
+          "
+          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
+          :title="showAddMember ? 'Close add member form' : 'Add new member'"
+        >
+          <Plus class="h-5 w-5 transition-transform duration-300 ease-in-out shrink-0" :class="{ 'rotate-45': showAddMember }" />
+          <span class="whitespace-nowrap text-xs sm:text-sm">Add</span>
         </button>
       </div>
     </div>
