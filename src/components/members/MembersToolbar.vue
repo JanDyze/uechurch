@@ -1,7 +1,6 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import {
-  Search,
   Grid3x3,
   LayoutGrid,
   List,
@@ -11,6 +10,9 @@ import {
   Filter,
   Download,
 } from "lucide-vue-next";
+import SearchBar from "../common/SearchBar.vue";
+
+const mobileSearchOpen = ref(false);
 
 const props = defineProps({
   searchQuery: {
@@ -95,24 +97,20 @@ const handleListModeToggle = () => {
 
 <template>
   <div class="sticky top-0 z-40 mb-4 shrink-0 rounded-xl border border-gray-200/80 bg-white/95 px-2 py-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:px-3">
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <div class="relative w-full sm:flex-1">
-        <Search class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-        <input
-          :value="searchQuery"
-          @input="$emit('update:searchQuery', $event.target.value)"
-          type="text"
-          placeholder="Search members..."
-          class="w-full rounded-lg border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-        />
-      </div>
+    <div class="flex items-center justify-between gap-2 w-full flex-nowrap">
+      <SearchBar
+        :model-value="searchQuery"
+        @update:model-value="$emit('update:searchQuery', $event)"
+        v-model:open="mobileSearchOpen"
+        placeholder="Search members..."
+      />
 
-      <div class="flex flex-wrap items-center gap-2 sm:ml-auto">
+      <div :class="['flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 ml-auto', mobileSearchOpen ? 'hidden lg:flex' : 'flex']">
         <!-- Filter Button -->
         <button
           @click="emit('update:showFilters', !showFilters)"
           :class="[
-            'relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors sm:h-10 sm:w-10',
+            'relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
             showFilters || hasActiveFilters
               ? 'bg-primary text-white shadow-sm dark:bg-primary'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600',
@@ -126,12 +124,26 @@ const handleListModeToggle = () => {
           ></span>
         </button>
 
+        <!-- Add Member Button -->
+        <button
+          @click="
+            emit('update:showFilters', false);
+            emit('update:showConfig', false);
+            emit('update:showAddMember', !showAddMember);
+          "
+          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"
+          :title="showAddMember ? 'Close add member form' : 'Add new member'"
+        >
+          <Plus class="h-5 w-5 transition-transform duration-300 ease-in-out shrink-0" :class="{ 'rotate-45': showAddMember }" />
+          <span class="hidden sm:inline whitespace-nowrap">Add</span>
+        </button>
+
         <!-- Configuration Button -->
         <button
           :disabled="viewMode === 'simple'"
           @click="emit('update:showConfig', !showConfig)"
           :class="[
-            'relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
+            'relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors shrink-0',
             viewMode === 'simple'
               ? 'cursor-not-allowed bg-gray-100 text-gray-400 opacity-50 dark:bg-gray-700 dark:text-gray-500'
               : showConfig
@@ -144,7 +156,7 @@ const handleListModeToggle = () => {
         </button>
 
         <!-- View Mode Controls -->
-        <div class="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-700">
+        <div class="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-700 shrink-0">
           <button
             @click="handleViewModeToggle"
             :class="[
@@ -186,24 +198,10 @@ const handleListModeToggle = () => {
         <!-- Export Button -->
         <button
           @click="emit('export')"
-          class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+          class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 shrink-0"
           title="Export to Google Sheets"
         >
           <Download class="h-5 w-5" />
-        </button>
-
-        <!-- Add Member Button -->
-        <button
-          @click="
-            emit('update:showFilters', false);
-            emit('update:showConfig', false);
-            emit('update:showAddMember', !showAddMember);
-          "
-          class="flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover sm:px-4"
-          :title="showAddMember ? 'Close add member form' : 'Add new member'"
-        >
-          <Plus class="h-5 w-5 transition-transform duration-300 ease-in-out" :class="{ 'rotate-45': showAddMember }" />
-          <span class="whitespace-nowrap">Add</span>
         </button>
       </div>
     </div>

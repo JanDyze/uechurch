@@ -2,6 +2,9 @@
 import { computed, ref, watch } from 'vue'
 import { X, Save, Heart, User, Search, ChevronDown } from 'lucide-vue-next'
 import { useMembers } from '../../composables/useMembers'
+import { useMediaQuery } from '../../composables/useMediaQuery'
+
+const isMobile = useMediaQuery('(max-width: 1023px)')
 
 const props = defineProps({
   show: {
@@ -110,13 +113,31 @@ const handleCancel = () => {
 </script>
 
 <template>
-  <Transition name="drawer">
+  <Teleport to="body" :disabled="!isMobile">
+    <Transition :name="isMobile ? 'modal-sheet' : 'drawer'">
     <div
       v-if="show"
-      class="prayer-concern-drawer border-l-4 border-primary bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20"
+      :class="[
+        isMobile
+          ? 'fixed inset-0 z-80 flex flex-col justify-end'
+          : 'prayer-concern-drawer border-l-4 border-primary bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20'
+      ]"
     >
+      <div
+        v-if="isMobile"
+        class="absolute inset-0 bg-black/50"
+        @click="handleCancel"
+      />
+      <div
+        :class="[
+          'flex flex-col min-h-0',
+          isMobile
+            ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
+            : 'h-full w-full'
+        ]"
+      >
       <!-- Header -->
-      <div class="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+      <div class="shrink-0 bg-white dark:bg-gray-800 rounded-t-2xl border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Heart class="h-5 w-5 text-red-600 dark:text-red-400" />
           {{ isEdit ? 'Edit Prayer Concern' : 'Add Prayer Concern' }}
@@ -130,7 +151,7 @@ const handleCancel = () => {
       </div>
 
       <!-- Scrollable Form Content -->
-      <div class="flex-1 overflow-y-auto p-6">
+      <div class="flex-1 overflow-y-auto p-4 sm:p-6">
         <form @submit.prevent="handleSave" class="space-y-4">
           <!-- Title -->
           <div>
@@ -286,7 +307,7 @@ const handleCancel = () => {
       </div>
 
       <!-- Footer -->
-      <div class="shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-end gap-3">
+      <div class="shrink-0 border-t border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-end gap-3">
         <button
           @click="handleCancel"
           class="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -307,8 +328,10 @@ const handleCancel = () => {
           {{ isEdit ? 'Update' : 'Save' }}
         </button>
       </div>
+      </div>
     </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -334,6 +357,26 @@ const handleCancel = () => {
 .dropdown-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+.modal-sheet-enter-active,
+.modal-sheet-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-sheet-enter-active > div:last-child,
+.modal-sheet-leave-active > div:last-child {
+  transition: transform 0.25s ease;
+}
+
+.modal-sheet-enter-from,
+.modal-sheet-leave-to {
+  opacity: 0;
+}
+
+.modal-sheet-enter-from > div:last-child,
+.modal-sheet-leave-to > div:last-child {
+  transform: translateY(100%);
 }
 </style>
 

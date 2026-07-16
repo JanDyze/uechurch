@@ -1,41 +1,36 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { 
-  Search, 
-  Plus, 
-  Download, 
-  FileText, 
-  CreditCard, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  TrendingUp, 
-  Calendar, 
-  Filter, 
-  MoreHorizontal, 
-  Trash2, 
-  Edit3, 
-  Loader2, 
-  PieChart as PieIcon, 
+import {
+  Plus,
+  Download,
+  FileText,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+  X,
+  Trash2,
+  Loader2,
+  PieChart as PieIcon,
   DollarSign,
   Heart,
   Zap,
   User,
   Wrench,
-  AlertCircle,
   Building2,
   BookOpen,
   ArrowRight
 } from 'lucide-vue-next'
-import { subscribeToTransactions, addTransaction, deleteTransaction, updateTransaction } from '../api/financeService'
+import { subscribeToTransactions, addTransaction, deleteTransaction } from '../api/financeService'
+import ConfirmationModal from '../components/common/ConfirmationModal.vue'
+import SearchBar from '../components/common/SearchBar.vue'
 import * as XLSX from 'xlsx'
 
 const transactions = ref([])
 const isLoading = ref(true)
-const searchQuery = ref('')
 const selectedType = ref('all')
+const searchQuery = ref('')
+const mobileSearchOpen = ref(false)
 const showAddModal = ref(false)
-const showDeleteConfirm = ref(false)
-const transactionToDelete = ref(null)
 const isSubmitting = ref(false)
 
 // Form state
@@ -51,8 +46,8 @@ const form = ref({
 })
 
 const categories = [
-  'Tithes', 'Offerings', 'Missions', 'Building Fund', 
-  'Utilities', 'Maintenance', 'Salaries', 'Outreach', 
+  'Tithes', 'Offerings', 'Missions', 'Building Fund',
+  'Utilities', 'Maintenance', 'Salaries', 'Outreach',
   'Events', 'General'
 ]
 
@@ -66,6 +61,28 @@ const getCategoryIcon = (cat) => {
     case 'Maintenance': return Wrench
     case 'Salaries': return User
     default: return FileText
+  }
+}
+
+// Confirmation modal state
+const showConfirmation = ref(false)
+const confirmationConfig = ref({
+  title: 'Confirm Action',
+  message: '',
+  confirmText: 'Confirm',
+  cancelText: 'Cancel',
+  confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
+  onConfirm: null
+})
+
+const showConfirmModal = (config) => {
+  confirmationConfig.value = { ...confirmationConfig.value, ...config }
+  showConfirmation.value = true
+}
+
+const handleConfirmation = () => {
+  if (confirmationConfig.value.onConfirm) {
+    confirmationConfig.value.onConfirm()
   }
 }
 
@@ -115,13 +132,22 @@ const stats = computed(() => {
 })
 
 const filteredTransactions = computed(() => {
-  return transactions.value.filter(t => {
-    const matchesSearch = t.description.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-                          t.payerPayee.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-                          t.category.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchesType = selectedType.value === 'all' || t.type === selectedType.value
-    return matchesSearch && matchesType
-  })
+  let result = transactions.value
+
+  if (selectedType.value !== 'all') {
+    result = result.filter(t => t.type === selectedType.value)
+  }
+
+  const query = searchQuery.value.trim().toLowerCase()
+  if (query) {
+    result = result.filter(t =>
+      t.description?.toLowerCase().includes(query) ||
+      t.payerPayee?.toLowerCase().includes(query) ||
+      t.category?.toLowerCase().includes(query)
+    )
+  }
+
+  return result
 })
 
 const groupedByCategory = computed(() => {
@@ -156,30 +182,42 @@ const handleAddTransaction = async () => {
     resetForm()
   } catch (err) {
     console.error(err)
-    alert("Failed to add transaction")
+    showConfirmModal({
+      title: 'Error',
+      message: 'Failed to add transaction. Please try again.',
+      confirmText: 'OK',
+      cancelText: '',
+      confirmButtonClass: 'bg-primary text-white hover:bg-primary-hover',
+      onConfirm: () => {},
+    })
   } finally {
     isSubmitting.value = false
   }
 }
 
 const confirmDelete = (transaction) => {
-  transactionToDelete.value = transaction
-  showDeleteConfirm.value = true
-}
-
-const handleDeleteTransaction = async () => {
-  if (!transactionToDelete.value) return
-  isSubmitting.value = true
-  try {
-    await deleteTransaction(transactionToDelete.value.firestoreId)
-    showDeleteConfirm.value = false
-    transactionToDelete.value = null
-  } catch (err) {
-    console.error(err)
-    alert("Failed to delete")
-  } finally {
-    isSubmitting.value = false
-  }
+  showConfirmModal({
+    title: 'Delete Transaction',
+    message: `Are you sure you want to delete "${transaction.description}"? This will affect the net balance and cannot be undone.`,
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
+    onConfirm: async () => {
+      try {
+        await deleteTransaction(transaction.firestoreId)
+      } catch (err) {
+        console.error(err)
+        showConfirmModal({
+          title: 'Error',
+          message: 'Failed to delete transaction. Please try again.',
+          confirmText: 'OK',
+          cancelText: '',
+          confirmButtonClass: 'bg-primary text-white hover:bg-primary-hover',
+          onConfirm: () => {},
+        })
+      }
+    }
+  })
 }
 
 const exportToExcel = () => {
@@ -207,176 +245,168 @@ const formatCurrency = (val) => {
 const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
+
+const statusBadgeClass = (status) => {
+  if (status === 'completed') return 'bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/40'
+  if (status === 'pending') return 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/40'
+  return 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600'
+}
 </script>
 
 <template>
-  <div class="h-full flex flex-col space-y-6 overflow-hidden">
-    <!-- Header Section -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
-      <div>
-        <h1 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Financial Stewardship</h1>
-        <p class="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-0.5">Tracking Resources for God's Kingdom</p>
-      </div>
-      <div class="flex items-center gap-2">
-        <button @click="exportToExcel" class="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all shadow-sm flex items-center gap-2">
-          <Download class="h-4 w-4" />
-          <span class="text-xs font-bold uppercase tracking-wider hidden sm:inline">Export</span>
+  <div class="flex flex-col h-full overflow-y-auto lg:overflow-hidden">
+    <!-- Toolbar -->
+    <div class="sticky top-0 z-40 mb-4 shrink-0 rounded-xl border border-gray-200/80 bg-white/95 px-2 py-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:px-3">
+      <div class="flex items-center justify-end gap-1.5 sm:gap-2 flex-nowrap w-full">
+        <button
+          @click="exportToExcel"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+          title="Export to Excel"
+        >
+          <Download class="h-5 w-5" />
         </button>
-        <button @click="showAddModal = true" class="px-5 py-2.5 rounded-xl bg-primary text-white hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 flex items-center gap-2">
-          <Plus class="h-5 w-5" />
-          <span class="text-xs font-black uppercase tracking-wider">New Transaction</span>
+
+        <button
+          @click="showAddModal = true"
+          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"
+          title="Record a new transaction"
+        >
+          <Plus class="h-5 w-5 shrink-0" />
+          <span class="hidden sm:inline whitespace-nowrap">Add</span>
         </button>
       </div>
     </div>
 
-    <!-- Metrics Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
-      <!-- Balance Card -->
-      <div class="relative overflow-hidden bg-linear-to-br from-primary to-primary-light rounded-4xl p-6 text-white shadow-xl">
-        <div class="relative z-10">
-          <div class="flex items-center justify-between mb-4">
-            <div class="p-2 bg-white/20 backdrop-blur-md rounded-xl">
-              <CreditCard class="h-5 w-5" />
-            </div>
-            <span class="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-1 rounded-full">Net Balance</span>
+    <!-- Metrics -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-4 shrink-0">
+      <div class="rounded-lg border border-primary/20 bg-primary/5 dark:bg-primary/10 p-3 sm:p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="p-1.5 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary shrink-0">
+            <Wallet class="h-4 w-4" />
           </div>
-          <p class="text-[11px] font-medium opacity-80 uppercase tracking-widest mb-1">Total Assets</p>
-          <p class="text-2xl font-black tracking-tight">{{ formatCurrency(stats.balance) }}</p>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">Net Balance</p>
         </div>
-        <!-- Decorative Circle -->
-        <div class="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+        <p class="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 dark:text-white truncate">{{ formatCurrency(stats.balance) }}</p>
       </div>
 
-      <!-- Monthly Income -->
-      <div class="bg-white dark:bg-slate-800 rounded-4xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-          <div class="p-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl text-emerald-500">
-            <ArrowUpRight class="h-5 w-5" />
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="p-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 shrink-0">
+            <ArrowUpRight class="h-4 w-4" />
           </div>
-          <TrendingUp class="h-4 w-4 text-emerald-500 opacity-50" />
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">Monthly Income</p>
         </div>
-        <p class="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1">Monthly Income</p>
-        <p class="text-2xl font-black text-emerald-500 tracking-tight">{{ formatCurrency(stats.income) }}</p>
+        <p class="text-base sm:text-lg lg:text-xl font-semibold text-green-600 dark:text-green-400 truncate">{{ formatCurrency(stats.income) }}</p>
       </div>
 
-      <!-- Monthly Expense -->
-      <div class="bg-white dark:bg-slate-800 rounded-4xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-          <div class="p-2 bg-rose-50 dark:bg-rose-500/10 rounded-xl text-rose-500">
-            <ArrowDownRight class="h-5 w-5" />
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 shrink-0">
+            <ArrowDownRight class="h-4 w-4" />
           </div>
-          <AlertCircle v-if="stats.expense > stats.income" class="h-4 w-4 text-rose-500 opacity-50 animate-pulse" />
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">Monthly Expense</p>
         </div>
-        <p class="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1">Monthly Expense</p>
-        <p class="text-2xl font-black text-rose-500 tracking-tight">{{ formatCurrency(stats.expense) }}</p>
+        <p class="text-base sm:text-lg lg:text-xl font-semibold text-red-600 dark:text-red-400 truncate">{{ formatCurrency(stats.expense) }}</p>
       </div>
 
-      <!-- Active Entries -->
-      <div class="bg-white dark:bg-slate-800 rounded-4xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-          <div class="p-2 bg-amber-50 dark:bg-amber-500/10 rounded-xl text-amber-500">
-            <Loader2 class="h-5 w-5" />
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 shrink-0">
+            <Loader2 class="h-4 w-4" />
           </div>
-          <span class="text-[10px] font-black uppercase tracking-widest text-amber-500">{{ stats.pending }} PENDING</span>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">Total Logs</p>
         </div>
-        <p class="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Logs</p>
-        <p class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{{ transactions.length }}</p>
+        <p class="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 dark:text-white truncate">
+          {{ transactions.length }}
+          <span v-if="stats.pending" class="text-xs font-normal text-amber-600 dark:text-amber-400">({{ stats.pending }} pending)</span>
+        </p>
       </div>
     </div>
 
-    <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col min-h-0 bg-transparent gap-6 overflow-hidden lg:flex-row">
-      
-      <!-- Transaction Table -->
-      <div class="flex-1 bg-white dark:bg-slate-900/50 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 flex flex-col overflow-hidden shadow-sm">
-        <!-- Table Actions -->
-        <div class="p-6 border-b border-gray-50 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div class="relative flex-1 max-w-md">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input 
-              v-model="searchQuery"
-              type="text" 
-              placeholder="Search by description, payee, or category..." 
-              class="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800/50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary transition-all"
-            />
-          </div>
-          <div class="flex items-center gap-2">
-            <select 
-              v-model="selectedType"
-              class="bg-gray-50 dark:bg-slate-800/50 border-none rounded-xl text-xs font-black uppercase tracking-wider px-4 py-2 focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">All Types</option>
-              <option value="income">Income</option>
-              <option value="expense">Expense</option>
-            </select>
-          </div>
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col gap-4 lg:flex-row lg:min-h-0 lg:overflow-hidden">
+
+      <!-- Transactions -->
+      <div class="flex-1 overflow-hidden bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col lg:min-h-0">
+        <!-- Search & Filter -->
+        <div class="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
+          <SearchBar
+            v-model="searchQuery"
+            v-model:open="mobileSearchOpen"
+            placeholder="Search by description, payee, or category"
+          />
+          <select
+            v-model="selectedType"
+            :class="['h-10 shrink-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary lg:w-40', mobileSearchOpen ? 'hidden lg:block' : 'block']"
+          >
+            <option value="all">All Types</option>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+          </select>
         </div>
 
-        <!-- Table -->
-        <div class="flex-1 overflow-y-auto custom-scrollbar">
+        <!-- Table (desktop only) -->
+        <div class="hidden lg:block flex-1 overflow-y-auto custom-scrollbar">
           <table class="w-full text-left border-collapse">
-            <thead class="sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md z-10 border-b border-gray-50 dark:border-slate-800">
+            <thead class="sticky top-0 bg-white dark:bg-gray-800 z-10 border-b border-gray-200 dark:border-gray-700">
               <tr>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Description</th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Amount</th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Status</th>
-                <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Action</th>
+                <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">Date</th>
+                <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">Description</th>
+                <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 text-right">Amount</th>
+                <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 text-center">Status</th>
+                <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 text-right">Action</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50 dark:divide-slate-800/50">
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
               <tr v-if="isLoading" v-for="i in 5" :key="i" class="animate-pulse">
-                <td v-for="j in 5" :key="j" class="px-6 py-4"><div class="h-4 bg-gray-100 dark:bg-slate-800 rounded-lg w-full"></div></td>
+                <td v-for="j in 5" :key="j" class="px-4 py-3"><div class="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full"></div></td>
               </tr>
-              <tr v-else-if="filteredTransactions.length === 0" class="hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                <td colspan="5" class="px-6 py-20 text-center">
+              <tr v-else-if="filteredTransactions.length === 0">
+                <td colspan="5" class="px-4 py-16 text-center">
                   <div class="flex flex-col items-center">
-                    <FileText class="h-12 w-12 text-gray-200 dark:text-slate-700 mb-4" />
-                    <p class="text-sm font-bold text-gray-400 uppercase tracking-widest">No entries found</p>
+                    <FileText class="h-10 w-10 text-gray-300 dark:text-gray-600 mb-3" />
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ searchQuery.trim() ? 'No transactions match your search' : 'No transactions found' }}
+                    </p>
                   </div>
                 </td>
               </tr>
-              <tr v-for="t in filteredTransactions" :key="t.id" class="group hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                <td class="px-6 py-4">
+              <tr v-for="t in filteredTransactions" :key="t.id" class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <td class="px-4 py-3">
                   <div class="flex flex-col">
-                    <span class="text-sm font-bold text-gray-900 dark:text-white">{{ formatDate(t.date) }}</span>
-                    <span class="text-[9px] font-black text-gray-400 uppercase tracking-tighter">{{ t.category }}</span>
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">{{ formatDate(t.date) }}</span>
+                    <span class="text-xs text-gray-400 dark:text-gray-500">{{ t.category }}</span>
                   </div>
                 </td>
-                <td class="px-6 py-4">
+                <td class="px-4 py-3">
                   <div class="flex items-center gap-3">
                     <div :class="[
-                      'p-2 rounded-xl shrink-0',
-                      t.type === 'income' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500' : 'bg-rose-50 dark:bg-rose-500/10 text-rose-500'
+                      'p-2 rounded-lg shrink-0',
+                      t.type === 'income' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                     ]">
                       <component :is="getCategoryIcon(t.category)" class="h-4 w-4" />
                     </div>
-                    <div class="flex flex-col">
-                      <p class="text-sm font-bold text-gray-900 dark:text-white truncate max-w-50">{{ t.description }}</p>
-                      <p class="text-[10px] text-gray-500 dark:text-slate-400 font-medium">From/To: {{ t.payerPayee || 'Internal' }}</p>
+                    <div class="flex flex-col min-w-0">
+                      <p class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-50">{{ t.description }}</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400 truncate">From/To: {{ t.payerPayee || 'Internal' }}</p>
                     </div>
                   </div>
                 </td>
-                <td class="px-6 py-4 text-right">
-                  <span :class="['text-sm font-black tracking-tight', t.type === 'income' ? 'text-emerald-500' : 'text-rose-500']">
+                <td class="px-4 py-3 text-right">
+                  <span :class="['text-sm font-semibold', t.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400']">
                     {{ t.type === 'income' ? '+' : '-' }}{{ formatCurrency(t.amount) }}
                   </span>
                 </td>
-                <td class="px-6 py-4">
+                <td class="px-4 py-3">
                   <div class="flex justify-center">
-                    <span :class="[
-                      'px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border',
-                      t.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 
-                      t.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' : 
-                      'bg-gray-50 text-gray-600 border-gray-100 dark:bg-slate-700 dark:text-slate-400 dark:border-slate-600'
-                    ]">
+                    <span :class="['px-2 py-0.5 rounded-full text-xs border capitalize', statusBadgeClass(t.status)]">
                       {{ t.status }}
                     </span>
                   </div>
                 </td>
-                <td class="px-6 py-4 text-right">
+                <td class="px-4 py-3 text-right">
                   <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button @click="confirmDelete(t)" class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors">
+                    <button @click="confirmDelete(t)" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
                       <Trash2 class="h-4 w-4" />
                     </button>
                   </div>
@@ -385,130 +415,171 @@ const formatDate = (dateStr) => {
             </tbody>
           </table>
         </div>
+
+        <!-- List (mobile & tablet) -->
+        <div class="lg:hidden overflow-y-auto">
+          <template v-if="isLoading">
+            <div class="p-3 space-y-2">
+              <div v-for="i in 5" :key="i" class="h-16 rounded-lg bg-gray-100 dark:bg-gray-700 animate-pulse"></div>
+            </div>
+          </template>
+          <div v-else-if="filteredTransactions.length === 0" class="flex flex-col items-center py-16">
+            <FileText class="h-10 w-10 text-gray-300 dark:text-gray-600 mb-3" />
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              {{ searchQuery.trim() ? 'No transactions match your search' : 'No transactions found' }}
+            </p>
+          </div>
+          <div v-else class="divide-y divide-gray-100 dark:divide-gray-700">
+            <div
+              v-for="t in filteredTransactions"
+              :key="t.id"
+              class="px-4 py-3 flex items-center gap-3"
+            >
+              <div :class="[
+                'p-2 rounded-lg shrink-0',
+                t.type === 'income' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+              ]">
+                <component :is="getCategoryIcon(t.category)" class="h-4 w-4" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ t.description }}</p>
+                  <span :class="['shrink-0 text-sm font-semibold', t.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400']">
+                    {{ t.type === 'income' ? '+' : '-' }}{{ formatCurrency(t.amount) }}
+                  </span>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ formatDate(t.date) }} &middot; {{ t.category }}</p>
+                <div class="flex items-center justify-between mt-1.5">
+                  <span :class="['px-2 py-0.5 rounded-full text-xs border capitalize', statusBadgeClass(t.status)]">
+                    {{ t.status }}
+                  </span>
+                  <button @click="confirmDelete(t)" class="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                    <Trash2 class="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Right Panel: Visual Summaries -->
-      <div class="w-full lg:w-96 flex flex-col gap-6">
-        <!-- Distribution Chart (Simplified) -->
-        <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] p-6 shadow-sm">
-          <div class="flex items-center justify-between mb-6">
-            <h3 class="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Top Categories</h3>
+      <!-- Right Panel -->
+      <div class="w-full lg:w-80 flex flex-col gap-4 shrink-0">
+        <!-- Top Categories -->
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Top Categories</h3>
             <PieIcon class="h-4 w-4 text-primary" />
           </div>
-          
-          <div class="space-y-4">
-            <div v-for="[cat, val] in groupedByCategory" :key="cat" class="space-y-2">
-              <div class="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
-                <span class="text-gray-600 dark:text-slate-400">{{ cat }}</span>
-                <span class="text-gray-900 dark:text-white">{{ formatCurrency(val) }}</span>
+
+          <div v-if="groupedByCategory.length" class="space-y-3">
+            <div v-for="[cat, val] in groupedByCategory" :key="cat" class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-gray-600 dark:text-gray-400">{{ cat }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ formatCurrency(val) }}</span>
               </div>
-              <div class="h-2 w-full bg-gray-50 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div 
-                  class="h-full bg-linear-to-r from-primary to-primary-light rounded-full transition-all duration-1000"
+              <div class="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-primary rounded-full transition-all duration-500"
                   :style="{ width: `${(val / Math.max(...groupedByCategory.map(x => x[1]))) * 100}%` }"
                 ></div>
               </div>
             </div>
           </div>
-
-          <div v-if="groupedByCategory.length === 0" class="py-12 text-center text-gray-400 italic text-[11px]">
+          <div v-else class="py-8 text-center text-gray-400 dark:text-gray-500 text-xs">
             No categorical data available
           </div>
         </div>
 
-        <!-- Call to Action / Info -->
-        <div class="bg-slate-950 rounded-[2.5rem] p-6 text-white relative overflow-hidden group">
-          <div class="relative z-10">
-            <h3 class="text-lg font-black tracking-tight mb-2 uppercase">Financial Report</h3>
-            <p class="text-[11px] text-slate-400 font-medium leading-relaxed mb-6">
-              "Honour the LORD with thy substance, and with the firstfruits of all thine increase." — Proverbs 3:9
-            </p>
-            <router-link to="/finances/audit" class="w-full py-4 bg-white/10 hover:bg-white/20 rounded-2xl flex items-center justify-center gap-3 transition-all group">
-              <span class="text-[10px] font-black uppercase tracking-widest">Full Audit View</span>
-              <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </router-link>
+        <!-- Audit Report link -->
+        <router-link
+          to="/finances/audit"
+          class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+        >
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">Full Audit Report</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">Yearly income &amp; expense breakdown</p>
           </div>
-          <div class="absolute -right-10 -top-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl opacity-50"></div>
-        </div>
+          <ArrowRight class="h-4 w-4 text-gray-400 shrink-0 transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+        </router-link>
       </div>
     </div>
 
-    <!-- Modals -->
     <!-- Add Transaction Modal -->
     <Transition name="modal">
       <div v-if="showAddModal" class="fixed inset-0 z-100 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showAddModal = false"></div>
-        <div class="relative bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-slate-800 overflow-hidden transform transition-all p-8">
-          <div class="flex items-center justify-between mb-8">
-            <div>
-              <h3 class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Record stewardship</h3>
-              <p class="text-[10px] font-black text-primary dark:text-primary-light uppercase tracking-widest mt-1">Transaction Ledger Entry</p>
-            </div>
-            <button @click="showAddModal = false" class="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
-              <MoreHorizontal class="h-6 w-6" />
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showAddModal = false"></div>
+        <div class="relative bg-white dark:bg-gray-800 w-full max-w-lg rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <!-- Header -->
+          <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">New Transaction</h3>
+            <button @click="showAddModal = false" class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              <X class="h-5 w-5" />
             </button>
           </div>
 
-          <form @submit.prevent="handleAddTransaction" class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <!-- Type Toggle -->
-               <div class="col-span-full">
-                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Transaction Type</label>
-                <div class="flex p-1 bg-gray-100 dark:bg-slate-800 rounded-2xl w-full">
-                  <button 
-                    type="button"
-                    @click="form.type = 'income'"
-                    :class="['flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all', form.type === 'income' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-gray-500']"
-                  >Income</button>
-                  <button 
-                    type="button"
-                    @click="form.type = 'expense'"
-                    :class="['flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all', form.type === 'expense' ? 'bg-white dark:bg-slate-700 text-rose-500 shadow-sm' : 'text-gray-500']"
-                  >Expense</button>
-                </div>
-              </div>
-
-              <div class="space-y-2">
-                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Date</label>
-                <input v-model="form.date" type="date" required class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary" />
-              </div>
-
-              <div class="space-y-2">
-                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Category</label>
-                <select v-model="form.category" class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary">
-                  <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
-                </select>
-              </div>
-
-              <div class="space-y-2">
-                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Description</label>
-                <input v-model="form.description" type="text" required placeholder="e.g. Weekly Tithes" class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary" />
-              </div>
-
-              <div class="space-y-2">
-                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Amount (PHP)</label>
-                <input v-model="form.amount" type="number" step="0.01" required class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary" />
-              </div>
-
-              <div class="space-y-2 col-span-full">
-                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Payer / Payee</label>
-                <input v-model="form.payerPayee" type="text" placeholder="Individual name or Company" class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary" />
+          <form @submit.prevent="handleAddTransaction" class="p-6 space-y-4">
+            <!-- Type Toggle -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Transaction Type</label>
+              <div class="flex p-1 bg-gray-100 dark:bg-gray-700 rounded-lg w-full">
+                <button
+                  type="button"
+                  @click="form.type = 'income'"
+                  :class="['flex-1 py-2 rounded-md text-sm font-medium transition-all', form.type === 'income' ? 'bg-white dark:bg-gray-600 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400']"
+                >Income</button>
+                <button
+                  type="button"
+                  @click="form.type = 'expense'"
+                  :class="['flex-1 py-2 rounded-md text-sm font-medium transition-all', form.type === 'expense' ? 'bg-white dark:bg-gray-600 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400']"
+                >Expense</button>
               </div>
             </div>
 
-            <div class="pt-4 flex gap-3">
-              <button 
-                type="button" 
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                <input v-model="form.date" type="date" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent" />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                <select v-model="form.category" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent">
+                  <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+              <input v-model="form.description" type="text" required placeholder="e.g. Weekly Tithes" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (PHP)</label>
+                <input v-model="form.amount" type="number" step="0.01" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent" />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payer / Payee</label>
+                <input v-model="form.payerPayee" type="text" placeholder="Individual or company" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent" />
+              </div>
+            </div>
+
+            <div class="pt-2 flex gap-3">
+              <button
+                type="button"
                 @click="showAddModal = false"
-                class="flex-1 py-4 bg-gray-50 dark:bg-slate-800 text-gray-500 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-100 transition-all"
+                class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
               >Cancel</button>
-              <button 
+              <button
                 type="submit"
                 :disabled="isSubmitting"
-                class="flex-2 py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all flex items-center justify-center gap-2"
+                class="flex-1 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors text-sm font-medium flex items-center justify-center gap-2"
               >
                 <Loader2 v-if="isSubmitting" class="h-4 w-4 animate-spin" />
-                Confirm Record
+                Save Transaction
               </button>
             </div>
           </form>
@@ -516,35 +587,18 @@ const formatDate = (dateStr) => {
       </div>
     </Transition>
 
-    <!-- Delete Confirm Modal -->
-    <Transition name="modal">
-      <div v-if="showDeleteConfirm" class="fixed inset-0 z-110 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showDeleteConfirm = false"></div>
-        <div class="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8 text-center">
-          <div class="w-16 h-16 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
-            <Trash2 class="h-8 w-8" />
-          </div>
-          <h3 class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">Void Transaction?</h3>
-          <p class="text-xs text-gray-500 dark:text-slate-400 font-medium leading-relaxed px-4 mb-8">
-            Are you sure you want to remove this record? This action will affect the net balance and cannot be undone.
-          </p>
-          <div class="flex flex-col gap-3">
-            <button 
-              @click="handleDeleteTransaction"
-              :disabled="isSubmitting"
-              class="w-full py-4 bg-rose-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-rose-500/20 hover:bg-rose-600 transition-all flex items-center justify-center gap-2"
-            >
-              <Loader2 v-if="isSubmitting" class="h-4 w-4 animate-spin" />
-              Delete Record
-            </button>
-            <button 
-              @click="showDeleteConfirm = false"
-              class="w-full py-4 bg-gray-50 dark:bg-slate-800 text-gray-500 rounded-2xl font-black uppercase tracking-widest text-[10px]"
-            >Cancel</button>
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <!-- Confirmation Modal -->
+    <ConfirmationModal
+      :show="showConfirmation"
+      :title="confirmationConfig.title"
+      :message="confirmationConfig.message"
+      :confirm-text="confirmationConfig.confirmText"
+      :cancel-text="confirmationConfig.cancelText"
+      :confirm-button-class="confirmationConfig.confirmButtonClass"
+      @update:show="showConfirmation = $event"
+      @confirm="handleConfirmation"
+      @cancel="showConfirmation = false"
+    />
   </div>
 </template>
 
@@ -556,18 +610,18 @@ const formatDate = (dateStr) => {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.05);
+  background: rgba(0,0,0,0.1);
   border-radius: 10px;
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.1);
 }
 
 .modal-enter-active, .modal-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
 }
 .modal-enter-from, .modal-leave-to {
   opacity: 0;
-  transform: scale(0.95);
+  transform: scale(0.97);
 }
 </style>

@@ -1,8 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { 
-  Search, 
-  Link2, 
+import {
+  Link2,
   Plus, 
   X, 
   MoreHorizontal, 
@@ -29,9 +28,14 @@ import {
   Link
 } from 'lucide-vue-next'
 import { subscribeToLinks, addLink, updateLink, deleteLink } from '../api/linksService'
+import { useMediaQuery } from '../composables/useMediaQuery'
+import SearchBar from '../components/common/SearchBar.vue'
+
+const isMobile = useMediaQuery('(max-width: 1023px)')
 
 // State
 const searchQuery = ref('')
+const mobileSearchOpen = ref(false)
 const selectedCategory = ref('All')
 const links = ref([])
 const isLoading = ref(true)
@@ -187,28 +191,27 @@ const openLinkContext = (link, e) => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full overflow-hidden bg-white dark:bg-transparent">
+  <div class="flex flex-col h-full overflow-hidden bg-transparent">
     
     <!-- Action Bar -->
-    <div class="shrink-0 flex items-center gap-3 bg-white dark:bg-gray-900 py-3 w-full px-4 border-b border-gray-100 dark:border-gray-800 shadow-sm relative z-40">
-      <div class="relative flex-1">
-        <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-        <input v-model="searchQuery" type="text" placeholder="Search archive..." class="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all" />
-      </div>
+    <div class="sticky top-0 z-40 mb-4 shrink-0 rounded-xl border border-gray-200/80 bg-white/95 px-2 py-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:px-3">
+      <div class="flex items-center justify-between gap-2 w-full flex-nowrap">
+        <SearchBar v-model="searchQuery" v-model:open="mobileSearchOpen" placeholder="Search archive..." />
 
-      <div class="flex items-center gap-2">
-        <div class="relative">
-          <button @click.stop="showFilterDropdown = !showFilterDropdown" :class="[ 'p-2 rounded-lg transition-colors border', selectedCategory !== 'All' ? 'bg-primary text-white border-transparent' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white border-transparent hover:bg-gray-200' ]">
-            <ListFilter class="h-5 w-5" />
-          </button>
-          
-          <Transition name="fade">
-            <div v-if="showFilterDropdown" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 py-2 overflow-hidden">
-              <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat; showFilterDropdown = false" :class="[ 'w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors block', selectedCategory === cat ? 'text-primary bg-primary/5' : 'text-gray-500 dark:text-gray-400' ]">{{ cat }}</button>
-            </div>
-          </Transition>
+        <div :class="['flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 ml-auto', mobileSearchOpen ? 'hidden lg:flex' : 'flex']">
+          <div class="relative">
+            <button @click.stop="showFilterDropdown = !showFilterDropdown" :class="[ 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors border border-transparent shrink-0', selectedCategory !== 'All' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' ]">
+              <ListFilter class="h-5 w-5" />
+            </button>
+            
+            <Transition name="fade">
+              <div v-if="showFilterDropdown" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 py-2 overflow-hidden">
+                <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat; showFilterDropdown = false" :class="[ 'w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors block', selectedCategory === cat ? 'text-primary bg-primary/5' : 'text-gray-500 dark:text-gray-400' ]">{{ cat }}</button>
+              </div>
+            </Transition>
+          </div>
+          <button @click="handleAdd" class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"><Plus class="h-5 w-5 shrink-0" /> <span class="hidden sm:inline whitespace-nowrap">Add</span></button>
         </div>
-        <button @click="handleAdd" class="px-6 py-2 rounded-lg bg-primary text-white hover:bg-primary-hover transition-all font-black uppercase tracking-widest text-[10px] flex items-center gap-2 shadow-lg shadow-primary/20"><Plus class="h-4 w-4" /> Add New</button>
       </div>
     </div>
 
@@ -216,7 +219,7 @@ const openLinkContext = (link, e) => {
     <div class="flex-1 flex overflow-hidden min-h-0">
       
       <!-- List Area -->
-      <div class="flex-1 h-full overflow-y-auto p-4 custom-scrollbar bg-white dark:bg-transparent">
+      <div class="flex-1 h-full overflow-y-auto p-4 custom-scrollbar bg-transparent">
         
         <!-- Loading State -->
         <div v-if="isLoading" class="space-y-1">
@@ -231,33 +234,36 @@ const openLinkContext = (link, e) => {
         <!-- Professional List View -->
         <div v-else class="space-y-1 max-w-6xl mx-auto">
           <!-- Table Header -->
-          <div class="flex items-center px-6 py-2 mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-50 dark:border-gray-800">
+          <div class="hidden sm:flex items-center px-3 sm:px-6 py-2 mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-50 dark:border-gray-800">
             <div class="w-10">Icon</div>
             <div class="flex-1 ml-4">Resource Detail</div>
             <div class="w-32 hidden md:block">Category</div>
             <div class="w-24 text-right">Actions</div>
           </div>
 
-          <div v-for="link in filteredLinks" :key="link.id" 
+          <div v-for="link in filteredLinks" :key="link.id"
             @click="openLink(link.url)"
             @contextmenu.prevent="openLinkContext(link, $event)"
-            class="group flex items-center px-6 py-4 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/5 border border-transparent hover:border-gray-100 dark:hover:border-gray-800 transition-all cursor-pointer relative"
+            class="group flex items-center px-3 sm:px-6 py-4 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/5 border border-transparent hover:border-gray-100 dark:hover:border-gray-800 transition-all cursor-pointer relative"
             :class="{ 'opacity-80': contextMenu.show && contextMenu.link?.id === link.id }"
           >
             <!-- Start Column: Icon -->
-            <div class="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:text-primary dark:group-hover:text-primary-light transition-colors border border-gray-100 dark:border-gray-800">
+            <div class="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:text-primary dark:group-hover:text-primary-light transition-colors border border-gray-100 dark:border-gray-800 shrink-0">
               <component :is="getIcon(link.url, link.category)" class="h-5 w-5" />
             </div>
 
             <!-- Middle Column: Info -->
-            <div class="flex-1 min-w-0 ml-4">
+            <div class="flex-1 min-w-0 ml-3 sm:ml-4">
                <h3 class="font-bold text-gray-900 dark:text-white text-[14px] leading-tight flex items-center gap-2">
-                 {{ link.title }}
-                 <ExternalLink class="h-3 w-3 opacity-0 group-hover:opacity-40 transition-opacity" />
+                 <span class="truncate">{{ link.title }}</span>
+                 <ExternalLink class="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-40 transition-opacity hidden sm:block" />
                </h3>
                <p class="text-[11px] text-gray-400 font-medium truncate mt-0.5 opacity-80 decoration-gray-400/30 group-hover:underline">
                  {{ link.url }}
                </p>
+               <span :class="['md:hidden inline-block mt-1.5 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border', getCategoryColor(link.category)]">
+                 {{ link.category }}
+               </span>
             </div>
 
             <!-- Category Column -->
@@ -292,11 +298,29 @@ const openLinkContext = (link, e) => {
       </div>
 
       <!-- Add/Edit Side Cabinet -->
-      <Transition name="panel">
-        <div v-if="showForm" 
-          class="member-details-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(40%-1rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 relative overflow-hidden z-60"
+      <Teleport to="body" :disabled="!isMobile">
+      <Transition :name="isMobile ? 'modal-sheet' : 'panel'">
+        <div v-if="showForm"
+          :class="[
+            isMobile
+              ? 'fixed inset-0 z-80 flex flex-col justify-end'
+              : 'member-details-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(40%-1rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 relative overflow-hidden z-60'
+          ]"
         >
-          <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-b border-primary/20 dark:border-primary-light/20 px-6 py-4 flex items-center justify-between">
+          <div
+            v-if="isMobile"
+            class="absolute inset-0 bg-black/50"
+            @click="showForm = false"
+          />
+          <div
+            :class="[
+              'flex flex-col min-h-0',
+              isMobile
+                ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
+                : 'h-full w-full'
+            ]"
+          >
+          <div class="shrink-0 rounded-t-2xl bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-6 py-4 flex items-center justify-between">
             <div>
               <h3 class="text-md font-bold text-gray-900 dark:text-white uppercase tracking-tight">{{ isEditing ? 'Edit Resource' : 'Archive New Link' }}</h3>
               <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 font-black uppercase tracking-widest">Metadata Entry</p>
@@ -306,7 +330,7 @@ const openLinkContext = (link, e) => {
             </button>
           </div>
 
-          <div class="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+          <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6 custom-scrollbar">
             <section class="space-y-4">
               <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-5 space-y-5 border border-gray-100 dark:border-gray-800">
                 <div class="space-y-1.5 focus-within:text-primary transition-colors">
@@ -343,15 +367,17 @@ const openLinkContext = (link, e) => {
             </section>
           </div>
 
-          <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-t border-primary/20 dark:border-primary-light/20 px-6 py-5">
+          <div class="shrink-0 rounded-b-2xl bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-t border-primary/20 dark:border-primary-light/20 px-4 sm:px-6 py-5">
             <button @click="handleSubmit" :disabled="isSubmitting || !form.title || !form.url" class="group w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all flex items-center justify-center gap-2">
               <Loader2 v-if="isSubmitting" class="h-4 w-4 animate-spin" />
               <span v-else>{{ isEditing ? 'Push Updates' : 'Archive resource' }}</span>
               <ArrowRight v-if="!isSubmitting" class="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </button>
           </div>
+          </div>
         </div>
       </Transition>
+      </Teleport>
     </div>
 
     <!-- Context Menu -->
@@ -422,6 +448,26 @@ const openLinkContext = (link, e) => {
   opacity: 0;
   margin-left: 0 !important;
   margin-right: 0 !important;
+}
+
+.modal-sheet-enter-active,
+.modal-sheet-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-sheet-enter-active > div:last-child,
+.modal-sheet-leave-active > div:last-child {
+  transition: transform 0.25s ease;
+}
+
+.modal-sheet-enter-from,
+.modal-sheet-leave-to {
+  opacity: 0;
+}
+
+.modal-sheet-enter-from > div:last-child,
+.modal-sheet-leave-to > div:last-child {
+  transform: translateY(100%);
 }
 
 .animate-in { animation: animateIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }

@@ -1,22 +1,15 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { 
-  ArrowLeft, 
-  Download, 
-  Printer, 
-  TrendingUp, 
-  TrendingDown, 
-  Calendar, 
-  PieChart as PieIcon, 
-  Filter, 
-  ChevronRight, 
-  Search,
+import {
+  ArrowLeft,
+  Download,
+  Printer,
+  TrendingUp,
+  TrendingDown,
+  PieChart as PieIcon,
   Building2,
   Users,
-  DollarSign,
-  Heart,
-  Briefcase,
-  Zap
+  Wallet
 } from 'lucide-vue-next'
 import { subscribeToTransactions } from '../api/financeService'
 import * as XLSX from 'xlsx'
@@ -117,129 +110,118 @@ const printReport = () => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col space-y-6 overflow-hidden max-w-7xl mx-auto py-4">
-    <!-- Audit Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
-      <div class="flex items-center gap-4">
-        <router-link to="/finances" class="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 text-gray-500 hover:text-primary transition-all shadow-sm">
+  <div class="flex flex-col h-full space-y-4 sm:space-y-6 overflow-y-auto lg:overflow-hidden">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+      <div class="flex items-center gap-3">
+        <router-link to="/finances" class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors shrink-0">
           <ArrowLeft class="h-5 w-5" />
         </router-link>
-        <div>
-          <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight leading-tight uppercase">Audit Center</h1>
-          <p class="text-xs font-black text-primary dark:text-primary-light uppercase tracking-widest mt-1">Full Accountability & Transparency</p>
+        <div class="min-w-0">
+          <h1 class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white truncate">Audit Center</h1>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Full accountability &amp; transparency</p>
         </div>
       </div>
-      
-      <div class="flex items-center gap-3">
-        <select v-model="selectedYear" class="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 shadow-sm rounded-xl px-4 py-2.5 text-sm font-black uppercase tracking-widest focus:ring-2 focus:ring-primary">
-          <option v-for="y in years" :key="y" :value="y">{{ y }} FISCAL YEAR</option>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <select v-model="selectedYear" class="h-10 flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary sm:flex-none">
+          <option v-for="y in years" :key="y" :value="y">{{ y }} Fiscal Year</option>
         </select>
-        <button @click="exportFullReport" class="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 text-gray-600 hover:text-primary transition-all shadow-sm group">
-          <Download class="h-5 w-5 transition-transform group-hover:translate-y-0.5" />
-        </button>
-        <button @click="printReport" class="p-2.5 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all group">
-          <Printer class="h-5 w-5 transition-transform group-hover:scale-110" />
-        </button>
+        <div class="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
+          <button @click="exportFullReport" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors" title="Export report">
+            <Download class="h-5 w-5" />
+          </button>
+          <button @click="printReport" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors" title="Print report">
+            <Printer class="h-5 w-5" />
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Annual Summary Section -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 px-2">
-      <div class="bg-white dark:bg-slate-900 rounded-4xl p-8 border border-gray-100 dark:border-slate-800 shadow-sm">
-        <div class="flex items-center gap-3 mb-6">
-          <div class="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl text-emerald-500"><TrendingUp class="h-6 w-6" /></div>
-          <p class="text-xs font-black text-gray-400 uppercase tracking-widest">Total Annual Income</p>
+    <!-- Annual Summary -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 shrink-0">
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="p-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 shrink-0"><TrendingUp class="h-4 w-4" /></div>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Total Annual Income</p>
         </div>
-        <p class="text-3xl font-black tracking-tighter text-gray-900 dark:text-white">{{ formatCurrency(totals.income) }}</p>
-        <div class="mt-4 pt-4 border-t border-gray-50 dark:border-slate-800">
-           <p class="text-[10px] font-black uppercase tracking-widest text-primary">All Sources Consolidated</p>
-        </div>
+        <p class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white truncate">{{ formatCurrency(totals.income) }}</p>
       </div>
 
-      <div class="bg-white dark:bg-slate-900 rounded-4xl p-8 border border-gray-100 dark:border-slate-800 shadow-sm">
-        <div class="flex items-center gap-3 mb-6">
-          <div class="p-3 bg-rose-50 dark:bg-rose-500/10 rounded-2xl text-rose-500"><TrendingDown class="h-6 w-6" /></div>
-          <p class="text-xs font-black text-gray-400 uppercase tracking-widest">Total Annual Expense</p>
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 shrink-0"><TrendingDown class="h-4 w-4" /></div>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Total Annual Expense</p>
         </div>
-        <p class="text-3xl font-black tracking-tighter text-gray-900 dark:text-white">{{ formatCurrency(totals.expense) }}</p>
-        <div class="mt-4 pt-4 border-t border-gray-50 dark:border-slate-800">
-           <p class="text-[10px] font-black uppercase tracking-widest text-rose-500">Ministry Related Costs</p>
-        </div>
+        <p class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white truncate">{{ formatCurrency(totals.expense) }}</p>
       </div>
 
-      <div class="bg-slate-950 rounded-4xl p-8 text-white relative overflow-hidden shadow-2xl">
-        <div class="relative z-10">
-          <div class="flex items-center gap-3 mb-6">
-            <div class="p-3 bg-white/10 rounded-2xl"><DollarSign class="h-6 w-6" /></div>
-            <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Net Surplus / Deficit</p>
-          </div>
-          <p class="text-3xl font-black tracking-tighter">{{ formatCurrency(totals.net) }}</p>
-          <div class="mt-4 pt-4 border-t border-white/10">
-             <p class="text-[10px] font-black uppercase tracking-widest text-primary-light">Fiscal Integrity Report</p>
-          </div>
+      <div class="rounded-lg border border-primary/20 bg-primary/5 dark:bg-primary/10 p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="p-1.5 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary shrink-0"><Wallet class="h-4 w-4" /></div>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Net Surplus / Deficit</p>
         </div>
-        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl opacity-50"></div>
+        <p class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white truncate">{{ formatCurrency(totals.net) }}</p>
       </div>
     </div>
 
-    <!-- Main Audit Report Container -->
-    <div class="flex-1 bg-white dark:bg-slate-900 border border-gray-50 dark:border-slate-800/80 rounded-[3rem] overflow-hidden flex flex-col shadow-sm mx-2">
-      <!-- Report Sidebar/Header toggle -->
-      <div class="p-8 border-b border-gray-50 dark:border-slate-800 flex items-center justify-between">
-        <div>
-          <h2 class="text-xl font-black text-gray-900 dark:text-white leading-tight uppercase">Monthly Performance Ledger</h2>
-          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mt-1">Detailed Breakdown by Month - {{ selectedYear }}</p>
+    <!-- Main Report -->
+    <div class="shrink-0 lg:flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden flex flex-col lg:min-h-0">
+      <div class="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="text-sm font-semibold text-gray-900 dark:text-white truncate">Monthly Performance Ledger</h2>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Detailed breakdown by month &mdash; {{ selectedYear }}</p>
         </div>
-        <PieIcon class="h-6 w-6 text-primary" />
+        <PieIcon class="h-5 w-5 text-primary shrink-0" />
       </div>
 
-      <!-- Report Table/Body -->
-      <div class="flex-1 overflow-y-auto no-scrollbar print-area">
-        <table class="w-full text-left border-collapse">
+      <!-- Report Table -->
+      <div class="lg:flex-1 lg:overflow-y-auto no-scrollbar print-area">
+        <!-- Table (desktop only) -->
+        <table class="hidden w-full text-left border-collapse lg:table">
           <thead>
-            <tr class="bg-gray-50/50 dark:bg-slate-800/20">
-              <th class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Ledger Month</th>
-              <th class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Net Revenue</th>
-              <th class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Expenditure</th>
-              <th class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Balance Shift</th>
-              <th class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 text-right">Trend Visual</th>
+            <tr class="bg-gray-50 dark:bg-gray-700/30">
+              <th class="px-4 sm:px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">Month</th>
+              <th class="px-4 sm:px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">Income</th>
+              <th class="px-4 sm:px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">Expense</th>
+              <th class="px-4 sm:px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">Net</th>
+              <th class="px-4 sm:px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 text-right">Trend</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
             <tr v-if="isLoading" v-for="i in 12" :key="i" class="animate-pulse">
-               <td colspan="5" class="px-8 py-5"><div class="h-4 bg-gray-50 dark:bg-slate-800 rounded-lg"></div></td>
+              <td colspan="5" class="px-4 sm:px-6 py-4"><div class="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg"></div></td>
             </tr>
-            <tr v-for="m in monthlySummary" :key="m.name" class="group hover:bg-primary/5 dark:hover:bg-primary-light/5 transition-all">
-              <td class="px-8 py-5">
-                <span class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">{{ m.name }}</span>
+            <tr v-for="m in monthlySummary" :key="m.name" class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+              <td class="px-4 sm:px-6 py-3">
+                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ m.name }}</span>
               </td>
-              <td class="px-8 py-5">
-                <span class="text-sm font-bold text-emerald-500">{{ formatCurrency(m.income) }}</span>
+              <td class="px-4 sm:px-6 py-3">
+                <span class="text-sm text-green-600 dark:text-green-400">{{ formatCurrency(m.income) }}</span>
               </td>
-              <td class="px-8 py-5">
-                <span class="text-sm font-bold text-rose-500">{{ formatCurrency(m.expense) }}</span>
+              <td class="px-4 sm:px-6 py-3">
+                <span class="text-sm text-red-600 dark:text-red-400">{{ formatCurrency(m.expense) }}</span>
               </td>
-              <td class="px-8 py-5">
+              <td class="px-4 sm:px-6 py-3">
                 <div class="flex items-center gap-2">
-                  <span :class="['text-sm font-black tracking-tighter', m.net >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600 font-black']">
+                  <span :class="['text-sm font-semibold', m.net >= 0 ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400']">
                     {{ formatCurrency(m.net) }}
                   </span>
-                  <div v-if="m.net > 0" class="p-1 bg-emerald-50 text-emerald-500 rounded-lg"><TrendingUp class="h-3 w-3" /></div>
-                  <div v-else-if="m.net < 0" class="p-1 bg-rose-50 text-rose-500 rounded-lg"><TrendingDown class="h-3 w-3" /></div>
+                  <TrendingUp v-if="m.net > 0" class="h-3.5 w-3.5 text-green-500" />
+                  <TrendingDown v-else-if="m.net < 0" class="h-3.5 w-3.5 text-red-500" />
                 </div>
               </td>
-              <td class="px-8 py-5">
-                <div class="flex items-center justify-end gap-1 h-6">
-                  <!-- Minimalistic sparkline bar -->
-                  <div class="w-10 bg-gray-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden relative">
-                    <div 
-                      class="absolute h-full left-0 bg-linear-to-r from-emerald-400 to-emerald-600 transition-all duration-1000"
+              <td class="px-4 sm:px-6 py-3">
+                <div class="flex items-center justify-end gap-1">
+                  <div class="w-10 bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden relative">
+                    <div
+                      class="absolute h-full left-0 bg-green-500 transition-all duration-500"
                       :style="{ width: `${m.income > 0 ? (m.income / totals.income) * 100 * 5 : 0}%` }"
                     ></div>
                   </div>
-                  <div class="w-10 bg-gray-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden relative">
-                    <div 
-                      class="absolute h-full left-0 bg-linear-to-r from-rose-400 to-rose-600 transition-all duration-1000"
+                  <div class="w-10 bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden relative">
+                    <div
+                      class="absolute h-full left-0 bg-red-500 transition-all duration-500"
                       :style="{ width: `${m.expense > 0 ? (m.expense / totals.expense) * 100 * 5 : 0}%` }"
                     ></div>
                   </div>
@@ -248,27 +230,52 @@ const printReport = () => {
             </tr>
           </tbody>
         </table>
-      </div>
-      
-      <!-- Footer Distribution Summary -->
-      <div class="p-8 bg-gray-50/50 dark:bg-slate-800/20 mt-auto grid grid-cols-2 lg:grid-cols-4 gap-8">
-        <div>
-          <p class="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 mb-3">Top Sector</p>
-          <div class="flex items-center gap-3">
-             <div class="p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-primary"><Building2 class="h-4 w-4" /></div>
-             <span class="text-sm font-black text-gray-900 dark:text-white uppercase truncate">{{ categoryDistribution[0]?.name || 'N/A' }}</span>
+
+        <!-- List (mobile & tablet) -->
+        <div class="divide-y divide-gray-100 dark:divide-gray-700 lg:hidden">
+          <template v-if="isLoading">
+            <div v-for="i in 12" :key="i" class="px-4 sm:px-6 py-3">
+              <div class="h-10 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+            </div>
+          </template>
+          <div v-else v-for="m in monthlySummary" :key="m.name" class="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-gray-900 dark:text-white">{{ m.name }}</p>
+              <div class="flex items-center gap-3 mt-1">
+                <span class="text-xs text-green-600 dark:text-green-400">+{{ formatCurrency(m.income) }}</span>
+                <span class="text-xs text-red-600 dark:text-red-400">-{{ formatCurrency(m.expense) }}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span :class="['text-sm font-semibold', m.net >= 0 ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400']">
+                {{ formatCurrency(m.net) }}
+              </span>
+              <TrendingUp v-if="m.net > 0" class="h-3.5 w-3.5 text-green-500 shrink-0" />
+              <TrendingDown v-else-if="m.net < 0" class="h-3.5 w-3.5 text-red-500 shrink-0" />
+            </div>
           </div>
         </div>
-        <div>
-           <p class="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 mb-3">Donor Base Activity</p>
-           <div class="flex items-center gap-3 text-emerald-500">
-              <Users class="h-4 w-4" />
-              <span class="text-sm font-black uppercase">Scaling Up</span>
+      </div>
+
+      <!-- Footer Summary -->
+      <div class="p-4 sm:p-6 bg-gray-50 dark:bg-gray-700/20 mt-auto grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 border-t border-gray-200 dark:border-gray-700">
+        <div class="min-w-0">
+          <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">Top Sector</p>
+          <div class="flex items-center gap-2">
+             <div class="p-1.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-primary shrink-0"><Building2 class="h-4 w-4" /></div>
+             <span class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ categoryDistribution[0]?.name || 'N/A' }}</span>
+          </div>
+        </div>
+        <div class="min-w-0">
+           <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">Donor Base Activity</p>
+           <div class="flex items-center gap-2 text-green-600 dark:text-green-400">
+              <Users class="h-4 w-4 shrink-0" />
+              <span class="text-sm font-medium">Scaling Up</span>
            </div>
         </div>
-        <div class="col-span-2 flex flex-col justify-end items-end">
-           <p class="text-[10px] font-medium text-gray-400 italic">Audit timestamp: {{ new Date().toLocaleString() }}</p>
-           <p class="text-[9px] font-black text-primary uppercase tracking-widest mt-1">UEC Financial Verification Service</p>
+        <div class="col-span-2 flex flex-col sm:items-end text-left sm:text-right justify-end">
+           <p class="text-xs text-gray-400 dark:text-gray-500">Audit timestamp: {{ new Date().toLocaleString() }}</p>
+           <p class="text-xs text-primary mt-0.5">UEC Financial Verification Service</p>
         </div>
       </div>
     </div>
@@ -285,7 +292,7 @@ const printReport = () => {
 }
 
 @media print {
-  .lg\:flex-1, .px-2, .max-w-7xl {
+  .lg\:flex-1, .px-2 {
     padding: 0 !important;
     margin: 0 !important;
     max-width: none !important;
@@ -295,6 +302,12 @@ const printReport = () => {
   }
   .print-area {
     overflow: visible !important;
+  }
+  .print-area table {
+    display: table !important;
+  }
+  .print-area .lg\:hidden {
+    display: none !important;
   }
   .bg-white {
     background-color: white !important;

@@ -4,8 +4,10 @@ import { useRouter } from 'vue-router'
 import { X, Clock, MapPin, Users, Calendar, Edit2, Trash2, Download, FileText, ExternalLink } from 'lucide-vue-next'
 import { useMembers } from '../../composables/useMembers'
 import { markdownToHtml } from '../../utils/markdownUtils'
+import { useMediaQuery } from '../../composables/useMediaQuery'
 
 const router = useRouter()
+const isMobile = useMediaQuery('(max-width: 1023px)')
 
 const props = defineProps({
   show: {
@@ -97,13 +99,31 @@ const exportToText = () => {
 </script>
 
 <template>
-  <Transition name="drawer">
+  <Teleport to="body" :disabled="!isMobile">
+    <Transition :name="isMobile ? 'modal-sheet' : 'drawer'">
     <div
       v-if="show && minute"
-      class="minute-details-drawer border-l-4 border-primary bg-gray-50 dark:bg-gray-900 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20"
+      :class="[
+        isMobile
+          ? 'fixed inset-0 z-80 flex flex-col justify-end'
+          : 'minute-details-drawer border-l-4 border-primary bg-gray-50 dark:bg-gray-900 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20'
+      ]"
     >
+      <div
+        v-if="isMobile"
+        class="absolute inset-0 bg-black/50"
+        @click="$emit('update:show', false)"
+      />
+      <div
+        :class="[
+          'flex flex-col min-h-0',
+          isMobile
+            ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-gray-50 dark:bg-gray-900 shadow-2xl border-t border-gray-200 dark:border-gray-700'
+            : 'h-full w-full'
+        ]"
+      >
       <!-- Header -->
-      <div class="shrink-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+      <div class="shrink-0 bg-gray-50 dark:bg-gray-900 rounded-t-2xl border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Meeting Minutes</h3>
         <div class="flex items-center gap-2">
           <button
@@ -130,7 +150,7 @@ const exportToText = () => {
       </div>
 
       <!-- Content -->
-      <div class="flex-1 overflow-y-auto min-h-0 p-6">
+      <div class="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6">
         <div class="space-y-6">
           <!-- Title -->
           <div>
@@ -210,7 +230,7 @@ const exportToText = () => {
       </div>
 
       <!-- Footer -->
-      <div class="shrink-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center gap-3">
+      <div class="shrink-0 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex justify-between items-center gap-3">
         <button
           @click="router.push(`/minutes/${minute.id || minute.firestoreId}`)"
           class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors flex items-center gap-2"
@@ -226,8 +246,10 @@ const exportToText = () => {
           Delete
         </button>
       </div>
+      </div>
     </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -240,6 +262,26 @@ const exportToText = () => {
   max-width: 0;
   opacity: 0;
   overflow: hidden;
+}
+
+.modal-sheet-enter-active,
+.modal-sheet-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-sheet-enter-active > div:last-child,
+.modal-sheet-leave-active > div:last-child {
+  transition: transform 0.25s ease;
+}
+
+.modal-sheet-enter-from,
+.modal-sheet-leave-to {
+  opacity: 0;
+}
+
+.modal-sheet-enter-from > div:last-child,
+.modal-sheet-leave-to > div:last-child {
+  transform: translateY(100%);
 }
 </style>
 

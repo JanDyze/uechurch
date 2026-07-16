@@ -1,13 +1,17 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Image as ImageIcon, Plus, Maximize2, X, MapPin, Calendar, Clock, ChevronRight, ChevronLeft, ArrowLeft, Loader2, Upload, Download as DownloadIcon, ListFilter, Users, Info, Grid, Check, Trash2, Share2, AlertTriangle, MoreHorizontal, LogIn, ExternalLink } from 'lucide-vue-next'
+import { Image as ImageIcon, Plus, Maximize2, X, MapPin, Calendar, Clock, ChevronRight, ChevronLeft, ArrowLeft, Loader2, Upload, Download as DownloadIcon, ListFilter, Users, Info, Grid, Check, Trash2, Share2, AlertTriangle, MoreHorizontal, LogIn, ExternalLink } from 'lucide-vue-next'
 import { subscribeToAlbums, uploadPhotoToBase64, addAlbum, subscribeToAlbumPhotos, setAlbumCover, deletePhoto, deleteAlbum } from '../api/galleryService'
 import { subscribeToEvents } from '../api/eventsService'
 import churchCover from '../assets/church.jpg'
+import { useMediaQuery } from '../composables/useMediaQuery'
+import SearchBar from '../components/common/SearchBar.vue'
 
 const route = useRoute()
 const router = useRouter()
+const isMobile = useMediaQuery('(max-width: 1023px)')
+const mobileSearchOpen = ref(false)
 
 const props = defineProps({
   id: String,
@@ -441,29 +445,41 @@ const formatDate = (dateStr) => {
     <input type="file" ref="fileInput" @change="handleFileUpload" accept="image/*" multiple class="hidden" />
 
     <!-- Action Bar -->
-    <div class="shrink-0 flex items-center gap-3 bg-white dark:bg-gray-900 py-2 w-full px-1">
-      <button v-if="selectedEvent && !showDetails && route.params.id" @click="closeEvent" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-primary hover:bg-primary/10 transition-colors">
-        <ArrowLeft class="h-5 w-5" />
-      </button>
+    <div class="sticky top-0 z-40 mb-4 shrink-0 rounded-xl border border-gray-200/80 bg-white/95 px-2 py-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:px-3">
+      <div class="flex items-center justify-between gap-2 w-full flex-nowrap">
+        <button v-if="selectedEvent && !showDetails && route.params.id" @click="closeEvent" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors">
+          <ArrowLeft class="h-5 w-5" />
+        </button>
 
-      <div class="relative flex-1">
-        <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-        <input v-model="searchQuery" type="text" :placeholder="selectedEvent ? 'Search in album...' : 'Search albums...'" class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all" />
-      </div>
+        <SearchBar
+          v-model="searchQuery"
+          v-model:open="mobileSearchOpen"
+          :placeholder="selectedEvent ? 'Search in album...' : 'Search albums...'"
+        />
 
-      <div class="flex items-center gap-2">
-        <div v-if="!selectedEvent || (selectedEvent && !route.params.id)" class="relative">
-          <button @click="showFilterDropdown = !showFilterDropdown" :class="[ 'p-2 rounded-lg transition-colors border', selectedCategory !== 'All' ? 'bg-primary text-white border-transparent' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white border-transparent hover:bg-gray-200' ]" title="Filter by Category">
-            <ListFilter class="h-5 w-5" />
+        <div :class="['flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 ml-auto', mobileSearchOpen ? 'hidden lg:flex' : 'flex']">
+          <button v-if="!selectedEvent || (selectedEvent && !route.params.id)" @click="showAddAlbum = true" class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0" title="Create Album">
+            <Plus class="h-5 w-5 shrink-0" />
+            <span class="hidden sm:inline whitespace-nowrap">Add</span>
           </button>
-          <Transition name="fade"><div v-if="showFilterDropdown" @click="showFilterDropdown = false" class="fixed inset-0 z-40"></div></Transition>
-          <Transition name="fade">
-            <div v-if="showFilterDropdown" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 py-2 overflow-hidden">
-              <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat; showFilterDropdown = false" :class="[ 'w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors', selectedCategory === cat ? 'text-primary bg-primary/5' : 'text-gray-500 dark:text-gray-400' ]">{{ cat }}</button>
-            </div>
-          </Transition>
+
+          <div v-if="!selectedEvent || (selectedEvent && !route.params.id)" class="relative">
+            <button @click="showFilterDropdown = !showFilterDropdown" :class="[ 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors border border-transparent shrink-0', selectedCategory !== 'All' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' ]" title="Filter by Category">
+              <ListFilter class="h-5 w-5" />
+            </button>
+            <Transition name="fade"><div v-if="showFilterDropdown" @click="showFilterDropdown = false" class="fixed inset-0 z-40"></div></Transition>
+            <Transition name="fade">
+              <div v-if="showFilterDropdown" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 py-2 overflow-hidden">
+                <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat; showFilterDropdown = false" :class="[ 'w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors', selectedCategory === cat ? 'text-primary bg-primary/5' : 'text-gray-500 dark:text-gray-400' ]">{{ cat }}</button>
+              </div>
+            </Transition>
+          </div>
+          <button v-if="selectedEvent && route.params.id" @click="triggerUpload" :class="[ 'flex h-10 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover transition-all px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0', isUploading ? 'opacity-50 cursor-not-allowed' : '' ]" :disabled="isUploading">
+            <Loader2 v-if="isUploading" class="h-5 w-5 animate-spin shrink-0" />
+            <Upload v-else class="h-5 w-5 shrink-0" />
+            <span class="hidden sm:inline whitespace-nowrap">Add</span>
+          </button>
         </div>
-        <button v-if="selectedEvent && route.params.id" @click="triggerUpload" :class="[ 'p-2 rounded-lg transition-all bg-primary text-white hover:bg-primary-hover', isUploading ? 'opacity-50 cursor-not-allowed' : '' ]" :disabled="isUploading"><Loader2 v-if="isUploading" class="h-5 w-5 animate-spin" /><Upload v-else class="h-5 w-5" /></button>
       </div>
     </div>
 
@@ -563,12 +579,30 @@ const formatDate = (dateStr) => {
       </div>
 
       <!-- Panel Flow Sibling -->
-      <Transition name="panel">
-        <div v-if="showDetails && selectedEvent" 
-          class="member-details-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(40%-1rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 relative overflow-hidden"
+      <Teleport to="body" :disabled="!isMobile">
+      <Transition :name="isMobile ? 'modal-sheet' : 'panel'">
+        <div v-if="showDetails && selectedEvent"
+          :class="[
+            isMobile
+              ? 'fixed inset-0 z-80 flex flex-col justify-end'
+              : 'member-details-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(40%-1rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 relative overflow-hidden'
+          ]"
         >
+          <div
+            v-if="isMobile"
+            class="absolute inset-0 bg-black/50"
+            @click="showDetails = false"
+          />
+          <div
+            :class="[
+              'flex flex-col min-h-0',
+              isMobile
+                ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
+                : 'h-full w-full'
+            ]"
+          >
           <!-- Header -->
-          <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-b border-primary/20 dark:border-primary-light/20 px-6 py-4 flex items-center justify-between">
+          <div class="shrink-0 rounded-t-2xl bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-6 py-4 flex items-center justify-between">
             <div>
               <h3 class="text-md font-bold text-gray-900 dark:text-white uppercase tracking-tight">Album Details</h3>
               <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 font-black uppercase tracking-widest">{{ selectedEvent.category }} Archive</p>
@@ -579,7 +613,7 @@ const formatDate = (dateStr) => {
           </div>
 
           <!-- Content -->
-          <div class="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+          <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6 custom-scrollbar">
             <!-- Info Section -->
             <section class="space-y-3">
               <h4 class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -619,7 +653,7 @@ const formatDate = (dateStr) => {
           </div>
 
           <!-- Panel Footer Actions -->
-          <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-t border-primary/20 dark:border-primary-light/20 px-6 py-4">
+          <div class="shrink-0 rounded-b-2xl bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-t border-primary/20 dark:border-primary-light/20 px-4 sm:px-6 py-4">
             <div class="flex items-center gap-2 relative">
                <!-- Major: Enter -->
               <button @click="enterAlbum" class="flex-1 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 hover:bg-primary-hover hover:shadow-xl transition-all flex items-center justify-center gap-2 group">
@@ -647,8 +681,10 @@ const formatDate = (dateStr) => {
               </div>
             </div>
           </div>
+          </div>
         </div>
       </Transition>
+      </Teleport>
     </div>
 
     <!-- Context Menu Portal -->
@@ -831,6 +867,26 @@ const formatDate = (dateStr) => {
   opacity: 0;
   margin-left: 0 !important;
   margin-right: 0 !important;
+}
+
+.modal-sheet-enter-active,
+.modal-sheet-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-sheet-enter-active > div:last-child,
+.modal-sheet-leave-active > div:last-child {
+  transition: transform 0.25s ease;
+}
+
+.modal-sheet-enter-from,
+.modal-sheet-leave-to {
+  opacity: 0;
+}
+
+.modal-sheet-enter-from > div:last-child,
+.modal-sheet-leave-to > div:last-child {
+  transform: translateY(100%);
 }
 
 .break-inside-avoid { break-inside: avoid; }

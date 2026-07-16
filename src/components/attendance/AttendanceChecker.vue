@@ -2,6 +2,9 @@
 import { computed, ref } from 'vue'
 import { X, Search, Check } from 'lucide-vue-next'
 import { useMembers } from '../../composables/useMembers'
+import { useMediaQuery } from '../../composables/useMediaQuery'
+
+const isMobile = useMediaQuery('(max-width: 1023px)')
 
 const props = defineProps({
   show: {
@@ -112,13 +115,31 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
 </script>
 
 <template>
-  <Transition name="drawer">
+  <Teleport to="body" :disabled="!isMobile">
+    <Transition :name="isMobile ? 'modal-sheet' : 'drawer'">
     <div
       v-if="show"
-      class="bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 border-l border-gray-200 dark:border-gray-700"
+      :class="[
+        isMobile
+          ? 'fixed inset-0 z-80 flex flex-col justify-end'
+          : 'bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 border-l border-gray-200 dark:border-gray-700'
+      ]"
     >
+      <div
+        v-if="isMobile"
+        class="absolute inset-0 bg-black/50"
+        @click="handleCancel"
+      />
+      <div
+        :class="[
+          'flex flex-col min-h-0',
+          isMobile
+            ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
+            : 'h-full w-full'
+        ]"
+      >
       <!-- Header -->
-      <div class="shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+      <div class="shrink-0 rounded-t-2xl px-5 py-4 border-b border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between">
           <h3 class="font-semibold text-gray-900 dark:text-white">
             {{ isNewAttendance ? 'New Attendance' : (isEdit ? 'Edit Attendance' : formData.eventTitle || 'Record Attendance') }}
@@ -237,8 +258,10 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
           Save Attendance
         </button>
       </div>
+      </div>
     </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -252,6 +275,26 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
   max-width: 0;
   opacity: 0;
   overflow: hidden;
+}
+
+.modal-sheet-enter-active,
+.modal-sheet-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-sheet-enter-active > div:last-child,
+.modal-sheet-leave-active > div:last-child {
+  transition: transform 0.25s ease;
+}
+
+.modal-sheet-enter-from,
+.modal-sheet-leave-to {
+  opacity: 0;
+}
+
+.modal-sheet-enter-from > div:last-child,
+.modal-sheet-leave-to > div:last-child {
+  transform: translateY(100%);
 }
 </style>
 

@@ -22,12 +22,12 @@ const showMoreMenu = ref(false)
 const primaryNav = [
   { name: 'Dashboard', path: '/', icon: Home },
   { name: 'Members', path: '/members', icon: Users },
-  { name: 'Events', path: '/events', icon: Calendar },
+  { name: 'Attendance', path: '/attendance', icon: ClipboardCheck },
 ]
 
 const moreNav = [
   { name: 'Minutes', path: '/minutes', icon: FileText },
-  { name: 'Attendance', path: '/attendance', icon: ClipboardCheck },
+  { name: 'Events', path: '/events', icon: Calendar },
   { name: 'Prayer Concerns', path: '/prayer-concerns', icon: Heart },
   { name: 'Gallery', path: '/gallery', icon: Image },
   { name: 'Links', path: '/links', icon: Link2 },

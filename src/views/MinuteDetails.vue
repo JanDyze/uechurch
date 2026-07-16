@@ -3,18 +3,21 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMinutes } from '../composables/useMinutes'
 import { useMembers } from '../composables/useMembers'
-import { Calendar, Clock, MapPin, Users, Trash2, Download, ArrowLeft, FileText, List, X, Plus, Sparkles, Copy, RotateCcw } from 'lucide-vue-next'
+import { Calendar, Clock, MapPin, Users, Trash2, Download, ArrowLeft, FileText, List, X, Plus, Sparkles, Copy, RotateCcw, Menu } from 'lucide-vue-next'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import { markdownToHtml } from '../utils/markdownUtils'
 import { enhanceMinutesWithHF } from '../utils/minutesEnhancer'
+import { useMediaQuery } from '../composables/useMediaQuery'
 
 const route = useRoute()
 const router = useRouter()
 const { minutes, loading, removeMinute, updateMinuteInFirestore } = useMinutes()
 const { members } = useMembers()
+const isMobile = useMediaQuery('(max-width: 1023px)')
 
 const showConfirmation = ref(false)
 const showAttendeesDrawer = ref(false)
+const showAgendaSheet = ref(false)
 const selectedAgendaIndex = ref(null) // null = summary, number = agenda item index
 const newAgendaItem = ref('')
 const showAddAgendaModal = ref(false)
@@ -93,6 +96,7 @@ const getMemberName = (memberId) => {
 
 const selectSummary = () => {
   selectedAgendaIndex.value = null
+  showAgendaSheet.value = false
   // Scroll to the content section
   const contentElement = document.getElementById('agenda-content')
   if (contentElement) {
@@ -102,6 +106,7 @@ const selectSummary = () => {
 
 const selectAgendaItem = (index) => {
   selectedAgendaIndex.value = index
+  showAgendaSheet.value = false
   // Scroll to the content section
   const contentElement = document.getElementById('agenda-content')
   if (contentElement) {
@@ -704,8 +709,8 @@ watch(() => minute.value, (newMinute, oldMinute) => {
   <div class="flex flex-col h-full">
     <!-- Header -->
     <div class="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <div class="flex items-center justify-between pb-4">
-        <div class="flex items-center gap-4 flex-1 min-w-0">
+      <div class="flex items-center justify-between pb-4 gap-2">
+        <div class="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
           <button
             @click="router.push('/minutes')"
             class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 shrink-0"
@@ -713,26 +718,34 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             <ArrowLeft class="h-5 w-5" />
           </button>
           <div class="flex-1 min-w-0">
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white truncate">
+            <h1 class="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
               {{ minute?.title || 'Meeting Minutes' }}
             </h1>
-            <div class="flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-gray-400 flex-wrap">
+            <div class="flex items-center gap-3 sm:gap-4 mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-wrap">
               <span v-if="minute?.date" class="flex items-center gap-1">
-                <Calendar class="h-4 w-4" />
+                <Calendar class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {{ formatDate(minute.date) }}
               </span>
-              <span v-if="minute?.startTime" class="flex items-center gap-1">
+              <span v-if="minute?.startTime" class="hidden sm:flex items-center gap-1">
                 <Clock class="h-4 w-4" />
                 {{ minute.startTime }}{{ minute.endTime ? ` - ${minute.endTime}` : '' }}
               </span>
-              <span v-if="minute?.location" class="flex items-center gap-1">
+              <span v-if="minute?.location" class="hidden sm:flex items-center gap-1">
                 <MapPin class="h-4 w-4" />
                 <span class="truncate">{{ minute.location }}</span>
               </span>
             </div>
           </div>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+          <button
+            v-if="minute"
+            @click="showAgendaSheet = true"
+            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors lg:hidden"
+            title="Agenda"
+          >
+            <Menu class="h-5 w-5" />
+          </button>
           <button
             @click="showAttendeesDrawer = true"
             class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
@@ -760,8 +773,8 @@ watch(() => minute.value, (newMinute, oldMinute) => {
 
     <!-- Main Content Area -->
     <div class="flex-1 overflow-hidden flex">
-      <!-- Sidebar - Summary & Agenda -->
-      <div v-if="minute" class="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col shrink-0">
+      <!-- Sidebar - Summary & Agenda (desktop only, see mobile agenda sheet below) -->
+      <div v-if="minute" class="hidden lg:flex w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-col shrink-0">
         <!-- Summary Section - Standalone -->
         <div class="p-3 border-b-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50">
           <button
@@ -853,11 +866,11 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             </button>
           </div>
         </div>
-        <div v-else class="p-6">
+        <div v-else class="p-4 sm:p-6">
           <!-- Overall Meeting Summary -->
           <div v-if="showSummary && minute.structure" id="agenda-content">
-            <div class="flex items-center justify-between mb-4">
-              <h1 class="text-3xl font-bold text-gray-900 dark:text-white">📋 Overall Meeting Summary</h1>
+            <div class="flex items-center justify-between mb-4 gap-2">
+              <h1 class="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white">📋 Overall Meeting Summary</h1>
               <button
                 @click="enhanceOverallSummary"
                 :disabled="isEnhancingOverall"
@@ -886,21 +899,21 @@ watch(() => minute.value, (newMinute, oldMinute) => {
           <div v-else-if="minute.structure && currentStructure.agenda && currentStructure.agenda.length > 0 && currentAgendaItem" id="agenda-content">
             <div v-if="currentAgendaItem" class="notepad-section">
               <!-- Agenda Item as H1 -->
-              <div class="flex items-center justify-between mb-4">
-                <div class="flex-1">
+              <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
+                <div class="flex-1 min-w-50">
                   <input
                     v-if="editingAgendaIndex === currentAgendaItem.index"
                     v-model="editingAgendaName"
                     @blur="handleAgendaNameBlur(currentAgendaItem.index)"
                     @keyup.enter="handleAgendaNameBlur(currentAgendaItem.index)"
                     @keyup.esc="editingAgendaIndex = null"
-                    class="text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-primary focus:outline-none w-full"
+                    class="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-primary focus:outline-none w-full"
                     autofocus
                   />
                   <h1
                     v-else
                     @dblclick="handleAgendaNameDblClick(currentAgendaItem.index)"
-                    class="text-3xl font-bold text-gray-900 dark:text-white cursor-text hover:text-primary dark:hover:text-primary transition-colors"
+                    class="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white cursor-text hover:text-primary dark:hover:text-primary transition-colors"
                     title="Double-click to edit"
                   >
                     {{ toRomanNumeral(currentAgendaItem.index + 1) }}. {{ currentAgendaItem.title }}
@@ -1002,45 +1015,156 @@ watch(() => minute.value, (newMinute, oldMinute) => {
       </div>
 
       <!-- Attendees Drawer -->
-      <Transition name="drawer">
-        <div
-          v-if="showAttendeesDrawer && minute"
-          class="attendees-drawer border-l-4 border-primary bg-white dark:bg-gray-800 max-w-md w-80 h-full flex flex-col shrink-0 shadow-2xl"
-        >
-          <!-- Header -->
-          <div class="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Users class="h-5 w-5" />
-              Attendees
-            </h3>
-            <button
+      <Teleport to="body" :disabled="!isMobile">
+        <Transition :name="isMobile ? 'modal-sheet' : 'drawer'">
+          <div
+            v-if="showAttendeesDrawer && minute"
+            :class="[
+              isMobile
+                ? 'fixed inset-0 z-80 flex flex-col justify-end'
+                : 'attendees-drawer border-l-4 border-primary bg-white dark:bg-gray-800 max-w-md w-80 h-full flex flex-col shrink-0 shadow-2xl'
+            ]"
+          >
+            <div
+              v-if="isMobile"
+              class="absolute inset-0 bg-black/50"
               @click="showAttendeesDrawer = false"
-              class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            />
+            <div
+              :class="[
+                'flex flex-col min-h-0',
+                isMobile
+                  ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
+                  : 'h-full w-full'
+              ]"
             >
-              <X class="h-5 w-5" />
-            </button>
-          </div>
-
-          <!-- Content -->
-          <div class="flex-1 overflow-y-auto p-6">
-            <div v-if="minute.attendees && minute.attendees.length > 0" class="space-y-3">
-              <div
-                v-for="attendeeId in minute.attendees"
-                :key="attendeeId"
-                class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+            <!-- Header -->
+            <div class="shrink-0 rounded-t-2xl bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Users class="h-5 w-5" />
+                Attendees
+              </h3>
+              <button
+                @click="showAttendeesDrawer = false"
+                class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                <p class="text-sm font-medium text-gray-900 dark:text-white">
-                  {{ getMemberName(attendeeId) }}
-                </p>
+                <X class="h-5 w-5" />
+              </button>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div v-if="minute.attendees && minute.attendees.length > 0" class="space-y-3">
+                <div
+                  v-for="attendeeId in minute.attendees"
+                  :key="attendeeId"
+                  class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                >
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ getMemberName(attendeeId) }}
+                  </p>
+                </div>
+              </div>
+              <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
+                <Users class="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p class="text-sm">No attendees recorded</p>
               </div>
             </div>
-            <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
-              <Users class="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p class="text-sm">No attendees recorded</p>
             </div>
           </div>
-        </div>
-      </Transition>
+        </Transition>
+      </Teleport>
+
+      <!-- Mobile Agenda Sheet -->
+      <Teleport to="body" :disabled="!isMobile">
+        <Transition name="modal-sheet">
+          <div
+            v-if="showAgendaSheet && minute"
+            class="fixed inset-0 z-80 flex flex-col justify-end lg:hidden"
+          >
+            <div
+              class="absolute inset-0 bg-black/50"
+              @click="showAgendaSheet = false"
+            />
+            <div class="relative z-10 w-full max-h-[80dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700 flex flex-col min-h-0">
+              <div class="shrink-0 p-3 border-b-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 rounded-t-2xl flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Meeting Navigation</h3>
+                <button
+                  @click="showAgendaSheet = false"
+                  class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <X class="h-5 w-5" />
+                </button>
+              </div>
+              <div class="p-3">
+                <button
+                  @click="selectSummary"
+                  :class="[
+                    'w-full text-left px-4 py-3 rounded-lg transition-all duration-200 font-semibold',
+                    showSummary
+                      ? 'bg-primary text-white shadow-md'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                  ]"
+                >
+                  <div class="flex items-center gap-2">
+                    <FileText :class="['h-5 w-5', showSummary ? 'text-white' : 'text-primary']" />
+                    <span class="text-sm">Meeting Summary</span>
+                  </div>
+                </button>
+              </div>
+              <div class="flex-1 overflow-hidden flex flex-col min-h-0">
+                <div class="px-3 pb-2 flex items-center justify-between">
+                  <h2 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <List class="h-3.5 w-3.5" />
+                    Agenda Items
+                  </h2>
+                  <button
+                    @click="handleAddAgendaClick"
+                    class="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-primary transition-colors"
+                    title="Add agenda item"
+                  >
+                    <Plus class="h-4 w-4" />
+                  </button>
+                </div>
+                <div class="flex-1 overflow-y-auto px-3 pb-4">
+                  <nav class="space-y-1">
+                    <div v-if="currentStructure.agenda && currentStructure.agenda.length > 0">
+                      <button
+                        v-for="(item, index) in currentStructure.agenda"
+                        :key="index"
+                        @click="selectAgendaItem(index)"
+                        :class="[
+                          'w-full text-left px-3 py-2.5 rounded-md transition-all duration-150 group',
+                          selectedAgendaIndex === index
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-600'
+                        ]"
+                      >
+                        <div class="flex items-start gap-2">
+                          <span :class="[
+                            'text-xs font-bold mt-0.5 shrink-0',
+                            selectedAgendaIndex === index
+                              ? 'text-white/90'
+                              : 'text-gray-400 dark:text-gray-500 group-hover:text-primary'
+                          ]">
+                            {{ toRomanNumeral(index + 1) }}.
+                          </span>
+                          <span class="text-sm font-medium leading-snug flex-1">
+                            {{ item }}
+                          </span>
+                        </div>
+                      </button>
+                    </div>
+                    <div v-else class="p-4 text-center">
+                      <p class="text-xs text-gray-400 dark:text-gray-500">No agenda items</p>
+                    </div>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
     </div>
 
     <!-- Add Agenda Modal -->
@@ -1155,6 +1279,26 @@ watch(() => minute.value, (newMinute, oldMinute) => {
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
+}
+
+.modal-sheet-enter-active,
+.modal-sheet-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-sheet-enter-active > div:last-child,
+.modal-sheet-leave-active > div:last-child {
+  transition: transform 0.25s ease;
+}
+
+.modal-sheet-enter-from,
+.modal-sheet-leave-to {
+  opacity: 0;
+}
+
+.modal-sheet-enter-from > div:last-child,
+.modal-sheet-leave-to > div:last-child {
+  transform: translateY(100%);
 }
 
 .notepad-section [contenteditable] {

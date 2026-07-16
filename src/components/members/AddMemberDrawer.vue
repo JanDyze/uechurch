@@ -95,7 +95,7 @@ const civilStatusOptions = [
         v-if="showAddMember"
         :class="[
           isMobile
-            ? 'fixed inset-0 z-[60] flex flex-col justify-end'
+            ? 'fixed inset-0 z-80 flex flex-col justify-end'
             : ''
         ]"
       >
