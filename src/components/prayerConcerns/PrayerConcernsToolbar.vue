@@ -1,5 +1,7 @@
 <script setup>
-import { Search, Plus, Heart } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { Plus, Heart } from 'lucide-vue-next'
+import SearchBar from '../common/SearchBar.vue'
 
 defineProps({
   searchQuery: {
@@ -13,42 +15,35 @@ defineProps({
 })
 
 const emit = defineEmits(['update:searchQuery', 'newConcern'])
+
+const mobileSearchOpen = ref(false)
 </script>
 
 <template>
-  <div class="sticky top-0 z-40 mb-4 shrink-0 flex items-center gap-3 bg-white dark:bg-gray-900 py-2">
-    <div class="relative flex-1">
-      <Search
-        class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
-      />
-      <input
-        :value="searchQuery"
-        @input="emit('update:searchQuery', $event.target.value)"
-        type="text"
+  <div class="sticky top-0 z-40 mb-4 shrink-0 rounded-xl border border-gray-200/80 bg-white/95 px-2 py-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:px-3">
+    <div class="flex items-center justify-between gap-2 w-full flex-nowrap">
+      <SearchBar
+        :model-value="searchQuery"
+        @update:model-value="emit('update:searchQuery', $event)"
+        v-model:open="mobileSearchOpen"
         placeholder="Search prayer concerns..."
-        class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
       />
-    </div>
 
-    <!-- Action Buttons -->
-    <div class="flex items-center gap-2">
-      <button
-        @click="emit('newConcern')"
-        :class="[
-          'flex items-center gap-2 px-4 py-2 rounded-lg transition-all shadow-sm',
-          showAddConcern
-            ? 'bg-primary-hover text-white hover:bg-[#014a60]'
-            : 'bg-primary text-white hover:bg-primary-hover'
-        ]"
-        :title="showAddConcern ? 'Close add prayer concern drawer' : 'Add new prayer concern'"
-      >
-        <Plus 
-          :class="[
-            'h-5 w-5 transition-transform duration-300',
-            showAddConcern ? 'rotate-45' : 'rotate-0'
-          ]"
-        />
-      </button>
+      <!-- Action Buttons -->
+      <div :class="['flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 ml-auto', mobileSearchOpen ? 'hidden lg:flex' : 'flex']">
+        <button
+          @click="emit('newConcern')"
+          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"
+          :class="{ 'bg-primary-hover dark:bg-primary-hover': showAddConcern }"
+          :title="showAddConcern ? 'Close add prayer concern drawer' : 'Add new prayer concern'"
+        >
+          <Plus 
+            class="h-5 w-5 transition-transform duration-300 shrink-0"
+            :class="showAddConcern ? 'rotate-45' : 'rotate-0'"
+          />
+          <span class="hidden sm:inline whitespace-nowrap">Add</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>

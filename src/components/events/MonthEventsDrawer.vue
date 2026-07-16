@@ -178,13 +178,13 @@ const upcomingEvents = computed(() => {
 <template>
   <div
     v-if="show"
-    class="m-2 md:m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 transition-all duration-300"
+    class="m-0 lg:m-3 rounded-none lg:rounded-2xl border-0 lg:border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-full lg:w-[calc(50%-1.5rem)] h-full lg:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-none lg:shadow-xl lg:shadow-primary/25 dark:lg:shadow-primary-light/20 transition-all duration-300"
   >
     <!-- Header -->
-    <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-5 py-4">
+    <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent lg:rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-5 py-4">
       <div class="flex items-start justify-between mb-4">
         <div>
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ currentMonth }}</h2>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ currentMonth }}</h2>
           <p class="text-sm text-primary dark:text-primary-light font-medium mt-0.5">Events</p>
         </div>
         <div class="flex items-center gap-2">

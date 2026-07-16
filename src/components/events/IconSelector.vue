@@ -107,7 +107,7 @@ const closeModal = () => {
 
           <!-- Icons Grid -->
           <div class="flex-1 overflow-y-auto p-2">
-            <div class="grid grid-cols-8 gap-1">
+            <div class="grid grid-cols-5 sm:grid-cols-8 gap-1">
               <button
                 v-for="iconName in filteredIcons"
                 :key="iconName"

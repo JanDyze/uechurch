@@ -3,6 +3,9 @@ import { computed } from 'vue'
 import { X } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import IconSelector from './IconSelector.vue'
+import { useMediaQuery } from '../../composables/useMediaQuery'
+
+const isMobile = useMediaQuery('(max-width: 1023px)')
 
 const props = defineProps({
   show: {
@@ -50,12 +53,31 @@ const isFormValid = computed(() => {
 </script>
 
 <template>
-  <div
-    v-if="show"
-    class="m-2 md:m-3 rounded-2xl border-2 border-green-500/30 dark:border-green-400/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-green-500/25 dark:shadow-green-400/20 transition-all duration-300"
-  >
+  <Teleport to="body" :disabled="!isMobile">
+    <Transition :name="isMobile ? 'modal-sheet' : 'drawer'">
+    <div
+      v-if="show"
+      :class="[
+        isMobile
+          ? 'fixed inset-0 z-80 flex flex-col justify-end'
+          : 'add-edit-event-drawer m-2 md:m-3 rounded-2xl border-2 border-green-500/30 dark:border-green-400/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-green-500/25 dark:shadow-green-400/20 transition-all duration-300'
+      ]"
+    >
+      <div
+        v-if="isMobile"
+        class="absolute inset-0 bg-black/50"
+        @click="$emit('update:show', false)"
+      />
+      <div
+        :class="[
+          'flex flex-col min-h-0',
+          isMobile
+            ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
+            : 'h-full w-full'
+        ]"
+      >
     <!-- Header -->
-    <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-t-2xl border-b border-green-500/20 dark:border-green-400/20 px-5 py-4">
+    <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-t-2xl border-b border-green-500/20 dark:border-green-400/20 px-4 sm:px-5 py-4">
       <div class="flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
           {{ isEdit ? 'Edit Event' : 'Add New Event' }}
@@ -70,7 +92,7 @@ const isFormValid = computed(() => {
     </div>
 
     <!-- Event Form -->
-    <div class="flex-1 overflow-y-auto min-h-0 p-5 space-y-4">
+    <div class="flex-1 overflow-y-auto min-h-0 p-4 sm:p-5 space-y-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Title <span class="text-red-500">*</span>
@@ -83,7 +105,7 @@ const isFormValid = computed(() => {
           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
         />
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Date <span class="text-red-500">*</span>
@@ -107,7 +129,7 @@ const isFormValid = computed(() => {
           />
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Type
@@ -169,7 +191,7 @@ const isFormValid = computed(() => {
     </div>
 
     <!-- Footer with buttons -->
-    <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-b-2xl border-t border-green-500/20 dark:border-green-400/20 px-5 py-4">
+    <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-b-2xl border-t border-green-500/20 dark:border-green-400/20 px-4 sm:px-5 py-4">
       <button
         @click="$emit('save')"
         :disabled="!isFormValid"
@@ -183,5 +205,41 @@ const isFormValid = computed(() => {
         {{ isEdit ? 'Save Changes' : 'Save Event' }}
       </button>
     </div>
-  </div>
+      </div>
+    </div>
+    </Transition>
+  </Teleport>
 </template>
+
+<style scoped>
+.add-edit-event-drawer {
+  transition: max-width 0.3s ease-out, opacity 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.drawer-enter-from.add-edit-event-drawer,
+.drawer-leave-to.add-edit-event-drawer {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.modal-sheet-enter-active,
+.modal-sheet-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-sheet-enter-active > div:last-child,
+.modal-sheet-leave-active > div:last-child {
+  transition: transform 0.25s ease;
+}
+
+.modal-sheet-enter-from,
+.modal-sheet-leave-to {
+  opacity: 0;
+}
+
+.modal-sheet-enter-from > div:last-child,
+.modal-sheet-leave-to > div:last-child {
+  transform: translateY(100%);
+}
+</style>

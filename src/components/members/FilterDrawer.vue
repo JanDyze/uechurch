@@ -1,6 +1,9 @@
 <script setup>
 import { ref, watch } from "vue";
 import { X, ArrowUp, ArrowDown, Filter, RotateCcw } from "lucide-vue-next";
+import { useMediaQuery } from "../../composables/useMediaQuery";
+
+const isMobile = useMediaQuery("(max-width: 1023px)");
 
 const props = defineProps({
   showFilters: {
@@ -114,13 +117,31 @@ const hasLocalActiveFilters = () => {
 </script>
 
 <template>
-  <Transition name="drawer">
+  <Teleport to="body" :disabled="!isMobile">
+    <Transition :name="isMobile ? 'modal-sheet' : 'drawer'">
     <div
       v-if="showFilters"
-      class="filter-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20"
+      :class="[
+        isMobile
+          ? 'fixed inset-0 z-80 flex flex-col justify-end'
+          : 'filter-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20'
+      ]"
     >
+      <div
+        v-if="isMobile"
+        class="absolute inset-0 bg-black/50"
+        @click="$emit('update:showFilters', false)"
+      />
+      <div
+        :class="[
+          'flex flex-col min-h-0',
+          isMobile
+            ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
+            : 'h-full w-full'
+        ]"
+      >
       <!-- Header -->
-      <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-5 py-4">
+      <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-5 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
@@ -151,7 +172,7 @@ const hasLocalActiveFilters = () => {
       </div>
 
       <!-- Scrollable Content -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-6">
+      <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6">
         
         <!-- Sort Section -->
         <section class="space-y-3">
@@ -345,7 +366,7 @@ const hasLocalActiveFilters = () => {
       </div>
 
       <!-- Footer -->
-      <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-b-2xl border-t border-primary/20 dark:border-primary-light/20 px-5 py-4">
+      <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-b-2xl border-t border-primary/20 dark:border-primary-light/20 px-4 sm:px-5 py-4">
         <div class="flex gap-3">
           <button
             @click="$emit('update:showFilters', false)"
@@ -361,8 +382,10 @@ const hasLocalActiveFilters = () => {
           </button>
         </div>
       </div>
+      </div>
     </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <style>
@@ -375,5 +398,25 @@ const hasLocalActiveFilters = () => {
   max-width: 0;
   opacity: 0;
   overflow: hidden;
+}
+
+.modal-sheet-enter-active,
+.modal-sheet-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-sheet-enter-active > div:last-child,
+.modal-sheet-leave-active > div:last-child {
+  transition: transform 0.25s ease;
+}
+
+.modal-sheet-enter-from,
+.modal-sheet-leave-to {
+  opacity: 0;
+}
+
+.modal-sheet-enter-from > div:last-child,
+.modal-sheet-leave-to > div:last-child {
+  transform: translateY(100%);
 }
 </style>

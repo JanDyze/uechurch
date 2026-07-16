@@ -139,7 +139,7 @@ const getIconComponent = (iconName) => {
           <!-- Month/Year Picker Dropdown -->
           <div
             v-if="showMonthYearPicker"
-            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50 min-w-75"
+            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4 z-50 w-72 max-w-[calc(100vw-2rem)]"
           >
             <!-- Year Selector -->
             <div class="mb-4">
