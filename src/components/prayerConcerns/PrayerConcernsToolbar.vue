@@ -33,15 +33,15 @@ const mobileSearchOpen = ref(false)
       <div :class="['flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 ml-auto', mobileSearchOpen ? 'hidden lg:flex' : 'flex']">
         <button
           @click="emit('newConcern')"
-          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"
+          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
           :class="{ 'bg-primary-hover dark:bg-primary-hover': showAddConcern }"
           :title="showAddConcern ? 'Close add prayer concern drawer' : 'Add new prayer concern'"
         >
-          <Plus 
+          <Plus
             class="h-5 w-5 transition-transform duration-300 shrink-0"
             :class="showAddConcern ? 'rotate-45' : 'rotate-0'"
           />
-          <span class="hidden sm:inline whitespace-nowrap">Add</span>
+          <span class="whitespace-nowrap text-xs sm:text-sm">Add</span>
         </button>
       </div>
     </div>

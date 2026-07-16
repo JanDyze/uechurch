@@ -128,11 +128,13 @@ const printReport = () => {
           <option v-for="y in years" :key="y" :value="y">{{ y }} Fiscal Year</option>
         </select>
         <div class="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
-          <button @click="exportFullReport" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors" title="Export report">
-            <Download class="h-5 w-5" />
+          <button @click="exportFullReport" class="flex h-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors px-2.5 sm:px-4 gap-1 sm:gap-1.5" title="Export report">
+            <Download class="h-5 w-5 shrink-0" />
+            <span class="whitespace-nowrap text-xs sm:text-sm">Export</span>
           </button>
-          <button @click="printReport" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors" title="Print report">
-            <Printer class="h-5 w-5" />
+          <button @click="printReport" class="flex h-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors px-2.5 sm:px-4 gap-1 sm:gap-1.5" title="Print report">
+            <Printer class="h-5 w-5 shrink-0" />
+            <span class="whitespace-nowrap text-xs sm:text-sm">Print</span>
           </button>
         </div>
       </div>

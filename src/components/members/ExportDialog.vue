@@ -152,31 +152,31 @@ const handleExport = () => {
   <Transition name="modal">
     <div
       v-if="showExport"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       @click.self="$emit('update:showExport', false)"
     >
       <div
         class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700"
       >
         <!-- Header -->
-        <div class="shrink-0 px-6 py-5 bg-linear-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20 border-b border-gray-200 dark:border-gray-700">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="p-2.5 bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/30">
+        <div class="shrink-0 px-4 py-4 sm:px-6 sm:py-5 bg-linear-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20 border-b border-gray-200 dark:border-gray-700">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="p-2.5 bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/30 shrink-0">
                 <FileSpreadsheet class="h-6 w-6 text-white" />
               </div>
-              <div>
-                <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+              <div class="min-w-0">
+                <h2 class="text-base sm:text-xl font-bold text-gray-900 dark:text-white truncate">
                   Export to Spreadsheet
                 </h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
+                <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
                   Download as Excel file (.xlsx)
                 </p>
               </div>
             </div>
             <button
               @click="$emit('update:showExport', false)"
-              class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0"
             >
               <X class="h-5 w-5" />
             </button>
@@ -184,27 +184,27 @@ const handleExport = () => {
         </div>
 
         <!-- Scrollable Content -->
-        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
           <!-- Quick Stats -->
-          <div class="flex gap-4">
-            <div class="flex-1 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+          <div class="flex gap-3 sm:gap-4">
+            <div class="flex-1 p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
               <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
                 <Users class="h-4 w-4" />
                 <span class="text-xs font-medium">Records</span>
               </div>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ estimatedRows }}</p>
+              <p class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ estimatedRows }}</p>
             </div>
-            <div class="flex-1 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+            <div class="flex-1 p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
               <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
                 <Columns class="h-4 w-4" />
                 <span class="text-xs font-medium">Columns</span>
               </div>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ selectedFieldCount }}</p>
+              <p class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ selectedFieldCount }}</p>
             </div>
           </div>
 
           <!-- Sort & Filter Section -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <!-- Sort Options -->
             <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl space-y-3">
               <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -264,12 +264,12 @@ const handleExport = () => {
 
           <!-- Field Selection -->
           <div class="space-y-4">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-wrap items-center justify-between gap-2">
               <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <Columns class="h-4 w-4 text-emerald-500" />
                 Columns to Export
               </h3>
-              <div class="flex gap-2">
+              <div class="flex gap-2 shrink-0">
                 <button
                   @click="selectAllFields"
                   class="px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
@@ -310,15 +310,15 @@ const handleExport = () => {
         </div>
 
         <!-- Footer -->
-        <div class="shrink-0 px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700">
-          <div class="flex items-center justify-between">
-            <p class="text-sm text-gray-500 dark:text-gray-400">
+        <div class="shrink-0 px-4 py-4 sm:px-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700">
+          <div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center sm:text-left">
               {{ estimatedRows }} records × {{ selectedFieldCount }} columns
             </p>
             <div class="flex gap-3">
               <button
                 @click="$emit('update:showExport', false)"
-                class="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
@@ -326,7 +326,7 @@ const handleExport = () => {
                 @click="handleExport"
                 :disabled="selectedFieldCount === 0"
                 :class="[
-                  'px-5 py-2.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2',
+                  'flex-1 sm:flex-none px-5 py-2.5 text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-2',
                   selectedFieldCount > 0
                     ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'

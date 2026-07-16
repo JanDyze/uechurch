@@ -260,19 +260,20 @@ const statusBadgeClass = (status) => {
       <div class="flex items-center justify-end gap-1.5 sm:gap-2 flex-nowrap w-full">
         <button
           @click="exportToExcel"
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+          class="flex h-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 px-2.5 sm:px-4 gap-1 sm:gap-1.5"
           title="Export to Excel"
         >
-          <Download class="h-5 w-5" />
+          <Download class="h-5 w-5 shrink-0" />
+          <span class="whitespace-nowrap text-xs sm:text-sm">Export</span>
         </button>
 
         <button
           @click="showAddModal = true"
-          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"
+          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
           title="Record a new transaction"
         >
           <Plus class="h-5 w-5 shrink-0" />
-          <span class="hidden sm:inline whitespace-nowrap">Add</span>
+          <span class="whitespace-nowrap text-xs sm:text-sm">Add</span>
         </button>
       </div>
     </div>

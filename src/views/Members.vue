@@ -411,7 +411,7 @@ const isDrawerOpen = computed(() => {
     <!-- Members List -->
     <div class="flex-1 overflow-hidden bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex">
       <!-- Members Content -->
-      <div class="flex-1 h-full overflow-y-auto">
+      <div class="flex-1 min-w-0 h-full overflow-y-auto">
       <!-- Grid Layout -->
         <div v-if="layoutMode === 'grid'" :class="[
           'grid gap-3 p-3',

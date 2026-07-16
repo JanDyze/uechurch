@@ -290,6 +290,11 @@ const selectedDayEvents = computed(() => {
   return getEventsForDate(selectedDay.value)
 })
 
+const selectedDayHoliday = computed(() => {
+  if (!selectedDay.value) return null
+  return getHolidayForDate(selectedDay.value) || null
+})
+
 const formattedSelectedDay = computed(() => {
   if (!selectedDay.value) return ''
   return selectedDay.value.toLocaleDateString('en-US', {
@@ -495,6 +500,7 @@ const monthEvents = computed(() => {
         :selected-day="selectedDay"
         :formatted-selected-day="formattedSelectedDay"
         :day-events="selectedDayEvents"
+        :holiday="selectedDayHoliday"
         @update:show="showDayEvents = $event"
         @event-click="openEventDetails"
         @add-event="handleAddEventFromDay"
