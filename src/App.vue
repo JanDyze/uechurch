@@ -20,7 +20,7 @@ const { isTransitioning, isDark, transitionOrigin } = useTheme()
       :style="{ '--origin-x': transitionOrigin.x + 'px', '--origin-y': transitionOrigin.y + 'px' }"
     >
       <span class="theme-text" :class="isDark ? 'text-light' : 'text-dark'">
-        {{ isDark ? 'Then darkness came...' : 'Let there be light!' }}
+        {{ isDark ? 'then darkness come...' : 'Let there be Light!' }}
       </span>
     </div>
   </div>
@@ -57,10 +57,16 @@ const { isTransitioning, isDark, transitionOrigin } = useTheme()
   font-size: 2.5rem;
   font-weight: 800;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
   white-space: nowrap;
   opacity: 0;
   animation: text-fade 0.6s ease-out 0.1s forwards;
+}
+
+@media (max-width: 640px) {
+  .theme-text {
+    font-size: 1.5rem;
+    letter-spacing: 0.05em;
+  }
 }
 
 .theme-text.text-light {
