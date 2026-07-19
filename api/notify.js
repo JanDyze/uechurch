@@ -53,10 +53,13 @@ export default async function handler(req, res) {
         notification: { title: title.trim(), body: (body || "").trim() },
         data: { url: url || "/" },
         webpush: {
+          // Deliver immediately instead of batching for battery savings
+          headers: { Urgency: "high" },
           fcmOptions: { link },
           notification: {
             icon: "/icons/pwa-192x192.png",
             badge: "/icons/badge-96x96.png",
+            vibrate: [200, 100, 200],
           },
         },
       });
