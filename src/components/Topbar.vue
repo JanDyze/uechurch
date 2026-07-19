@@ -2,23 +2,61 @@
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import { Bell, Sun, Moon, X, Users } from "lucide-vue-next";
+import { useRouter } from "vue-router";
 import { useTheme } from "../composables/useTheme";
 import { useNotifications } from "../composables/useNotifications";
-import { useToast } from "../composables/useToast";
+import { subscribeToNotifications } from "../api/notifyService";
 import logo from "../assets/uec-logo.png";
 
 const route = useRoute();
+const router = useRouter();
 const { isDark, toggleTheme } = useTheme();
 const { isEnabled: notificationsEnabled, enabling, enable } = useNotifications();
-const { info } = useToast();
 
-const handleBellClick = () => {
-  if (notificationsEnabled.value) {
-    info("Notifications are already enabled on this device.");
-  } else {
-    enable();
+// Notifications panel + history
+const isNotifOpen = ref(false);
+const notifications = ref([]);
+const lastSeenNotif = ref(Number(localStorage.getItem("uec_notif_last_seen") || 0));
+
+const unreadCount = computed(
+  () =>
+    notifications.value.filter((n) => n.sentAt && n.sentAt.toMillis() > lastSeenNotif.value)
+      .length
+);
+
+const toggleNotifPanel = () => {
+  isNotifOpen.value = !isNotifOpen.value;
+  if (isNotifOpen.value) {
+    lastSeenNotif.value = Date.now();
+    localStorage.setItem("uec_notif_last_seen", String(lastSeenNotif.value));
   }
 };
+
+const openNotification = (n) => {
+  isNotifOpen.value = false;
+  const url = n.url || "/";
+  if (url.startsWith("http")) window.open(url, "_blank");
+  else router.push(url);
+};
+
+const timeAgo = (ts) => {
+  if (!ts) return "just now";
+  const s = Math.floor((Date.now() - ts.toMillis()) / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return ts.toDate().toLocaleDateString();
+};
+
+let unsubscribeNotifications = null;
+onMounted(() => {
+  unsubscribeNotifications = subscribeToNotifications((list) => (notifications.value = list));
+});
+onUnmounted(() => unsubscribeNotifications?.());
 const isMenuOpen = ref(false);
 
 const toggleMenu = () => {
@@ -229,18 +267,96 @@ const saveName = async () => {
           </button>
 
           <!-- Notifications -->
-          <button
-            @click="handleBellClick"
-            :disabled="enabling"
-            class="p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 relative disabled:opacity-50"
-            :title="notificationsEnabled ? 'Notifications enabled' : 'Enable notifications'"
-          >
-            <Bell class="w-6 h-6" :class="{ 'animate-pulse': enabling }" />
-            <span
-              class="absolute top-1 right-1 w-2 h-2 rounded-full"
-              :class="notificationsEnabled ? 'bg-emerald-500' : 'bg-[#bc1c09]'"
-            ></span>
-          </button>
+          <div class="relative">
+            <button
+              @click="toggleNotifPanel"
+              class="p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 relative"
+              title="Notifications"
+            >
+              <Bell class="w-6 h-6" />
+              <span
+                v-if="unreadCount > 0"
+                class="absolute top-1 right-1 w-2 h-2 bg-[#bc1c09] rounded-full"
+              ></span>
+            </button>
+
+            <!-- Click-away overlay -->
+            <div
+              v-if="isNotifOpen"
+              class="fixed inset-0 z-90"
+              @click="isNotifOpen = false"
+            ></div>
+
+            <!-- Notifications Panel -->
+            <Transition name="fade">
+              <div
+                v-if="isNotifOpen"
+                class="absolute top-full right-0 mt-3 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border-2 border-primary/20 dark:border-primary-light/20 rounded-2xl shadow-2xl z-100 overflow-hidden"
+              >
+                <div class="flex items-center justify-between px-4 pt-4 pb-2">
+                  <p class="text-[9px] font-black uppercase tracking-widest text-primary">
+                    Notifications
+                  </p>
+                  <button
+                    @click="isNotifOpen = false"
+                    class="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors"
+                  >
+                    <X class="w-3 h-3" />
+                  </button>
+                </div>
+
+                <!-- Enable state -->
+                <div v-if="!notificationsEnabled" class="px-4 pb-3">
+                  <button
+                    @click="enable"
+                    :disabled="enabling"
+                    class="w-full py-2.5 bg-primary text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 active:scale-95 disabled:opacity-50"
+                  >
+                    {{ enabling ? "Enabling..." : "Enable on this device" }}
+                  </button>
+                </div>
+                <div v-else class="px-4 pb-2 flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                  <span class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    Enabled on this device
+                  </span>
+                </div>
+
+                <!-- History -->
+                <div
+                  class="max-h-80 overflow-y-auto custom-scrollbar border-t-2 border-gray-50 dark:border-gray-800"
+                >
+                  <p
+                    v-if="notifications.length === 0"
+                    class="p-6 text-center text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                  >
+                    No notifications yet
+                  </p>
+                  <button
+                    v-for="n in notifications"
+                    :key="n.id"
+                    @click="openNotification(n)"
+                    class="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-50 dark:border-gray-800/60 last:border-b-0"
+                  >
+                    <p class="text-[11px] font-black text-gray-900 dark:text-white leading-snug">
+                      {{ n.title }}
+                    </p>
+                    <p
+                      v-if="n.body"
+                      class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2"
+                    >
+                      {{ n.body }}
+                    </p>
+                    <p
+                      class="text-[9px] font-black uppercase tracking-widest text-gray-300 dark:text-gray-500 mt-1"
+                    >
+                      {{ timeAgo(n.sentAt) }}
+                    </p>
+                  </button>
+                </div>
+              </div>
+            </Transition>
+          </div>
 
           <!-- User profile (using online mock avatar API) -->
           <button

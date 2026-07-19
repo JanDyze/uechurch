@@ -3,7 +3,7 @@
 // Requires the FIREBASE_SERVICE_ACCOUNT env var (full service account JSON
 // from Firebase Console → Project settings → Service accounts).
 import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 
 function initAdmin() {
@@ -35,9 +35,6 @@ export default async function handler(req, res) {
     const db = getFirestore();
     const snap = await db.collection("fcmTokens").get();
     const tokens = snap.docs.map((d) => d.id);
-    if (tokens.length === 0) {
-      return res.status(200).json({ sent: 0, message: "No registered devices" });
-    }
 
     // FCM requires an absolute HTTPS link for the click-through URL
     const origin = `https://${req.headers.host}`;
@@ -79,6 +76,16 @@ export default async function handler(req, res) {
 
     // Prune tokens for devices that revoked permission or uninstalled
     await Promise.all(invalid.map((t) => db.collection("fcmTokens").doc(t).delete()));
+
+    // Log to history — powers the in-app notifications panel
+    await db.collection("notifications").add({
+      title: title.trim(),
+      body: (body || "").trim(),
+      url: url || "/",
+      sentAt: FieldValue.serverTimestamp(),
+      sent,
+      failed,
+    });
 
     return res.status(200).json({ sent, failed, removed: invalid.length });
   } catch (error) {
