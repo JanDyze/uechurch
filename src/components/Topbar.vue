@@ -3,10 +3,22 @@ import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import { Bell, Sun, Moon, X, Users } from "lucide-vue-next";
 import { useTheme } from "../composables/useTheme";
+import { useNotifications } from "../composables/useNotifications";
+import { useToast } from "../composables/useToast";
 import logo from "../assets/uec-logo.png";
 
 const route = useRoute();
 const { isDark, toggleTheme } = useTheme();
+const { isEnabled: notificationsEnabled, enabling, enable } = useNotifications();
+const { info } = useToast();
+
+const handleBellClick = () => {
+  if (notificationsEnabled.value) {
+    info("Notifications are already enabled on this device.");
+  } else {
+    enable();
+  }
+};
 const isMenuOpen = ref(false);
 
 const toggleMenu = () => {
@@ -218,11 +230,15 @@ const saveName = async () => {
 
           <!-- Notifications -->
           <button
-            class="p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 relative"
+            @click="handleBellClick"
+            :disabled="enabling"
+            class="p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 relative disabled:opacity-50"
+            :title="notificationsEnabled ? 'Notifications enabled' : 'Enable notifications'"
           >
-            <Bell class="w-6 h-6" />
+            <Bell class="w-6 h-6" :class="{ 'animate-pulse': enabling }" />
             <span
-              class="absolute top-1 right-1 w-2 h-2 bg-[#bc1c09] rounded-full"
+              class="absolute top-1 right-1 w-2 h-2 rounded-full"
+              :class="notificationsEnabled ? 'bg-emerald-500' : 'bg-[#bc1c09]'"
             ></span>
           </button>
 

@@ -1,8 +1,14 @@
 <script setup>
+import { onMounted } from 'vue'
 import { useTheme } from './composables/useTheme'
+import { useNotifications } from './composables/useNotifications'
 import ToastContainer from './components/common/ToastContainer.vue'
 
 const { isTransitioning, isDark, transitionOrigin } = useTheme()
+
+// Re-attach push handlers/token if notifications were already allowed
+const { init: initNotifications } = useNotifications()
+onMounted(initNotifications)
 </script>
 
 <template>
