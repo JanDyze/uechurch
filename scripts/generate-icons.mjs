@@ -28,4 +28,32 @@ await sharp({
   .png()
   .toFile(`${out}/apple-touch-icon.png`);
 
+// Notification badge: Android draws this as a flat silhouette using only the
+// alpha channel. Cut the blue "uec" letters (and blue rim) out as transparent
+// so they read as negative space; everything else becomes solid white.
+{
+  const size = 512;
+  const { data } = await sharp(src)
+    .resize(size, size)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+    const isBackground = a < 40 || (r > 240 && g > 240 && b > 240);
+    const isBlue = b > 110 && b > r + 40 && g > r;
+    if (isBackground || isBlue) {
+      data[i + 3] = 0;
+    } else {
+      data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 255;
+    }
+  }
+
+  await sharp(data, { raw: { width: size, height: size, channels: 4 } })
+    .resize(96, 96)
+    .png()
+    .toFile(`${out}/badge-96x96.png`);
+}
+
 console.log("icons generated");

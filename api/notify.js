@@ -56,7 +56,7 @@ export default async function handler(req, res) {
           fcmOptions: { link },
           notification: {
             icon: "/icons/pwa-192x192.png",
-            badge: "/icons/pwa-64x64.png",
+            badge: "/icons/badge-96x96.png",
           },
         },
       });

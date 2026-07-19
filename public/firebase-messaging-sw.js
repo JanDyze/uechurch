@@ -26,7 +26,7 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(data.title || "UEC Church", {
     body: data.body || "",
     icon: "/icons/pwa-192x192.png",
-    badge: "/icons/pwa-64x64.png",
+    badge: "/icons/badge-96x96.png",
     data: { url: data.url || "/" },
   });
 });
