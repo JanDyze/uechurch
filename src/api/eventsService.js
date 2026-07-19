@@ -32,6 +32,8 @@ const normalizeEvent = (data, docId) => {
 };
 
 // Subscribe to events changes (real-time)
+import { sendPushNotification } from "./notifyService";
+
 export const subscribeToEvents = (callback) => {
   const eventsRef = collection(db, EVENTS_COLLECTION);
   
@@ -62,6 +64,17 @@ export const addEvent = async (eventData) => {
   try {
     const eventsRef = collection(db, EVENTS_COLLECTION);
     const docRef = await addDoc(eventsRef, eventData);
+
+    // Push to all registered devices (fire-and-forget)
+    const details = [eventData.date, eventData.time, eventData.location]
+      .filter(Boolean)
+      .join(" · ");
+    sendPushNotification({
+      title: `📅 New Event: ${eventData.title || "Untitled"}`,
+      body: details,
+      url: "/events",
+    });
+
     return docRef.id;
   } catch (error) {
     console.error("Error adding event:", error);
