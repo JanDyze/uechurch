@@ -38,14 +38,35 @@ export function useNotifications() {
 
   const isEnabled = computed(() => permission.value === "granted" && !!token.value);
 
-  // Show pushes as toasts while the app is open (background pushes are
-  // handled by public/firebase-messaging-sw.js)
+  // While the app is open, show pushes as a toast AND in the system
+  // notification bar (background pushes are handled by
+  // public/firebase-messaging-sw.js, which shows them automatically)
   const bindForegroundHandler = (messaging) => {
     if (foregroundBound) return;
     foregroundBound = true;
-    onMessage(messaging, (payload) => {
+    onMessage(messaging, async (payload) => {
       const n = payload.notification || payload.data || {};
       info(`${n.title || "UEC Church"}${n.body ? " — " + n.body : ""}`, 8000);
+
+      if (Notification.permission !== "granted") return;
+      try {
+        // Prefer the FCM service worker so its notificationclick handler
+        // (focus/open the app) applies; new Notification() doesn't work on
+        // Android — notifications must go through a SW registration
+        const regs = await navigator.serviceWorker.getRegistrations();
+        const reg =
+          regs.find((r) => r.active?.scriptURL?.includes("firebase-messaging-sw.js")) ||
+          (await navigator.serviceWorker.getRegistration());
+        if (!reg) return;
+        await reg.showNotification(n.title || "UEC Church", {
+          body: n.body || "",
+          icon: "/icons/pwa-192x192.png",
+          badge: "/icons/pwa-64x64.png",
+          data: { url: (payload.data && payload.data.url) || "/" },
+        });
+      } catch (e) {
+        console.warn("Could not show system notification:", e);
+      }
     });
   };
 

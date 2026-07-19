@@ -1,5 +1,6 @@
 import { db } from './firebase'
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'
+import { sendPushNotification } from './notifyService'
 
 const PRAYER_CONCERNS_COLLECTION = 'prayerConcerns'
 
@@ -44,6 +45,14 @@ export const addPrayerConcern = async (concernData) => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     })
+
+    // Push to all registered devices (fire-and-forget)
+    sendPushNotification({
+      title: '🙏 New Prayer Concern',
+      body: [concernData.title, concernData.memberName].filter(Boolean).join(' — '),
+      url: '/prayer-concerns',
+    })
+
     return docRef.id
   } catch (error) {
     console.error('Error adding prayer concern:', error)
