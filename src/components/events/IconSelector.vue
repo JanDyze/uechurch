@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { Search, X } from 'lucide-vue-next'
 import iconsData from '../../data/lucideIcons.json'
 import * as LucideIcons from 'lucide-vue-next'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const props = defineProps({
   modelValue: {
@@ -53,6 +54,9 @@ const closeModal = () => {
   showModal.value = false
   searchQuery.value = ''
 }
+
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, showModal, closeModal)
 </script>
 
 <template>
@@ -77,13 +81,19 @@ const closeModal = () => {
         @click.self="closeModal"
       >
         <div
+          ref="dialogRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="icon-selector-title"
+          tabindex="-1"
           class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
         >
           <!-- Header -->
           <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Select Icon</h3>
+            <h3 id="icon-selector-title" class="text-lg font-semibold text-gray-900 dark:text-white">Select Icon</h3>
             <button
               @click="closeModal"
+              aria-label="Close"
               class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               <X class="h-5 w-5" />
@@ -119,6 +129,8 @@ const closeModal = () => {
                     : 'border-gray-200 dark:border-gray-700'
                 ]"
                 :title="iconName"
+                :aria-label="iconName"
+                :aria-pressed="selectedIcon === iconName"
               >
                 <component :is="getIconComponent(iconName)" class="h-4 w-4 text-gray-700 dark:text-gray-300 shrink-0" />
               </button>

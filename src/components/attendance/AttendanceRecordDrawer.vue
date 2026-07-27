@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { X, Save, Calendar, Clock, MapPin, Search, Users, Check } from 'lucide-vue-next'
 import { useMembers } from '../../composables/useMembers'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const props = defineProps({
   show: {
@@ -109,22 +110,30 @@ const handleSave = () => {
 const handleCancel = () => {
   emit('cancel')
 }
+
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, () => props.show, handleCancel, { trap: false })
 </script>
 
 <template>
   <Transition name="drawer">
     <div
       v-if="show"
+      ref="dialogRef"
+      role="dialog"
+      aria-labelledby="attendance-record-drawer-title"
+      tabindex="-1"
       class="attendance-record-drawer border-l-4 border-primary bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20"
     >
       <!-- Header -->
       <div class="shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+        <h3 id="attendance-record-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Users class="h-5 w-5" />
           {{ isEdit ? 'Edit Attendance' : 'Record Attendance' }}
         </h3>
         <button
           @click="handleCancel"
+          aria-label="Close"
           class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <X class="h-5 w-5" />

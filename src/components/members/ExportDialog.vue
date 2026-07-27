@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { X, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown, Check, Filter, Columns, Users, Tag } from "lucide-vue-next";
+import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const props = defineProps({
   showExport: {
@@ -146,6 +147,9 @@ const handleExport = () => {
   emit("export", exportConfig.value);
   emit("update:showExport", false);
 };
+
+const dialogRef = ref(null);
+useFocusTrap(dialogRef, () => props.showExport, () => emit("update:showExport", false));
 </script>
 
 <template>
@@ -156,6 +160,11 @@ const handleExport = () => {
       @click.self="$emit('update:showExport', false)"
     >
       <div
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="export-dialog-title"
+        tabindex="-1"
         class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700"
       >
         <!-- Header -->
@@ -166,7 +175,7 @@ const handleExport = () => {
                 <FileSpreadsheet class="h-6 w-6 text-white" />
               </div>
               <div class="min-w-0">
-                <h2 class="text-base sm:text-xl font-bold text-gray-900 dark:text-white truncate">
+                <h2 id="export-dialog-title" class="text-base sm:text-xl font-bold text-gray-900 dark:text-white truncate">
                   Export to Spreadsheet
                 </h2>
                 <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
@@ -176,6 +185,7 @@ const handleExport = () => {
             </div>
             <button
               @click="$emit('update:showExport', false)"
+              aria-label="Close"
               class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0"
             >
               <X class="h-5 w-5" />

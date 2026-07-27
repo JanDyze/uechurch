@@ -743,6 +743,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             @click="showAgendaSheet = true"
             class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors lg:hidden"
             title="Agenda"
+            aria-label="Agenda"
           >
             <Menu class="h-5 w-5" />
           </button>
@@ -750,6 +751,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             @click="showAttendeesDrawer = true"
             class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
             :title="`${minute?.attendees?.length || 0} attendees`"
+            :aria-label="`${minute?.attendees?.length || 0} attendees`"
           >
             <Users class="h-5 w-5" />
           </button>
@@ -757,6 +759,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             @click="exportToText"
             class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
             title="Export"
+            aria-label="Export"
           >
             <Download class="h-5 w-5" />
           </button>
@@ -764,6 +767,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             @click="handleDelete"
             class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400 transition-colors"
             title="Delete"
+            aria-label="Delete"
           >
             <Trash2 class="h-5 w-5" />
           </button>
@@ -804,6 +808,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
               @click="handleAddAgendaClick"
               class="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-primary transition-colors"
               title="Add agenda item"
+              aria-label="Add agenda item"
             >
               <Plus class="h-4 w-4" />
             </button>
@@ -876,6 +881,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
                 :disabled="isEnhancingOverall"
                 class="p-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 :title="currentStructure.overallSummary ? 'Re-enhance overall summary' : 'Generate overall summary from all agenda items'"
+                :aria-label="currentStructure.overallSummary ? 'Re-enhance overall summary' : 'Generate overall summary from all agenda items'"
               >
                 <Sparkles class="h-4 w-4" />
               </button>
@@ -925,6 +931,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
                     @click="copyRawContent"
                     class="p-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                     title="Copy raw content"
+                    aria-label="Copy raw content"
                   >
                     <Copy class="h-4 w-4" />
                   </button>
@@ -933,6 +940,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
                     @click="revertToOriginalNotes"
                     class="p-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
                     title="Revert to original notes"
+                    aria-label="Revert to original notes"
                   >
                     <RotateCcw class="h-4 w-4" />
                   </button>
@@ -942,6 +950,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
                     :disabled="isEnhancing"
                     class="p-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Enhance notes with AI"
+                    aria-label="Enhance notes with AI"
                   >
                     <Sparkles class="h-4 w-4" />
                   </button>
@@ -949,6 +958,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
                     @click="handleDeleteAgendaItem(currentAgendaItem.index)"
                     class="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                     title="Delete agenda item"
+                    aria-label="Delete agenda item"
                   >
                     <Trash2 class="h-4 w-4" />
                   </button>
@@ -1122,6 +1132,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
                     @click="handleAddAgendaClick"
                     class="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-primary transition-colors"
                     title="Add agenda item"
+                    aria-label="Add agenda item"
                   >
                     <Plus class="h-4 w-4" />
                   </button>

@@ -1,9 +1,10 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { X } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import IconSelector from './IconSelector.vue'
 import { useMediaQuery } from '../../composables/useMediaQuery'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
 
@@ -50,6 +51,9 @@ const emit = defineEmits([
 const isFormValid = computed(() => {
   return props.eventData.title && props.eventData.title.trim() !== '' && props.eventDate && props.eventDate.trim() !== ''
 })
+
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
 </script>
 
 <template>
@@ -69,6 +73,11 @@ const isFormValid = computed(() => {
         @click="$emit('update:show', false)"
       />
       <div
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-edit-event-drawer-title"
+        tabindex="-1"
         :class="[
           'flex flex-col min-h-0',
           isMobile
@@ -79,11 +88,12 @@ const isFormValid = computed(() => {
     <!-- Header -->
     <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-t-2xl border-b border-green-500/20 dark:border-green-400/20 px-4 sm:px-5 py-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 id="add-edit-event-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">
           {{ isEdit ? 'Edit Event' : 'Add New Event' }}
         </h3>
         <button
           @click="$emit('cancel')"
+          aria-label="Close"
           class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <X class="h-5 w-5" />

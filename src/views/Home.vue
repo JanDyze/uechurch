@@ -128,13 +128,13 @@ const collections = computed(() => [
           to="/members"
           class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 hover:border-primary/40 transition-colors"
         >
-          <div class="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-gray-400">
+          <div class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-gray-400">
             <Users class="w-3.5 h-3.5 text-primary dark:text-primary-light" /> People
           </div>
           <div class="mt-1.5 text-2xl font-black text-gray-900 dark:text-white tabular-nums">
             {{ members.length }}
           </div>
-          <div class="text-[10px] font-bold text-gray-400">
+          <div class="text-[11px] font-bold text-gray-400">
             {{ officialMembers.length }} member{{ officialMembers.length === 1 ? '' : 's' }} ·
             {{ members.length - officialMembers.length }} guest{{ members.length - officialMembers.length === 1 ? '' : 's' }}
           </div>
@@ -144,13 +144,13 @@ const collections = computed(() => [
           to="/events"
           class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 hover:border-primary/40 transition-colors"
         >
-          <div class="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-gray-400">
+          <div class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-gray-400">
             <CalendarDays class="w-3.5 h-3.5 text-primary dark:text-primary-light" /> Events
           </div>
           <div class="mt-1.5 text-2xl font-black text-gray-900 dark:text-white tabular-nums">
             {{ events.length }}
           </div>
-          <div class="text-[10px] font-bold text-gray-400">
+          <div class="text-[11px] font-bold text-gray-400">
             {{ events.length ? 'scheduled' : 'none yet' }}
           </div>
         </router-link>
@@ -159,13 +159,13 @@ const collections = computed(() => [
           to="/finances"
           class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 hover:border-primary/40 transition-colors"
         >
-          <div class="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-gray-400">
+          <div class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-gray-400">
             <TrendingUp class="w-3.5 h-3.5 text-primary dark:text-primary-light" /> Income
           </div>
           <div class="mt-1.5 text-2xl font-black text-gray-900 dark:text-white tabular-nums">
             {{ peso(income) }}
           </div>
-          <div class="text-[10px] font-bold text-gray-400">
+          <div class="text-[11px] font-bold text-gray-400">
             {{ transactions.filter((t) => t.type === 'income').length }} record{{ transactions.filter((t) => t.type === 'income').length === 1 ? '' : 's' }}
           </div>
         </router-link>
@@ -174,13 +174,13 @@ const collections = computed(() => [
           to="/finances"
           class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 hover:border-primary/40 transition-colors"
         >
-          <div class="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-gray-400">
+          <div class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-gray-400">
             <TrendingDown class="w-3.5 h-3.5 text-[#bc1c09]" /> Expenses
           </div>
           <div class="mt-1.5 text-2xl font-black text-gray-900 dark:text-white tabular-nums">
             {{ peso(expenses) }}
           </div>
-          <div class="text-[10px] font-bold text-gray-400">
+          <div class="text-[11px] font-bold text-gray-400">
             {{ transactions.filter((t) => t.type === 'expense').length }} record{{ transactions.filter((t) => t.type === 'expense').length === 1 ? '' : 's' }}
           </div>
         </router-link>
@@ -189,7 +189,7 @@ const collections = computed(() => [
           to="/finances"
           class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 hover:border-primary/40 transition-colors"
         >
-          <div class="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-gray-400">
+          <div class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-gray-400">
             <Wallet class="w-3.5 h-3.5 text-primary dark:text-primary-light" /> Net
           </div>
           <div
@@ -198,7 +198,7 @@ const collections = computed(() => [
           >
             {{ net < 0 ? '−' : '' }}{{ peso(net) }}
           </div>
-          <div class="text-[10px] font-bold text-gray-400">
+          <div class="text-[11px] font-bold text-gray-400">
             {{ net < 0 ? 'spending exceeds income' : 'on the positive side' }}
           </div>
         </router-link>
@@ -207,13 +207,13 @@ const collections = computed(() => [
           to="/prayer-concerns"
           class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 hover:border-primary/40 transition-colors"
         >
-          <div class="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-gray-400">
+          <div class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-gray-400">
             <HeartHandshake class="w-3.5 h-3.5 text-primary dark:text-primary-light" /> Prayers
           </div>
           <div class="mt-1.5 text-2xl font-black text-gray-900 dark:text-white tabular-nums">
             {{ prayerConcerns.length }}
           </div>
-          <div class="text-[10px] font-bold text-gray-400">
+          <div class="text-[11px] font-bold text-gray-400">
             {{ prayerConcerns.length ? 'concerns listed' : 'none yet' }}
           </div>
         </router-link>
@@ -223,10 +223,10 @@ const collections = computed(() => [
         <!-- Finance breakdown -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-[10px] font-black uppercase tracking-widest text-primary">
+            <h3 class="text-sm font-bold text-primary">
               Finances by category
             </h3>
-            <div class="flex gap-3 text-[9px] font-black uppercase tracking-widest text-gray-400">
+            <div class="flex gap-3 text-[11px] font-black uppercase tracking-widest text-gray-400">
               <span class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-sm bg-primary"></span> In
               </span>
@@ -256,7 +256,7 @@ const collections = computed(() => [
               </span>
             </div>
           </div>
-          <p v-else class="py-6 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">
+          <p v-else class="py-6 text-center text-sm font-semibold text-gray-400">
             No transactions yet
           </p>
         </div>
@@ -264,10 +264,10 @@ const collections = computed(() => [
         <!-- People -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-[10px] font-black uppercase tracking-widest text-primary">People</h3>
+            <h3 class="text-sm font-bold text-primary">People</h3>
             <router-link
               to="/members"
-              class="text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-primary transition-colors"
+              class="text-xs font-bold text-gray-400 hover:text-primary transition-colors"
             >
               View all
             </router-link>
@@ -279,15 +279,15 @@ const collections = computed(() => [
               class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700/60 last:border-b-0"
             >
               <div class="min-w-0">
-                <p class="text-[12px] font-black text-gray-900 dark:text-white truncate">
+                <p class="text-sm font-bold text-gray-900 dark:text-white truncate">
                   {{ displayName(m) }}
                 </p>
-                <p class="text-[10px] font-bold text-gray-400 truncate">
+                <p class="text-[11px] font-bold text-gray-400 truncate">
                   {{ m.nickname ? '@' + m.nickname : '' }}{{ m.civilStatus ? (m.nickname ? ' · ' : '') + m.civilStatus : '' }}
                 </p>
               </div>
               <span
-                class="shrink-0 text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
+                class="shrink-0 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
                 :class="m.isMember
                   ? 'bg-primary/10 text-primary dark:bg-primary-light/10 dark:text-primary-light'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'"
@@ -296,7 +296,7 @@ const collections = computed(() => [
               </span>
             </div>
           </div>
-          <p v-else class="py-6 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">
+          <p v-else class="py-6 text-center text-sm font-semibold text-gray-400">
             No members yet
           </p>
         </div>
@@ -305,54 +305,54 @@ const collections = computed(() => [
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <!-- Latest attendance -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
-          <h3 class="text-[10px] font-black uppercase tracking-widest text-primary mb-3">
+          <h3 class="text-sm font-bold text-primary mb-3">
             Latest attendance
           </h3>
           <template v-if="latestAttendance">
             <p class="text-sm font-black text-gray-900 dark:text-white">
               {{ latestAttendance.eventTitle || 'Session' }}
             </p>
-            <p class="text-[10px] font-bold text-gray-400 mt-1">
+            <p class="text-[11px] font-bold text-gray-400 mt-1">
               {{ formatDate(latestAttendance.date) }} ·
               {{ latestAttendance.totalAttendees }} present
             </p>
           </template>
-          <p v-else class="text-[10px] font-black uppercase tracking-widest text-gray-400 py-3">
+          <p v-else class="text-sm font-semibold text-gray-400 py-3">
             No sessions yet
           </p>
         </div>
 
         <!-- Latest minutes -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
-          <h3 class="text-[10px] font-black uppercase tracking-widest text-primary mb-3">
+          <h3 class="text-sm font-bold text-primary mb-3">
             Latest minutes
           </h3>
           <template v-if="latestMinutes">
             <p class="text-sm font-black text-gray-900 dark:text-white">
               {{ latestMinutes.title || 'Untitled' }}
             </p>
-            <p class="text-[10px] font-bold text-gray-400 mt-1">
+            <p class="text-[11px] font-bold text-gray-400 mt-1">
               {{ formatDate(latestMinutes.date) }}
               {{ latestMinutes.location ? '· ' + latestMinutes.location : '' }}
             </p>
           </template>
-          <p v-else class="text-[10px] font-black uppercase tracking-widest text-gray-400 py-3">
+          <p v-else class="text-sm font-semibold text-gray-400 py-3">
             No minutes yet
           </p>
         </div>
 
         <!-- Recent notifications -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
-          <h3 class="text-[10px] font-black uppercase tracking-widest text-primary mb-3">
+          <h3 class="text-sm font-bold text-primary mb-3">
             Recent notifications
           </h3>
           <div v-if="recentNotifications.length" class="flex flex-col gap-2">
             <div v-for="n in recentNotifications" :key="n.id" class="min-w-0">
-              <p class="text-[12px] font-black text-gray-900 dark:text-white truncate">{{ n.title }}</p>
-              <p class="text-[10px] font-bold text-gray-400">{{ notifTime(n.sentAt) }}</p>
+              <p class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ n.title }}</p>
+              <p class="text-[11px] font-bold text-gray-400">{{ notifTime(n.sentAt) }}</p>
             </div>
           </div>
-          <p v-else class="text-[10px] font-black uppercase tracking-widest text-gray-400 py-3">
+          <p v-else class="text-sm font-semibold text-gray-400 py-3">
             Nothing sent yet
           </p>
         </div>
@@ -362,7 +362,7 @@ const collections = computed(() => [
       <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
         <div class="flex items-center gap-2 mb-4">
           <Database class="w-3.5 h-3.5 text-primary dark:text-primary-light" />
-          <h3 class="text-[10px] font-black uppercase tracking-widest text-primary">Database collections</h3>
+          <h3 class="text-sm font-bold text-primary">Database collections</h3>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           <div

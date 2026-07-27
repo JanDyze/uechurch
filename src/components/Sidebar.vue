@@ -93,6 +93,8 @@ const navigate = (path) => {
             isMinimized ? 'justify-center' : ''
           ]"
           :title="isMinimized ? item.name : ''"
+          :aria-label="item.name"
+          :aria-current="isActive(item.path) ? 'page' : undefined"
         >
           <component :is="item.icon" :class="['shrink-0 h-6 w-6', isMinimized ? '' : 'mr-3']" />
           <span v-if="!isMinimized" class="truncate whitespace-nowrap">{{ item.name }}</span>

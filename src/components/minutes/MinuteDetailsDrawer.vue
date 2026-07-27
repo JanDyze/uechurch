@@ -1,10 +1,11 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { X, Clock, MapPin, Users, Calendar, Edit2, Trash2, Download, FileText, ExternalLink } from 'lucide-vue-next'
 import { useMembers } from '../../composables/useMembers'
 import { markdownToHtml } from '../../utils/markdownUtils'
 import { useMediaQuery } from '../../composables/useMediaQuery'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const router = useRouter()
 const isMobile = useMediaQuery('(max-width: 1023px)')
@@ -23,6 +24,9 @@ const props = defineProps({
 const emit = defineEmits(['update:show', 'edit', 'delete', 'export'])
 
 const { members } = useMembers()
+
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, () => props.show, () => emit('update:show', false))
 
 const formatDate = (dateString) => {
   if (!dateString) return ''
@@ -115,6 +119,11 @@ const exportToText = () => {
         @click="$emit('update:show', false)"
       />
       <div
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="minute-details-drawer-title"
+        tabindex="-1"
         :class="[
           'flex flex-col min-h-0',
           isMobile
@@ -124,10 +133,11 @@ const exportToText = () => {
       >
       <!-- Header -->
       <div class="shrink-0 bg-gray-50 dark:bg-gray-900 rounded-t-2xl border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Meeting Minutes</h3>
+        <h3 id="minute-details-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">Meeting Minutes</h3>
         <div class="flex items-center gap-2">
           <button
             @click="exportToText"
+            aria-label="Export to text"
             class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="Export to text"
           >
@@ -135,6 +145,7 @@ const exportToText = () => {
           </button>
           <button
             @click="$emit('edit')"
+            aria-label="Edit"
             class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="Edit"
           >
@@ -142,6 +153,7 @@ const exportToText = () => {
           </button>
           <button
             @click="$emit('update:show', false)"
+            aria-label="Close"
             class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <X class="h-5 w-5" />

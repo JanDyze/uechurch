@@ -130,6 +130,7 @@ const getPriorityIcon = (priority) => {
         @click="handleDelete"
         class="shrink-0 p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
         title="Delete prayer concern"
+        aria-label="Delete prayer concern"
       >
         <Trash2 class="h-4 w-4" />
       </button>

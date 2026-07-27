@@ -1,7 +1,9 @@
 <script setup>
+import { ref } from 'vue'
 import { Clock, MapPin, X, Plus, ArrowLeft } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import EventCardSkeleton from './EventCardSkeleton.vue'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const props = defineProps({
   show: {
@@ -32,6 +34,9 @@ const props = defineProps({
 
 const emit = defineEmits(['update:show', 'eventClick', 'addEvent', 'back'])
 
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, () => props.show, () => emit('back'), { trap: false })
+
 const getEventTypeColor = (type) => {
   const colors = {
     worship: 'bg-blue-500 text-white',
@@ -54,6 +59,10 @@ const getIconComponent = (iconName) => {
 <template>
   <div
     v-if="show"
+    ref="dialogRef"
+    role="dialog"
+    aria-labelledby="day-events-drawer-title"
+    tabindex="-1"
     class="m-0 lg:m-3 rounded-none lg:rounded-2xl border-0 lg:border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-full lg:w-[calc(50%-1.5rem)] h-full lg:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-none lg:shadow-xl lg:shadow-primary/25 dark:lg:shadow-primary-light/20 transition-all duration-300"
   >
     <!-- Header -->
@@ -68,13 +77,14 @@ const getIconComponent = (iconName) => {
         </button>
         <button
           @click="$emit('update:show', false)"
+          aria-label="Close"
           class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <X class="h-4 w-4" />
         </button>
       </div>
       <div>
-        <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ formattedSelectedDay }}</h2>
+        <h2 id="day-events-drawer-title" class="text-lg font-bold text-gray-900 dark:text-white">{{ formattedSelectedDay }}</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
           {{ dayEvents.length }} event{{ dayEvents.length !== 1 ? 's' : '' }}
         </p>
