@@ -1,6 +1,8 @@
 <script setup>
+import { ref } from "vue";
 import { X } from "lucide-vue-next";
 import { useMediaQuery } from "../../composables/useMediaQuery";
+import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const isMobile = useMediaQuery("(max-width: 1023px)");
 
@@ -27,6 +29,9 @@ const toggleField = (field) => {
     [field]: !props.visibleFields[field],
   });
 };
+
+const dialogRef = ref(null);
+useFocusTrap(dialogRef, () => props.showConfig, () => emit("update:showConfig", false));
 </script>
 
 <template>
@@ -46,6 +51,11 @@ const toggleField = (field) => {
         @click="$emit('update:showConfig', false)"
       />
       <div
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="config-drawer-title"
+        tabindex="-1"
         :class="[
           'flex flex-col min-h-0',
           isMobile
@@ -55,11 +65,12 @@ const toggleField = (field) => {
       >
       <!-- Header -->
       <div class="shrink-0 bg-blue-50/30 dark:bg-gray-900/80 rounded-t-2xl border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 id="config-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">
           Display Fields
         </h3>
         <button
           @click="$emit('update:showConfig', false)"
+          aria-label="Close"
           class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <X class="h-5 w-5" />
@@ -84,6 +95,8 @@ const toggleField = (field) => {
             <span class="text-sm text-gray-700 dark:text-gray-300">{{ field.label }}</span>
             <button
               @click="toggleField(field.key)"
+              :aria-label="field.label"
+              :aria-pressed="visibleFields[field.key]"
               :class="[
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                 visibleFields[field.key] ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'

@@ -464,7 +464,7 @@ const formatDate = (dateStr) => {
           </button>
 
           <div v-if="!selectedEvent || (selectedEvent && !route.params.id)" class="relative">
-            <button @click="showFilterDropdown = !showFilterDropdown" :class="[ 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors border border-transparent shrink-0', selectedCategory !== 'All' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' ]" title="Filter by Category">
+            <button @click="showFilterDropdown = !showFilterDropdown" :class="[ 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors border border-transparent shrink-0', selectedCategory !== 'All' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' ]" title="Filter by Category" aria-label="Filter by category" aria-haspopup="true" :aria-expanded="showFilterDropdown">
               <ListFilter class="h-5 w-5" />
             </button>
             <Transition name="fade"><div v-if="showFilterDropdown" @click="showFilterDropdown = false" class="fixed inset-0 z-40"></div></Transition>
@@ -662,7 +662,7 @@ const formatDate = (dateStr) => {
 
               <!-- Album More Actions -->
               <div v-if="selectedEvent.existsInGallery" class="relative group">
-                <button @click="showAlbumActions = !showAlbumActions" class="px-4 py-3 bg-white/50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors" title="Album Actions">
+                <button @click="showAlbumActions = !showAlbumActions" class="px-4 py-3 bg-white/50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors" title="Album Actions" aria-label="Album actions" aria-haspopup="true" :aria-expanded="showAlbumActions">
                    <MoreHorizontal class="h-4 w-4" />
                 </button>
 
@@ -742,17 +742,17 @@ const formatDate = (dateStr) => {
 
     <!-- Lightbox -->
     <Transition name="modal">
-      <div v-if="selectedImage" class="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 md:p-10" @click="closeImage">
-        
+      <div v-if="selectedImage" role="dialog" aria-modal="true" aria-label="Photo viewer" class="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 md:p-10" @click="closeImage">
+
         <!-- Navigation Arrows -->
-        <button @click="nextImage" class="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 z-110 p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md group">
+        <button @click="nextImage" aria-label="Next photo" class="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 z-110 p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md group">
           <ChevronRight class="h-8 w-8 transition-transform group-hover:translate-x-1" />
         </button>
-        <button @click="prevImage" class="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 z-110 p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md group">
+        <button @click="prevImage" aria-label="Previous photo" class="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 z-110 p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md group">
           <ChevronLeft class="h-8 w-8 transition-transform group-hover:-translate-x-1" />
         </button>
 
-        <button @click="closeImage" class="absolute top-6 right-6 p-4 text-white/50 hover:text-white transition-colors z-110"><X class="h-8 w-8" /></button>
+        <button @click="closeImage" aria-label="Close" class="absolute top-6 right-6 p-4 text-white/50 hover:text-white transition-colors z-110"><X class="h-8 w-8" /></button>
         
         <div class="max-w-7xl w-full h-full flex flex-col md:flex-row items-center gap-8 relative" @click.stop>
           <div class="flex-1 h-full flex items-center justify-center relative">
@@ -771,17 +771,17 @@ const formatDate = (dateStr) => {
             <!-- Minimal Action Row -->
             <div class="flex items-center gap-2 mt-auto pt-6 px-1 relative">
               <!-- Major Actions -->
-              <button @click="handleSharePhoto()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 transition-all rounded-xl flex items-center justify-center group text-blue-400" title="Share Photo Link">
+              <button @click="handleSharePhoto()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 transition-all rounded-xl flex items-center justify-center group text-blue-400" title="Share Photo Link" aria-label="Share photo link">
                 <Share2 class="h-4 w-4 transition-transform group-hover:scale-110" />
               </button>
 
-              <button @click="downloadPhoto()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 transition-all rounded-xl flex items-center justify-center group" title="Download JPEG">
+              <button @click="downloadPhoto()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 transition-all rounded-xl flex items-center justify-center group" title="Download JPEG" aria-label="Download JPEG">
                 <DownloadIcon class="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
               </button>
 
               <!-- More Actions Toggle -->
               <div class="relative flex-1">
-                <button @click="showMoreActions = !showMoreActions" class="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 transition-all rounded-xl flex items-center justify-center group" title="More Actions">
+                <button @click="showMoreActions = !showMoreActions" class="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 transition-all rounded-xl flex items-center justify-center group" title="More Actions" aria-label="More actions" aria-haspopup="true" :aria-expanded="showMoreActions">
                   <MoreHorizontal class="h-4 w-4 transition-transform group-hover:scale-110" />
                 </button>
                 

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { X, Upload, Move, ZoomIn, ZoomOut, RotateCw, Check } from "lucide-vue-next";
+import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const props = defineProps({
   modelValue: {
@@ -240,6 +241,9 @@ const reset = () => {
 const close = () => {
   emit('update:show', false);
 };
+
+const dialogRef = ref(null);
+useFocusTrap(dialogRef, () => props.show, close);
 </script>
 
 <template>
@@ -249,12 +253,20 @@ const close = () => {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       @click.self="close"
     >
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+      <div
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="image-cropper-title"
+        tabindex="-1"
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+      >
         <!-- Header -->
         <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Upload & Crop Image</h3>
+          <h3 id="image-cropper-title" class="text-lg font-semibold text-gray-900 dark:text-white">Upload & Crop Image</h3>
           <button
             @click="close"
+            aria-label="Close"
             class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <X class="h-5 w-5" />

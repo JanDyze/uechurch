@@ -44,6 +44,8 @@ const mobileSearchOpen = ref(false)
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
           ]"
           title="Month Events"
+          aria-label="Month events"
+          :aria-pressed="showMonthEvents"
         >
           <Calendar class="h-5 w-5" />
         </button>

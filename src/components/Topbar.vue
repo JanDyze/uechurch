@@ -6,6 +6,7 @@ import { useRouter } from "vue-router";
 import { useTheme } from "../composables/useTheme";
 import { useNotifications } from "../composables/useNotifications";
 import { subscribeToNotifications } from "../api/notifyService";
+import { useFocusTrap } from "../composables/useFocusTrap";
 import logo from "../assets/uec-logo.png";
 
 const route = useRoute();
@@ -156,6 +157,15 @@ const isModalOpen = ref(false)
 const isRenaming = ref(false)
 const newName = ref('')
 
+const notifPanelRef = ref(null)
+useFocusTrap(notifPanelRef, isNotifOpen, () => { isNotifOpen.value = false }, { trap: false })
+
+const visitorsModalRef = ref(null)
+useFocusTrap(visitorsModalRef, isModalOpen, () => { isModalOpen.value = false })
+
+const renamePopoverRef = ref(null)
+useFocusTrap(renamePopoverRef, isRenaming, () => { isRenaming.value = false }, { trap: false })
+
 const startRename = () => {
   newName.value = myAnimal.value.name
   isRenaming.value = true
@@ -214,10 +224,18 @@ const saveName = async () => {
               
               <!-- Rename Popover -->
               <Transition name="fade">
-                <div v-if="isRenaming" class="absolute top-full right-0 mt-3 w-56 bg-white dark:bg-gray-900 border-2 border-primary/20 dark:border-primary-light/20 rounded-2xl shadow-2xl p-4 z-100" @click.stop>
+                <div
+                  v-if="isRenaming"
+                  ref="renamePopoverRef"
+                  role="dialog"
+                  aria-labelledby="rename-popover-title"
+                  tabindex="-1"
+                  class="absolute top-full right-0 mt-3 w-56 bg-white dark:bg-gray-900 border-2 border-primary/20 dark:border-primary-light/20 rounded-2xl shadow-2xl p-4 z-100"
+                  @click.stop
+                >
                   <div class="flex items-center justify-between mb-3">
-                    <p class="text-[9px] font-black uppercase tracking-widest text-primary">Identity Setup</p>
-                    <button @click="isRenaming = false" class="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors">
+                    <p id="rename-popover-title" class="text-[9px] font-black uppercase tracking-widest text-primary">Identity Setup</p>
+                    <button @click="isRenaming = false" aria-label="Close" class="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors">
                       <X class="w-3 h-3" />
                     </button>
                   </div>
@@ -261,6 +279,7 @@ const saveName = async () => {
             @click="toggleTheme($event)"
             class="p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+            :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
           >
             <Sun v-if="isDark" class="w-5 h-5" />
             <Moon v-else class="w-5 h-5" />
@@ -272,6 +291,9 @@ const saveName = async () => {
               @click="toggleNotifPanel"
               class="p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 relative"
               title="Notifications"
+              aria-label="Notifications"
+              aria-haspopup="true"
+              :aria-expanded="isNotifOpen"
             >
               <Bell class="w-6 h-6" />
               <span
@@ -291,14 +313,19 @@ const saveName = async () => {
             <Transition name="fade">
               <div
                 v-if="isNotifOpen"
+                ref="notifPanelRef"
+                role="dialog"
+                aria-labelledby="notif-panel-title"
+                tabindex="-1"
                 class="absolute top-full right-0 mt-3 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border-2 border-primary/20 dark:border-primary-light/20 rounded-2xl shadow-2xl z-100 overflow-hidden"
               >
                 <div class="flex items-center justify-between px-4 pt-4 pb-2">
-                  <p class="text-[9px] font-black uppercase tracking-widest text-primary">
+                  <p id="notif-panel-title" class="text-[9px] font-black uppercase tracking-widest text-primary">
                     Notifications
                   </p>
                   <button
                     @click="isNotifOpen = false"
+                    aria-label="Close"
                     class="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors"
                   >
                     <X class="w-3 h-3" />
@@ -360,6 +387,7 @@ const saveName = async () => {
 
           <!-- User profile (using online mock avatar API) -->
           <button
+            aria-label="User menu"
             class="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <img
@@ -376,18 +404,26 @@ const saveName = async () => {
     <!-- Active Visitors Modal -->
     <Transition name="fade">
       <div v-if="isModalOpen" class="fixed inset-0 z-110 flex items-center justify-center bg-gray-900/40 backdrop-blur-md" @click="isModalOpen = false">
-        <div class="w-full max-w-sm bg-white dark:bg-gray-900 rounded-4xl shadow-2xl border-4 border-white dark:border-gray-800 p-8 m-4 max-h-[80vh] flex flex-col" @click.stop>
+        <div
+          ref="visitorsModalRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="visitors-modal-title"
+          tabindex="-1"
+          class="w-full max-w-sm bg-white dark:bg-gray-900 rounded-4xl shadow-2xl border-4 border-white dark:border-gray-800 p-8 m-4 max-h-[80vh] flex flex-col"
+          @click.stop
+        >
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
               <div class="p-2.5 bg-primary/10 rounded-2xl">
                 <Users class="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 class="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tighter">Live Presence</h3>
+                <h3 id="visitors-modal-title" class="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tighter">Live Presence</h3>
                 <p class="text-[10px] font-black uppercase tracking-widest text-primary">Currently Online</p>
               </div>
             </div>
-            <button @click="isModalOpen = false" class="p-2 rounded-xl border-2 border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+            <button @click="isModalOpen = false" aria-label="Close" class="p-2 rounded-xl border-2 border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
               <X class="w-4 h-4 text-gray-400" />
             </button>
           </div>

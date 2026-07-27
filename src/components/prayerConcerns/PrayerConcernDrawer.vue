@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { X, Save, Heart, User, Search, ChevronDown } from 'lucide-vue-next'
 import { useMembers } from '../../composables/useMembers'
 import { useMediaQuery } from '../../composables/useMediaQuery'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
 
@@ -110,6 +111,9 @@ const handleSave = () => {
 const handleCancel = () => {
   emit('cancel')
 }
+
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, () => props.show, handleCancel)
 </script>
 
 <template>
@@ -129,6 +133,11 @@ const handleCancel = () => {
         @click="handleCancel"
       />
       <div
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="prayer-concern-drawer-title"
+        tabindex="-1"
         :class="[
           'flex flex-col min-h-0',
           isMobile
@@ -138,12 +147,13 @@ const handleCancel = () => {
       >
       <!-- Header -->
       <div class="shrink-0 bg-white dark:bg-gray-800 rounded-t-2xl border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+        <h3 id="prayer-concern-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Heart class="h-5 w-5 text-red-600 dark:text-red-400" />
           {{ isEdit ? 'Edit Prayer Concern' : 'Add Prayer Concern' }}
         </h3>
         <button
           @click="handleCancel"
+          aria-label="Close"
           class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <X class="h-5 w-5" />
@@ -185,6 +195,7 @@ const handleCancel = () => {
                 <button
                   type="button"
                   @click="clearMember"
+                  aria-label="Clear selected member"
                   class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <X class="h-4 w-4" />

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import philippineHolidays from '../../data/philippineHolidays.json'
 import { useMediaQuery } from '../../composables/useMediaQuery'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const props = defineProps({
   currentDate: {
@@ -43,6 +44,9 @@ const isCompact = useMediaQuery('(max-width: 639px)')
 
 // Month/Year picker state
 const showMonthYearPicker = ref(false)
+const monthYearPickerRef = ref(null)
+const closeMonthYearPicker = () => { showMonthYearPicker.value = false }
+useFocusTrap(monthYearPickerRef, showMonthYearPicker, closeMonthYearPicker)
 
 const months = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -117,6 +121,27 @@ const getEventTypeColor = (type) => {
 const getIconComponent = (iconName) => {
   return LucideIcons[iconName] || LucideIcons.Calendar
 }
+
+const getDayAriaLabel = (day) => {
+  const parts = [
+    day.fullDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+  ]
+  if (isToday(day.fullDate)) parts.push('Today')
+  const holiday = getHolidayForDate(day.fullDate)
+  if (holiday) parts.push(holiday.name)
+  const dayEvents = getEventsForDate(day.fullDate)
+  if (dayEvents.length) parts.push(`${dayEvents.length} event${dayEvents.length === 1 ? '' : 's'}`)
+  if (props.selectedDate === formatDateString(day.fullDate)) parts.push('Selected')
+  return parts.join(', ')
+}
+
+// Day cells wrap nested event buttons, so Enter/Space should only trigger
+// dayClick when the cell itself (not a nested button) has focus.
+const handleDayKeydown = (event, day) => {
+  if (event.target !== event.currentTarget) return
+  event.preventDefault()
+  emit('dayClick', day)
+}
 </script>
 
 <template>
@@ -126,31 +151,40 @@ const getIconComponent = (iconName) => {
       <div class="flex items-center gap-2">
         <button
           @click="emit('navigateMonth', 'prev')"
+          aria-label="Previous month"
           class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <ChevronLeft class="h-5 w-5 text-gray-600 dark:text-gray-300" />
         </button>
-        
+
         <!-- Clickable Month/Year with Picker -->
         <div class="relative">
           <button
             @click="showMonthYearPicker = !showMonthYearPicker"
+            aria-haspopup="dialog"
+            :aria-expanded="showMonthYearPicker"
             class="px-2 md:px-3 py-1 md:py-1.5 text-base md:text-lg font-semibold text-gray-900 dark:text-white min-w-35 md:min-w-50 text-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             {{ currentMonth }}
           </button>
-          
+
           <!-- Month/Year Picker Dropdown -->
           <div
             v-if="showMonthYearPicker"
+            ref="monthYearPickerRef"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose month and year"
+            tabindex="-1"
             class="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4 z-50 w-72 max-w-[calc(100vw-2rem)]"
           >
             <!-- Year Selector -->
             <div class="mb-4">
-              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Year</p>
+              <p id="calendar-year-label" class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Year</p>
               <div class="flex items-center gap-2">
                 <button
                   @click="selectYear(currentYear - 1)"
+                  aria-label="Previous year"
                   class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <ChevronLeft class="h-4 w-4 text-gray-600 dark:text-gray-300" />
@@ -158,19 +192,21 @@ const getIconComponent = (iconName) => {
                 <select
                   :value="currentYear"
                   @change="selectYear(Number($event.target.value))"
+                  aria-labelledby="calendar-year-label"
                   class="flex-1 px-3 py-2 text-center font-semibold bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary cursor-pointer"
                 >
                   <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
                 </select>
                 <button
                   @click="selectYear(currentYear + 1)"
+                  aria-label="Next year"
                   class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <ChevronRight class="h-4 w-4 text-gray-600 dark:text-gray-300" />
                 </button>
               </div>
             </div>
-            
+
             <!-- Month Grid -->
             <div>
               <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Month</p>
@@ -179,6 +215,8 @@ const getIconComponent = (iconName) => {
                   v-for="(month, index) in months"
                   :key="month"
                   @click="selectMonth(index)"
+                  :aria-label="month"
+                  :aria-pressed="currentMonthIndex === index"
                   :class="[
                     'px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                     currentMonthIndex === index
@@ -192,9 +230,10 @@ const getIconComponent = (iconName) => {
             </div>
           </div>
         </div>
-        
+
         <button
           @click="emit('navigateMonth', 'next')"
+          aria-label="Next month"
           class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <ChevronRight class="h-5 w-5 text-gray-600 dark:text-gray-300" />
@@ -207,11 +246,12 @@ const getIconComponent = (iconName) => {
         Today
       </button>
     </div>
-    
+
     <!-- Click outside to close picker -->
     <div
       v-if="showMonthYearPicker"
       @click="showMonthYearPicker = false"
+      aria-hidden="true"
       class="fixed inset-0 z-40"
     ></div>
 
@@ -230,7 +270,7 @@ const getIconComponent = (iconName) => {
 
       <!-- Calendar Days with transition -->
       <Transition name="calendar-month" mode="out-in">
-        <div v-if="loading" :key="`skeleton-${currentMonth}`" class="calendar-grid flex-1 grid grid-cols-7 grid-rows-6 gap-1.5 min-h-0">
+        <div v-if="loading" :key="`skeleton-${currentMonth}`" aria-hidden="true" class="calendar-grid flex-1 grid grid-cols-7 grid-rows-6 gap-1.5 min-h-0">
           <div
             v-for="i in 42"
             :key="`skeleton-day-${i}`"
@@ -240,11 +280,18 @@ const getIconComponent = (iconName) => {
             <div class="h-3 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
           </div>
         </div>
-        <div v-else :key="currentMonth" class="calendar-grid flex-1 grid grid-cols-7 grid-rows-6 gap-1 md:gap-1.5 min-h-0">
+        <div v-else :key="currentMonth" role="group" :aria-label="`${currentMonth} calendar`" class="calendar-grid flex-1 grid grid-cols-7 grid-rows-6 gap-1 md:gap-1.5 min-h-0">
             <div
               v-for="(day, index) in calendarDays"
               :key="index"
+              role="button"
+              tabindex="0"
+              :aria-label="getDayAriaLabel(day)"
+              :aria-current="isToday(day.fullDate) ? 'date' : undefined"
+              :aria-pressed="selectedDate === formatDateString(day.fullDate) ? 'true' : undefined"
               @click="emit('dayClick', day)"
+              @keydown.enter="handleDayKeydown($event, day)"
+              @keydown.space="handleDayKeydown($event, day)"
               :class="[
                 'min-h-0 p-1 md:p-1.5 rounded-lg transition-all cursor-pointer overflow-hidden flex flex-col',
                 day.isCurrentMonth

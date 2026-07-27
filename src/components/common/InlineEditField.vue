@@ -141,6 +141,13 @@ const toggleTag = (tag) => {
 const isTagSelected = (tag) => {
   return Array.isArray(editValue.value) && editValue.value.includes(tag);
 };
+
+const viewModeAriaLabel = computed(() => {
+  const valueText = props.type === 'tags'
+    ? (hasValue.value ? displayValue.value.join(', ') : props.emptyText)
+    : (hasValue.value ? displayValue.value : props.emptyText);
+  return `${props.label}: ${valueText}. Press Enter to edit.`;
+});
 </script>
 
 <template>
@@ -149,6 +156,11 @@ const isTagSelected = (tag) => {
     <div
       v-if="!isEditing"
       @dblclick="startEdit"
+      @keydown.enter="startEdit"
+      @keydown.space.prevent="startEdit"
+      role="button"
+      tabindex="0"
+      :aria-label="viewModeAriaLabel"
       class="flex items-start gap-3 p-2 -m-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
       title="Double-click to edit"
     >
@@ -291,6 +303,7 @@ const isTagSelected = (tag) => {
             @click="cancelEdit"
             class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
             title="Cancel (Esc)"
+            aria-label="Cancel"
           >
             <X class="h-4 w-4" />
           </button>
@@ -298,6 +311,7 @@ const isTagSelected = (tag) => {
             @click="saveEdit"
             class="p-1 text-white bg-primary dark:bg-primary-light hover:bg-primary-hover dark:hover:bg-[#1a9aab] rounded transition-colors"
             title="Save (Enter)"
+            aria-label="Save"
           >
             <Check class="h-4 w-4" />
           </button>

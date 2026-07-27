@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useFocusTrap } from '../composables/useFocusTrap'
 import {
   Home,
   Users,
@@ -55,6 +56,9 @@ const toggleMoreMenu = () => {
 const closeMoreMenu = () => {
   showMoreMenu.value = false
 }
+
+const moreMenuRef = ref(null)
+useFocusTrap(moreMenuRef, showMoreMenu, closeMoreMenu)
 </script>
 
 <template>
@@ -62,7 +66,7 @@ const closeMoreMenu = () => {
   <Transition name="more-menu">
     <div
       v-if="showMoreMenu"
-      class="lg:hidden fixed inset-0 z-[55] bg-black/40"
+      class="lg:hidden fixed inset-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-55 bg-black/40"
       @click="closeMoreMenu"
     />
   </Transition>
@@ -71,10 +75,14 @@ const closeMoreMenu = () => {
   <Transition name="more-sheet">
     <div
       v-if="showMoreMenu"
-      class="lg:hidden fixed bottom-16 left-0 right-0 z-[56] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto"
+      ref="moreMenuRef"
+      role="dialog"
+      aria-labelledby="more-menu-title"
+      tabindex="-1"
+      class="lg:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-56 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-t-2xl max-h-[70dvh] overflow-y-auto"
     >
       <div class="sticky top-0 flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-t-2xl">
-        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">More Pages</h3>
+        <h3 id="more-menu-title" class="text-sm font-semibold text-gray-900 dark:text-white">More Pages</h3>
         <button
           @click="closeMoreMenu"
           class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -102,7 +110,7 @@ const closeMoreMenu = () => {
     </div>
   </Transition>
 
-  <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50">
+  <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 pb-[env(safe-area-inset-bottom)]">
     <div class="flex items-center justify-around h-16">
       <button
         v-for="item in primaryNav"
@@ -114,6 +122,7 @@ const closeMoreMenu = () => {
             ? 'text-primary dark:text-primary-light'
             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
         ]"
+        :aria-current="isActive(item.path) ? 'page' : undefined"
       >
         <component :is="item.icon" class="h-6 w-6 mb-1" />
         <span class="text-xs font-medium">{{ item.name }}</span>
@@ -128,6 +137,8 @@ const closeMoreMenu = () => {
             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
         ]"
         aria-label="More pages"
+        aria-haspopup="true"
+        :aria-expanded="showMoreMenu"
       >
         <Menu class="h-6 w-6 mb-1" />
         <span class="text-xs font-medium">More</span>
