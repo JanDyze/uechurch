@@ -68,8 +68,14 @@ const pageTitle = computed(() => {
   const routeNames = {
     Home: 'Dashboard',
     Members: 'Members',
+    MemberDetails: 'Member Details',
     Events: 'Events',
+    Minutes: 'Minutes',
+    MinuteDetails: 'Minute Details',
+    Attendance: 'Attendance',
+    PrayerConcerns: 'Prayer Concerns',
     Finances: 'Finances',
+    FinanceAudit: 'Finance Audit',
     Gallery: 'Gallery',
     Links: 'Links'
   };
