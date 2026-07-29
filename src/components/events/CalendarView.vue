@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, List, LayoutGrid } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import philippineHolidays from '../../data/philippineHolidays.json'
 import { useMediaQuery } from '../../composables/useMediaQuery'
@@ -41,6 +41,18 @@ const emit = defineEmits(['navigateMonth', 'dayClick', 'eventClick', 'goToToday'
 
 // On narrow phone screens, show fewer events per day so the ones shown stay readable
 const isCompact = useMediaQuery('(max-width: 639px)')
+
+// Short viewports (e.g. phones in landscape) can't fit a 6-row month grid either
+const isShort = useMediaQuery('(max-height: 500px)')
+
+// Default to the agenda list on narrow/short screens, where a month grid is hard to scan.
+// Once the user manually toggles, their choice sticks regardless of viewport changes.
+const prefersAgendaView = computed(() => isCompact.value || isShort.value)
+const agendaViewOverride = ref(null)
+const showAgendaView = computed(() => agendaViewOverride.value ?? prefersAgendaView.value)
+const toggleAgendaView = () => {
+  agendaViewOverride.value = !showAgendaView.value
+}
 
 // Month/Year picker state
 const showMonthYearPicker = ref(false)
@@ -121,6 +133,19 @@ const getEventTypeColor = (type) => {
 const getIconComponent = (iconName) => {
   return LucideIcons[iconName] || LucideIcons.Calendar
 }
+
+// Days in the current month that have a holiday or an event, in date order, for the agenda view
+const agendaDays = computed(() => {
+  return props.calendarDays
+    .filter((day) => day.isCurrentMonth)
+    .map((day) => ({
+      day,
+      dateString: formatDateString(day.fullDate),
+      holiday: getHolidayForDate(day.fullDate),
+      events: getEventsForDate(day.fullDate),
+    }))
+    .filter((entry) => entry.holiday || entry.events.length > 0)
+})
 
 const getDayAriaLabel = (day) => {
   const parts = [
@@ -239,12 +264,24 @@ const handleDayKeydown = (event, day) => {
           <ChevronRight class="h-5 w-5 text-gray-600 dark:text-gray-300" />
         </button>
       </div>
-      <button
-        @click="emit('goToToday')"
-        class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-      >
-        Today
-      </button>
+      <div class="flex items-center gap-1.5">
+        <button
+          @click="toggleAgendaView"
+          :aria-pressed="showAgendaView"
+          :aria-label="showAgendaView ? 'Switch to grid view' : 'Switch to agenda view'"
+          :title="showAgendaView ? 'Grid view' : 'Agenda view'"
+          class="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        >
+          <LayoutGrid v-if="showAgendaView" class="h-5 w-5" />
+          <List v-else class="h-5 w-5" />
+        </button>
+        <button
+          @click="emit('goToToday')"
+          class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+        >
+          Today
+        </button>
+      </div>
     </div>
 
     <!-- Click outside to close picker -->
@@ -255,8 +292,94 @@ const handleDayKeydown = (event, day) => {
       class="fixed inset-0 z-40"
     ></div>
 
+    <!-- Agenda View: default on narrow/short screens where a month grid is hard to scan -->
+    <div v-if="showAgendaView" class="flex-1 overflow-y-auto p-3 md:p-4 min-h-0">
+      <div v-if="loading" aria-hidden="true" class="space-y-2">
+        <div
+          v-for="i in 6"
+          :key="`agenda-skeleton-${i}`"
+          class="flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700"
+        >
+          <div class="h-12 w-12 shrink-0 rounded-lg bg-gray-200 dark:bg-gray-600 animate-pulse"></div>
+          <div class="flex-1 space-y-1.5">
+            <div class="h-3 w-1/3 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
+            <div class="h-3 w-2/3 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+      <Transition v-else name="calendar-month" mode="out-in">
+        <div :key="currentMonth" role="list" :aria-label="`${currentMonth} agenda`" class="space-y-2">
+          <div
+            v-for="entry in agendaDays"
+            :key="entry.dateString"
+            role="listitem"
+            :class="[
+              'rounded-lg border overflow-hidden transition-colors',
+              selectedDate === entry.dateString
+                ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                : isToday(entry.day.fullDate)
+                ? 'border-amber-400 dark:border-amber-500 bg-amber-50/60 dark:bg-amber-900/10'
+                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800',
+            ]"
+          >
+            <button
+              type="button"
+              @click="emit('dayClick', entry.day)"
+              :aria-label="getDayAriaLabel(entry.day)"
+              :aria-current="isToday(entry.day.fullDate) ? 'date' : undefined"
+              :aria-pressed="selectedDate === entry.dateString ? 'true' : undefined"
+              class="w-full flex items-center gap-3 p-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-colors"
+            >
+              <div
+                :class="[
+                  'flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg',
+                  isToday(entry.day.fullDate)
+                    ? 'bg-amber-500 text-white'
+                    : selectedDate === entry.dateString
+                    ? 'bg-primary text-white'
+                    : entry.holiday
+                    ? 'bg-white dark:bg-gray-800 border-2 border-yellow-500 text-gray-900 dark:text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200',
+                ]"
+              >
+                <span class="text-base font-bold leading-none">{{ entry.day.date }}</span>
+                <span class="text-[10px] uppercase tracking-wide opacity-90">{{ entry.day.fullDate.toLocaleDateString('en-US', { weekday: 'short' }) }}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                  {{ entry.day.fullDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) }}
+                </p>
+                <p v-if="entry.holiday" class="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                  <span class="h-1.5 w-1.5 rounded-full bg-yellow-500 shrink-0"></span>
+                  {{ entry.holiday.name }}
+                </p>
+              </div>
+            </button>
+            <div v-if="entry.events.length" class="px-2.5 pb-2.5 space-y-1">
+              <button
+                v-for="event in entry.events"
+                :key="event.id"
+                type="button"
+                @click="emit('eventClick', event)"
+                :class="['w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs sm:text-sm hover:opacity-90 transition-opacity', getEventTypeColor(event.type)]"
+                :title="event.title"
+              >
+                <component :is="getIconComponent(event.icon || 'Calendar')" class="h-3.5 w-3.5 shrink-0" />
+                <span class="flex-1 truncate font-medium">{{ event.title }}</span>
+                <span v-if="event.time" class="shrink-0 text-[10px] sm:text-xs opacity-90">{{ event.time }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="!agendaDays.length" class="text-center text-sm text-gray-500 dark:text-gray-400 py-10">
+            No events scheduled for {{ currentMonth }}
+          </div>
+        </div>
+      </Transition>
+    </div>
+
     <!-- Calendar Grid -->
-    <div :ref="calendarScrollRef" @wheel="emit('calendarWheel', $event)" class="flex-1 flex flex-col p-2 md:p-4 min-h-0">
+    <div v-else :ref="calendarScrollRef" @wheel="emit('calendarWheel', $event)" class="flex-1 flex flex-col p-2 md:p-4 min-h-0">
       <!-- Day Headers -->
       <div class="grid grid-cols-7 gap-1 md:gap-1.5 mb-1 md:mb-2 shrink-0">
         <div
