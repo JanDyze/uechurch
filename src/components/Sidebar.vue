@@ -48,7 +48,7 @@ const navigate = (path) => {
 <template>
   <aside 
     :class="[
-      'group hidden lg:flex lg:flex-col relative bg-white dark:bg-slate-950 border-r border-gray-200 dark:border-slate-800 transition-all duration-300 shadow-xl dark:shadow-2xl z-50',
+      'group hidden lg:flex lg:flex-col relative bg-white dark:bg-slate-950 border-r border-gray-200 dark:border-slate-800 transition-all duration-300 shadow-xl dark:shadow-2xl z-80',
       isMinimized ? 'lg:w-24' : 'lg:w-72'
     ]"
     style="overflow: visible;"
@@ -58,9 +58,9 @@ const navigate = (path) => {
     <!-- Minimize Button -->
     <button
       @click="isMinimized = !isMinimized"
-      class="absolute right-0 top-8 z-50 w-8 h-8 rounded-full bg-white dark:bg-slate-800 text-primary dark:text-slate-300 shadow-md hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center border border-gray-200 dark:border-slate-700"
+      class="absolute right-2 top-8 z-80 w-8 h-8 rounded-full bg-white dark:bg-slate-800 text-primary dark:text-slate-300 shadow-md hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center border border-gray-200 dark:border-slate-700"
       :class="isHovered ? 'opacity-100' : 'opacity-0'"
-      :style="`transform: translateX(50%); transition: opacity ${isHovered ? '0.3s' : '2s'} ease-in-out;`"
+      :style="`transition: opacity ${isHovered ? '0.3s' : '2s'} ease-in-out;`"
       aria-label="Toggle sidebar"
     >
       <ChevronLeft v-if="!isMinimized" class="h-4 w-4" />
