@@ -139,4 +139,3 @@ nav button:hover:not(.active) {
   scrollbar-width: none;  /* Firefox */
 }
 </style>
-

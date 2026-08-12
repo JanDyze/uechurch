@@ -1,17 +1,21 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
-import { Bell, Sun, Moon, X, Users } from "lucide-vue-next";
+import { Bell, Sun, Moon, X, Users, LogOut } from "lucide-vue-next";
 import { useRouter } from "vue-router";
 import { useTheme } from "../composables/useTheme";
 import { useNotifications } from "../composables/useNotifications";
 import { subscribeToNotifications } from "../api/notifyService";
 import { useFocusTrap } from "../composables/useFocusTrap";
+import { useAuth } from "../composables/useAuth";
+import { useToast } from "../composables/useToast";
 import logo from "../assets/uec-logo.png";
 
 const route = useRoute();
 const router = useRouter();
 const { isDark, toggleTheme } = useTheme();
+const { displayName, email: userEmail, avatarUrl, logout, updateDisplayName } = useAuth();
+const toast = useToast();
 const { isEnabled: notificationsEnabled, enabling, enable } = useNotifications();
 
 // Notifications panel + history
@@ -82,25 +86,9 @@ const pageTitle = computed(() => {
   return routeNames[route.name] || 'Dashboard';
 });
 
-// Biblical Characters Presence simulation
-const roles = [
-  { name: 'Arkbuilder Noah', bg: 'bg-blue-600', color: 'text-white' },
-  { name: 'Good Samaritan', bg: 'bg-emerald-500', color: 'text-white' },
-  { name: 'Saved by Grace', bg: 'bg-pink-500', color: 'text-white' },
-  { name: 'Brave Esther', bg: 'bg-purple-600', color: 'text-white' },
-  { name: 'Faithful Ruth', bg: 'bg-amber-600', color: 'text-white' },
-  { name: 'Fisher of Men', bg: 'bg-cyan-500', color: 'text-white' },
-  { name: 'Pillar of Fire', bg: 'bg-orange-600', color: 'text-white' },
-  { name: 'Light of World', bg: 'bg-yellow-400', color: 'text-yellow-900' },
-  { name: 'Lost Sheep', bg: 'bg-stone-500', color: 'text-white' },
-  { name: 'Shepherd David', bg: 'bg-green-600', color: 'text-white' },
-  { name: 'Mighty Samson', bg: 'bg-red-600', color: 'text-white' },
-  { name: 'Living Water', bg: 'bg-sky-400', color: 'text-white' },
-]
-
+// Live presence — identity is the signed-in account, not a random persona
 const visitors = ref([])
 const mySessionId = ref('')
-const myAnimal = ref(null)
 
 import { onMounted, onUnmounted } from 'vue'
 import { updatePresence, subscribeToPresence, removePresence } from '../api/presenceService'
@@ -108,35 +96,23 @@ import { updatePresence, subscribeToPresence, removePresence } from '../api/pres
 onMounted(async () => {
   // PERSISTENCE: Check if we have a session in this browser already
   let sid = localStorage.getItem('uec_visitor_session_id')
-  let anim = localStorage.getItem('uec_visitor_animal')
 
   if (!sid) {
     sid = `session-${Math.random().toString(36).substring(2, 11)}`
     localStorage.setItem('uec_visitor_session_id', sid)
   }
 
-  if (!anim) {
-    // Pick from roles that are not already active to avoid duplicates
-    const activeNames = visitors.value.map(v => v.name)
-    const availableRoles = roles.filter(r => !activeNames.includes(r.name))
-    
-    // If all roles are taken, fallback to full list
-    const pool = availableRoles.length > 0 ? availableRoles : roles
-    const randomRole = pool[Math.floor(Math.random() * pool.length)]
-    
-    anim = JSON.stringify(randomRole)
-    localStorage.setItem('uec_visitor_animal', anim)
-  }
+  // Leftover from the old random-persona presence
+  localStorage.removeItem('uec_visitor_animal')
 
   mySessionId.value = sid
-  myAnimal.value = JSON.parse(anim)
 
   // Initial heartbeat
-  await updatePresence(mySessionId.value, myAnimal.value)
+  await updatePresence(mySessionId.value, { name: displayName.value })
 
   // Start periodic heartbeat every 30 seconds
   const heartbeatInterval = setInterval(() => {
-    updatePresence(mySessionId.value, myAnimal.value)
+    updatePresence(mySessionId.value, { name: displayName.value })
   }, 30000)
 
   // Cleanup on Tab Close
@@ -172,8 +148,30 @@ useFocusTrap(visitorsModalRef, isModalOpen, () => { isModalOpen.value = false })
 const renamePopoverRef = ref(null)
 useFocusTrap(renamePopoverRef, isRenaming, () => { isRenaming.value = false }, { trap: false })
 
+// User account menu
+const isUserMenuOpen = ref(false)
+const signingOut = ref(false)
+const userMenuRef = ref(null)
+useFocusTrap(userMenuRef, isUserMenuOpen, () => { isUserMenuOpen.value = false }, { trap: false })
+
+const handleLogout = async () => {
+  signingOut.value = true
+  try {
+    await logout()
+    isUserMenuOpen.value = false
+    toast.success('Signed out')
+    router.push('/login')
+  } catch {
+    toast.error('Could not sign out. Please try again.')
+  } finally {
+    signingOut.value = false
+  }
+}
+
+const savingName = ref(false)
+
 const startRename = () => {
-  newName.value = myAnimal.value.name
+  newName.value = displayName.value
   isRenaming.value = true
 }
 
@@ -186,17 +184,22 @@ const toggleRename = () => {
 }
 
 const saveName = async () => {
-  if (!newName.value) { isRenaming.value = false; return }
-  
-  const updatedAnimal = { 
-    ...myAnimal.value, 
-    name: newName.value 
+  const name = newName.value.trim()
+  if (!name || name === displayName.value) { isRenaming.value = false; return }
+
+  // The account name is the single source of truth: rename it, then push the
+  // new name onto this session's presence record so other visitors see it too.
+  savingName.value = true
+  try {
+    await updateDisplayName(name)
+    await updatePresence(mySessionId.value, { name })
+    isRenaming.value = false
+    toast.success('Name updated')
+  } catch {
+    toast.error('Could not update your name. Please try again.')
+  } finally {
+    savingName.value = false
   }
-  
-  myAnimal.value = updatedAnimal
-  localStorage.setItem('uec_visitor_animal', JSON.stringify(updatedAnimal))
-  await updatePresence(mySessionId.value, updatedAnimal)
-  isRenaming.value = false
 }
 </script>
 
@@ -214,9 +217,9 @@ const saveName = async () => {
         <!-- Right: User menu and notifications -->
         <div class="flex items-center gap-2">
           <!-- Anonymous Visitors Stack -->
-          <div v-if="visitors.length || myAnimal" class="flex items-center -space-x-1.5 mr-3 animate-in fade-in slide-in-from-right-4 duration-700 delay-300">
+          <div v-if="visitors.length || mySessionId" class="flex items-center -space-x-1.5 mr-3 animate-in fade-in slide-in-from-right-4 duration-700 delay-300">
             <!-- Current User (YOU) with Rename Popup -->
-            <div v-if="myAnimal" class="relative group">
+            <div v-if="mySessionId" class="relative group">
               <div @click.stop="toggleRename" 
                 class="w-7.5 h-7.5 rounded-full border-2 border-primary dark:border-primary-light flex items-center justify-center cursor-pointer relative z-40 shadow-xl hover:scale-110 hover:rotate-12 active:scale-95 transition-all bg-white dark:bg-gray-800"
               >
@@ -224,7 +227,7 @@ const saveName = async () => {
                     <img :src="`https://api.dicebear.com/9.x/open-peeps/svg?seed=${mySessionId}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`" class="w-full h-full object-cover" />
                   </div>
                   <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-primary text-white text-[9px] px-2 py-1.5 rounded-lg whitespace-nowrap shadow-2xl z-50 uppercase tracking-widest font-black pointer-events-none">
-                      {{ myAnimal.name }} (YOU)
+                      {{ displayName }} (YOU)
                   </div>
               </div>
               
@@ -240,19 +243,19 @@ const saveName = async () => {
                   @click.stop
                 >
                   <div class="flex items-center justify-between mb-3">
-                    <p id="rename-popover-title" class="text-[9px] font-black uppercase tracking-widest text-primary">Identity Setup</p>
+                    <p id="rename-popover-title" class="text-[9px] font-black uppercase tracking-widest text-primary">Your Name</p>
                     <button @click="isRenaming = false" aria-label="Close" class="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors">
                       <X class="w-3 h-3" />
                     </button>
                   </div>
                   <div class="flex flex-col gap-2.5">
-                    <div class="relative">
-                      <span class="absolute left-0 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-black">@</span>
-                      <input v-model="newName" class="w-full bg-transparent border-b-2 border-gray-100 dark:border-gray-800 pl-4 py-1.5 text-[11px] font-black text-gray-900 dark:text-white outline-none focus:border-primary transition-colors" @keyup.enter="saveName" placeholder="Enter name..." autofocus />
-                    </div>
+                    <input v-model="newName" class="w-full bg-transparent border-b-2 border-gray-100 dark:border-gray-800 py-1.5 text-[11px] font-black text-gray-900 dark:text-white outline-none focus:border-primary transition-colors" @keyup.enter="saveName" placeholder="Enter your full name..." autofocus />
+                    <p class="text-[9px] font-bold text-gray-400 leading-relaxed">
+                      This renames your account and is what everyone else sees here.
+                    </p>
                     <div class="flex gap-2">
                        <button @click="isRenaming = false" class="flex-1 py-2.5 border-2 border-gray-100 dark:border-gray-800 text-gray-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">Cancel</button>
-                       <button @click="saveName" class="flex-[1.5] py-2.5 bg-primary text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 active:scale-95">Update</button>
+                       <button @click="saveName" :disabled="savingName" class="flex-[1.5] py-2.5 bg-primary text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 active:scale-95 disabled:opacity-50 disabled:active:scale-100">{{ savingName ? 'Saving...' : 'Update' }}</button>
                     </div>
                   </div>
                 </div>
@@ -391,18 +394,71 @@ const saveName = async () => {
             </Transition>
           </div>
 
-          <!-- User profile (using online mock avatar API) -->
-          <button
-            aria-label="User menu"
-            class="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            <img
-              src="https://api.dicebear.com/9.x/dylan/svg?seed=UEC"
-              alt="User Avatar"
-              class="w-8 h-8 rounded-full object-cover"
-            />
-          </button>
-          
+          <!-- User account menu -->
+          <div class="relative">
+            <button
+              @click="isUserMenuOpen = !isUserMenuOpen"
+              aria-label="User menu"
+              aria-haspopup="true"
+              :aria-expanded="isUserMenuOpen"
+              class="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <img
+                :src="avatarUrl"
+                alt="User Avatar"
+                class="w-8 h-8 rounded-full object-cover"
+              />
+            </button>
+
+            <!-- Click-away overlay -->
+            <div
+              v-if="isUserMenuOpen"
+              class="fixed inset-0 z-90"
+              @click="isUserMenuOpen = false"
+            ></div>
+
+            <Transition name="fade">
+              <div
+                v-if="isUserMenuOpen"
+                ref="userMenuRef"
+                role="dialog"
+                aria-labelledby="user-menu-title"
+                tabindex="-1"
+                class="absolute top-full right-0 mt-3 w-64 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border-2 border-primary/20 dark:border-primary-light/20 rounded-2xl shadow-2xl z-100 overflow-hidden"
+              >
+                <div class="flex items-center gap-3 p-4">
+                  <img
+                    :src="avatarUrl"
+                    alt=""
+                    class="w-10 h-10 rounded-full object-cover border-2 border-primary/20"
+                  />
+                  <div class="min-w-0">
+                    <p
+                      id="user-menu-title"
+                      class="text-[11px] font-black text-gray-900 dark:text-white truncate"
+                    >
+                      {{ displayName }}
+                    </p>
+                    <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                      {{ userEmail }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="px-3 pb-3 border-t-2 border-gray-50 dark:border-gray-800 pt-3">
+                  <button
+                    @click="handleLogout"
+                    :disabled="signingOut"
+                    class="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-300 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 hover:border-red-100 dark:hover:border-red-500/20 transition-all disabled:opacity-50"
+                  >
+                    <LogOut class="w-3.5 h-3.5" />
+                    {{ signingOut ? 'Signing out...' : 'Sign out' }}
+                  </button>
+                </div>
+              </div>
+            </Transition>
+          </div>
+
         </div>
       </div>
     </div>
@@ -443,8 +499,8 @@ const saveName = async () => {
                     <img :src="`https://api.dicebear.com/9.x/open-peeps/svg?seed=${mySessionId}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`" class="w-full h-full object-cover" />
                   </div>
                   <div>
-                    <p class="text-[11px] font-black text-gray-900 dark:text-white">{{ myAnimal.name }}</p>
-                    <p class="text-[9px] font-black uppercase tracking-widest text-primary">Your Persona</p>
+                    <p class="text-[11px] font-black text-gray-900 dark:text-white">{{ displayName }}</p>
+                    <p class="text-[9px] font-black uppercase tracking-widest text-primary">Your Account</p>
                   </div>
                 </div>
                 <button @click="isModalOpen = false; startRename()" class="px-3 py-1.5 bg-primary text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Rename</button>
