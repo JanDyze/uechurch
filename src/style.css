@@ -13,6 +13,8 @@
 :root {
   --color-primary: #01779b;
   --color-primary-hover: #015a77;
+  --scrollbar-thumb: rgba(1, 119, 155, 0.35);
+  --scrollbar-thumb-hover: rgba(1, 119, 155, 0.65);
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -26,6 +28,8 @@
 .dark {
   --color-primary: #22b8cf;
   --color-primary-hover: #3bc9db;
+  --scrollbar-thumb: rgba(34, 184, 207, 0.3);
+  --scrollbar-thumb-hover: rgba(34, 184, 207, 0.6);
 }
 
 body {
@@ -76,4 +80,54 @@ button {
 #app {
   width: 100%;
   height: 100dvh;
+}
+
+/* Themed scrollbars — desktop only (matches the `lg:` breakpoint the sidebar
+   and bottom bar switch on). Phones and tablets get the OS overlay scrollbar,
+   which already fades out on its own and costs no layout width; styling
+   ::-webkit-scrollbar there would pin a permanent bar next to the content. */
+@media (min-width: 1024px) {
+  /* Firefox. Both properties inherit, so setting them on the root is enough. */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  /* WebKit / Chromium */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Transparent border + padding-box clip insets the thumb, so it reads as a
+     floating pill rather than a bar wedged against the content edge. */
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    background-clip: padding-box;
+    border: 3px solid transparent;
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Slimmer variant for drawers, modals and inner panels. */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    border-width: 1px;
+  }
 }

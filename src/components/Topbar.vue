@@ -220,7 +220,7 @@ const saveName = async () => {
           <div v-if="visitors.length || mySessionId" class="flex items-center -space-x-1.5 mr-3 animate-in fade-in slide-in-from-right-4 duration-700 delay-300">
             <!-- Current User (YOU) with Rename Popup -->
             <div v-if="mySessionId" class="relative group">
-              <div @click.stop="toggleRename" 
+              <div @click.stop="toggleRename"
                 class="w-7.5 h-7.5 rounded-full border-2 border-primary dark:border-primary-light flex items-center justify-center cursor-pointer relative z-40 shadow-xl hover:scale-110 hover:rotate-12 active:scale-95 transition-all bg-white dark:bg-gray-800"
               >
                   <div class="w-full h-full overflow-hidden rounded-full">
@@ -230,7 +230,7 @@ const saveName = async () => {
                       {{ displayName }} (YOU)
                   </div>
               </div>
-              
+
               <!-- Rename Popover -->
               <Transition name="fade">
                 <div
@@ -525,14 +525,5 @@ const saveName = async () => {
 </template>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #01779b44;
-  border-radius: 10px;
-}
+/* Scrollbars are themed globally in src/style.css (.custom-scrollbar) */
 </style>
