@@ -452,8 +452,6 @@ const openLinkContext = (link, e) => {
 </template>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(1, 119, 155, 0.2); border-radius: 10px; }
 .modal-enter-active, .modal-leave-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.95); }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
