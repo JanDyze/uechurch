@@ -2,6 +2,7 @@
 import { ref, watch } from "vue";
 import { X, ArrowUp, ArrowDown, Filter, RotateCcw } from "lucide-vue-next";
 import { useMediaQuery } from "../../composables/useMediaQuery";
+import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const isMobile = useMediaQuery("(max-width: 1023px)");
 
@@ -101,6 +102,9 @@ const toggleLocalTag = (tag) => {
   }
 };
 
+const dialogRef = ref(null);
+useFocusTrap(dialogRef, () => props.showFilters, () => emit("update:showFilters", false));
+
 // Check if local filters are active
 const hasLocalActiveFilters = () => {
   return (
@@ -133,6 +137,11 @@ const hasLocalActiveFilters = () => {
         @click="$emit('update:showFilters', false)"
       />
       <div
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="members-filter-drawer-title"
+        tabindex="-1"
         :class="[
           'flex flex-col min-h-0',
           isMobile
@@ -148,7 +157,7 @@ const hasLocalActiveFilters = () => {
               <Filter class="h-5 w-5 text-primary dark:text-primary-light" />
             </div>
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Filters</h3>
+              <h3 id="members-filter-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">Filters</h3>
               <p class="text-xs text-gray-500 dark:text-gray-400">Refine your search</p>
             </div>
           </div>
@@ -163,6 +172,7 @@ const hasLocalActiveFilters = () => {
             </button>
             <button
               @click="$emit('update:showFilters', false)"
+              aria-label="Close"
               class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               <X class="h-5 w-5" />

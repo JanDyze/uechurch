@@ -3,6 +3,7 @@ import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { X, Save, Plus, Trash2, Search, ChevronDown } from 'lucide-vue-next'
 import { useMembers } from '../../composables/useMembers'
 import { useMediaQuery } from '../../composables/useMediaQuery'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
 
@@ -167,6 +168,9 @@ watch(
   }
 )
 
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, () => props.show, () => emit('update:show', false))
+
 </script>
 
 <template>
@@ -186,6 +190,11 @@ watch(
         @click="$emit('update:show', false)"
       />
       <div
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="minute-editor-drawer-title"
+        tabindex="-1"
         :class="[
           'flex flex-col min-h-0',
           isMobile
@@ -195,11 +204,12 @@ watch(
       >
       <!-- Header -->
       <div class="shrink-0 bg-green-50/20 dark:bg-gray-800 rounded-t-2xl border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 id="minute-editor-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">
           {{ isEdit ? 'Edit Minutes' : 'New Meeting Minutes' }}
         </h3>
         <button
           @click="$emit('update:show', false)"
+          aria-label="Close"
           class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <X class="h-5 w-5" />
@@ -288,6 +298,7 @@ watch(
                 {{ getMemberName(attendeeId) }}
                 <button
                   @click="toggleAttendee(attendeeId)"
+                  :aria-label="`Remove ${getMemberName(attendeeId)}`"
                   class="hover:text-primary-hover"
                 >
                   <X class="h-3 w-3" />
@@ -373,6 +384,7 @@ watch(
                   @click="removeAgendaItem(index)"
                   class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                   title="Remove agenda item"
+                  aria-label="Remove agenda item"
                 >
                   <Trash2 class="h-4 w-4" />
                 </button>
@@ -390,6 +402,7 @@ watch(
                 @click="addAgendaItem"
                 class="p-1.5 text-primary hover:text-primary-hover hover:bg-primary/10 dark:hover:bg-primary/20 rounded transition-colors"
                 title="Add agenda item"
+                aria-label="Add agenda item"
               >
                 <Plus class="h-4 w-4" />
               </button>

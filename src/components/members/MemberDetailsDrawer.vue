@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { X, Trash2, User, Phone, Briefcase, Image as ImageIcon, ExternalLink, Edit2, Check } from "lucide-vue-next";
 import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate } from "../../utils/memberUtils";
 import { useMediaQuery } from "../../composables/useMediaQuery";
+import { useFocusTrap } from "../../composables/useFocusTrap";
 import ImageCropper from "./ImageCropper.vue";
 import InlineEditField from "../common/InlineEditField.vue";
 
@@ -92,6 +93,9 @@ const handleDoneEditing = () => {
   isEditMode.value = false;
 };
 
+const dialogRef = ref(null);
+useFocusTrap(dialogRef, () => props.showDetails, () => emit("update:showDetails", false));
+
 const showImageCropper = ref(false);
 
 const handleImageUpdate = (base64Image) => {
@@ -131,6 +135,11 @@ const civilStatusOptions = [
         />
 
         <div
+          ref="dialogRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="member-details-drawer-title"
+          tabindex="-1"
           :class="[
             'flex flex-col min-h-0',
             isMobile
@@ -141,7 +150,7 @@ const civilStatusOptions = [
       <!-- Header -->
       <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-6 py-4 flex items-center justify-between">
         <div>
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 id="member-details-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ isEditMode ? 'Edit Member' : 'Member Details' }}
           </h3>
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -150,6 +159,7 @@ const civilStatusOptions = [
         </div>
         <button
           @click="$emit('update:showDetails', false)"
+          aria-label="Close"
           class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <X class="h-5 w-5" />
@@ -218,6 +228,7 @@ const civilStatusOptions = [
             />
             <button
               @click="showImageCropper = true"
+              aria-label="Change photo"
               class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <ImageIcon class="h-5 w-5 text-white" />
@@ -364,6 +375,8 @@ const civilStatusOptions = [
                 </div>
                 <button
                   @click="handleFieldSave('isMember', !localMember.isMember)"
+                  aria-label="Church Member"
+                  :aria-pressed="localMember.isMember"
                   :class="[
                     'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                     localMember.isMember ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
@@ -387,6 +400,7 @@ const civilStatusOptions = [
         <div class="flex justify-end gap-2">
           <button
             @click="handleViewPage"
+            aria-label="View full page"
             class="p-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-lg shadow-gray-400/25 dark:shadow-gray-900/25"
             title="View Full Page"
           >
@@ -404,6 +418,7 @@ const civilStatusOptions = [
           <button
             v-else
             @click="handleEdit"
+            aria-label="Edit all fields"
             class="p-2 text-white bg-primary dark:bg-primary-light rounded-lg hover:bg-primary-hover dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-primary/25 dark:shadow-primary-light/25"
             title="Edit All Fields"
           >
@@ -411,6 +426,7 @@ const civilStatusOptions = [
           </button>
           <button
             @click="handleDelete"
+            aria-label="Delete member"
             class="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors shadow-lg shadow-red-500/25"
             title="Delete"
           >

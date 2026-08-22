@@ -5,6 +5,7 @@ import ImageCropper from "./ImageCropper.vue";
 import FloatingInput from "../common/FloatingInput.vue";
 import { calculateAgeFromDate } from "../../utils/memberUtils";
 import { useMediaQuery } from "../../composables/useMediaQuery";
+import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const props = defineProps({
   showAddMember: {
@@ -49,6 +50,9 @@ const sections = ref({
 const toggleSection = (section) => {
   sections.value[section] = !sections.value[section];
 };
+
+const dialogRef = ref(null);
+useFocusTrap(dialogRef, () => props.showAddMember, () => emit("update:showAddMember", false));
 
 // Computed age from DOB
 const computedAge = computed(() => {
@@ -106,24 +110,30 @@ const civilStatusOptions = [
         />
 
         <div
+          ref="dialogRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-member-drawer-title"
+          tabindex="-1"
           :class="[
             'flex flex-col min-h-0',
             isMobile
               ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
-              : 'add-member-drawer m-3 rounded-2xl border-2 border-green-500/30 dark:border-green-400/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] min-w-[440px] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-green-500/25 dark:shadow-green-400/20'
+              : 'add-member-drawer m-3 rounded-2xl border-2 border-green-500/30 dark:border-green-400/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] min-w-110 h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-green-500/25 dark:shadow-green-400/20'
           ]"
           @click.stop
         >
           <!-- Header -->
           <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-t-2xl border-b border-green-500/20 dark:border-green-400/20 px-4 sm:px-6 py-4 flex items-center justify-between">
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 id="add-member-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">
                 Add New Member
               </h3>
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Fill in the details below</p>
             </div>
             <button
               @click="emit('update:showAddMember', false)"
+              aria-label="Close"
               class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               <X class="h-5 w-5" />
@@ -147,6 +157,7 @@ const civilStatusOptions = [
                       @click="showImageCropper = true"
                       class="absolute -bottom-1 -right-1 p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors shadow-lg"
                       title="Upload Image"
+                      aria-label="Upload image"
                     >
                       <ImageIcon class="h-4 w-4" />
                     </button>
@@ -328,6 +339,8 @@ const civilStatusOptions = [
                       <button
                         type="button"
                         @click="updateField('isMember', !newMember.isMember)"
+                        aria-label="Church Member"
+                        :aria-pressed="newMember.isMember"
                         :class="[
                           'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                           newMember.isMember ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'

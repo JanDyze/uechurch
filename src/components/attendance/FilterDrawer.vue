@@ -1,10 +1,12 @@
 <script setup>
+import { ref } from 'vue'
 import { X, Calendar, Users, Filter } from 'lucide-vue-next'
 import { useMediaQuery } from '../../composables/useMediaQuery'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
 
-defineProps({
+const props = defineProps({
   showFilters: {
     type: Boolean,
     default: false
@@ -48,6 +50,9 @@ const emit = defineEmits([
   'clearFilters'
 ])
 
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, () => props.showFilters, () => emit('update:showFilters', false))
+
 </script>
 
 <template>
@@ -67,6 +72,11 @@ const emit = defineEmits([
         @click="$emit('update:showFilters', false)"
       />
       <div
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="attendance-filter-drawer-title"
+        tabindex="-1"
         :class="[
           'flex flex-col min-h-0',
           isMobile
@@ -76,12 +86,13 @@ const emit = defineEmits([
       >
       <!-- Header -->
       <div class="shrink-0 rounded-t-2xl bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+        <h3 id="attendance-filter-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <Filter class="h-5 w-5" />
           Filters
         </h3>
         <button
           @click="$emit('update:showFilters', false)"
+          aria-label="Close"
           class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <X class="h-5 w-5" />

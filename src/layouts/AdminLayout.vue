@@ -5,7 +5,7 @@ import BottomBar from '../components/BottomBar.vue'
 </script>
 
 <template>
-  <div class="flex h-screen bg-gray-50 dark:bg-gray-900">
+  <div class="flex h-dvh bg-gray-50 dark:bg-gray-900">
     <!-- Sidebar - Desktop only -->
     <Sidebar />
 
@@ -15,7 +15,7 @@ import BottomBar from '../components/BottomBar.vue'
       <Topbar />
 
       <!-- Main content -->
-      <main class="flex-1 overflow-hidden pb-16 lg:pb-0 bg-white dark:bg-gray-900">
+      <main class="flex-1 overflow-hidden pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 bg-white dark:bg-gray-900">
         <div class="h-full p-3 sm:p-4 lg:px-8 lg:py-3">
           <router-view />
         </div>

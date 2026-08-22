@@ -29,6 +29,7 @@ import {
 } from 'lucide-vue-next'
 import { subscribeToLinks, addLink, updateLink, deleteLink } from '../api/linksService'
 import { useMediaQuery } from '../composables/useMediaQuery'
+import { useFocusTrap } from '../composables/useFocusTrap'
 import SearchBar from '../components/common/SearchBar.vue'
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
@@ -131,6 +132,12 @@ const handleAdd = () => {
   showForm.value = true
 }
 
+const formDialogRef = ref(null)
+useFocusTrap(formDialogRef, showForm, () => { showForm.value = false })
+
+const deleteDialogRef = ref(null)
+useFocusTrap(deleteDialogRef, showDeleteModal, () => { showDeleteModal.value = false })
+
 const handleEdit = (link) => {
   form.value = { ...link }
   isEditing.value = true
@@ -206,7 +213,7 @@ const openLinkContext = (link, e) => {
             
             <Transition name="fade">
               <div v-if="showFilterDropdown" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 py-2 overflow-hidden">
-                <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat; showFilterDropdown = false" :class="[ 'w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors block', selectedCategory === cat ? 'text-primary bg-primary/5' : 'text-gray-500 dark:text-gray-400' ]">{{ cat }}</button>
+                <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat; showFilterDropdown = false" :class="[ 'w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors block', selectedCategory === cat ? 'text-primary bg-primary/5' : 'text-gray-500 dark:text-gray-400' ]">{{ cat }}</button>
               </div>
             </Transition>
           </div>
@@ -228,13 +235,13 @@ const openLinkContext = (link, e) => {
 
         <!-- Empty State -->
         <div v-else-if="filteredLinks.length === 0" class="flex flex-col items-center justify-center py-32 text-gray-400">
-           <Link2 class="h-16 w-16 mb-4 opacity-5" /><p class="text-[13px] font-black uppercase tracking-widest">Archive empty</p>
+           <Link2 class="h-16 w-16 mb-4 opacity-5" /><p class="text-sm font-semibold">Archive empty</p>
         </div>
 
         <!-- Professional List View -->
         <div v-else class="space-y-1 max-w-6xl mx-auto">
           <!-- Table Header -->
-          <div class="hidden sm:flex items-center px-3 sm:px-6 py-2 mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-50 dark:border-gray-800">
+          <div class="hidden sm:flex items-center px-3 sm:px-6 py-2 mb-2 text-[11px] font-black uppercase tracking-wide text-gray-400 border-b border-gray-50 dark:border-gray-800">
             <div class="w-10">Icon</div>
             <div class="flex-1 ml-4">Resource Detail</div>
             <div class="w-32 hidden md:block">Category</div>
@@ -261,14 +268,14 @@ const openLinkContext = (link, e) => {
                <p class="text-[11px] text-gray-400 font-medium truncate mt-0.5 opacity-80 decoration-gray-400/30 group-hover:underline">
                  {{ link.url }}
                </p>
-               <span :class="['md:hidden inline-block mt-1.5 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border', getCategoryColor(link.category)]">
+               <span :class="['md:hidden inline-block mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border', getCategoryColor(link.category)]">
                  {{ link.category }}
                </span>
             </div>
 
             <!-- Category Column -->
             <div class="w-32 hidden md:block">
-               <span :class="['px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border', getCategoryColor(link.category)]">
+               <span :class="['px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border', getCategoryColor(link.category)]">
                  {{ link.category }}
                </span>
             </div>
@@ -285,10 +292,10 @@ const openLinkContext = (link, e) => {
 
                <!-- Simple Popover -->
                <div v-if="showActions === link.id" class="absolute right-6 top-full mt-1 w-40 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl shadow-2xl py-1 z-50 overflow-hidden" @click.stop>
-                  <button @click="handleEdit(link); showActions = null" class="w-full px-4 py-2 flex items-center gap-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
+                  <button @click="handleEdit(link); showActions = null" class="w-full px-4 py-2 flex items-center gap-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-bold text-gray-700 dark:text-white transition-colors">
                     <Edit3 class="h-3.5 w-3.5 text-blue-500" /> Edit
                   </button>
-                  <button @click="handleDelete(link); showActions = null" class="w-full px-4 py-2 flex items-center gap-2.5 hover:bg-red-50 dark:hover:bg-red-500/10 text-[10px] font-black uppercase tracking-widest text-red-500 transition-colors">
+                  <button @click="handleDelete(link); showActions = null" class="w-full px-4 py-2 flex items-center gap-2.5 hover:bg-red-50 dark:hover:bg-red-500/10 text-sm font-bold text-red-500 transition-colors">
                     <Trash2 class="h-3.5 w-3.5" /> Delete
                   </button>
                </div>
@@ -313,6 +320,11 @@ const openLinkContext = (link, e) => {
             @click="showForm = false"
           />
           <div
+            ref="formDialogRef"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="link-form-drawer-title"
+            tabindex="-1"
             :class="[
               'flex flex-col min-h-0',
               isMobile
@@ -322,10 +334,10 @@ const openLinkContext = (link, e) => {
           >
           <div class="shrink-0 rounded-t-2xl bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-6 py-4 flex items-center justify-between">
             <div>
-              <h3 class="text-md font-bold text-gray-900 dark:text-white uppercase tracking-tight">{{ isEditing ? 'Edit Resource' : 'Archive New Link' }}</h3>
-              <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 font-black uppercase tracking-widest">Metadata Entry</p>
+              <h3 id="link-form-drawer-title" class="text-md font-bold text-gray-900 dark:text-white uppercase tracking-tight">{{ isEditing ? 'Edit Resource' : 'Archive New Link' }}</h3>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-bold">Metadata Entry</p>
             </div>
-            <button @click="showForm = false" class="p-2 rounded-lg text-gray-400 hover:text-primary dark:hover:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
+            <button @click="showForm = false" aria-label="Close" class="p-2 rounded-lg text-gray-400 hover:text-primary dark:hover:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
               <X class="h-5 w-5 transition-transform group-hover:rotate-90" />
             </button>
           </div>
@@ -334,16 +346,16 @@ const openLinkContext = (link, e) => {
             <section class="space-y-4">
               <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-5 space-y-5 border border-gray-100 dark:border-gray-800">
                 <div class="space-y-1.5 focus-within:text-primary transition-colors">
-                  <label class="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Resource Label</label>
+                  <label class="text-xs font-bold text-gray-400">Resource Label</label>
                   <input v-model="form.title" type="text" placeholder="e.g., Canva Slides (Worship)" class="w-full bg-transparent border-b-2 border-gray-200 dark:border-gray-700 py-1 text-sm font-bold text-gray-900 dark:text-white focus:border-primary outline-none transition-all" />
                 </div>
                 <div class="space-y-1.5 focus-within:text-primary transition-colors pt-2">
-                  <label class="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Universal Link (URL)</label>
+                  <label class="text-xs font-bold text-gray-400">Universal Link (URL)</label>
                   <input v-model="form.url" type="url" placeholder="https://..." class="w-full bg-transparent border-b-2 border-gray-200 dark:border-gray-700 py-1 text-sm font-bold text-primary dark:text-primary-light focus:border-primary outline-none transition-all" />
                 </div>
                 <!-- Host Detection Tag -->
                 <div v-if="form.url" class="flex items-center gap-2 pt-2">
-                   <div class="p-1 px-3 rounded-full bg-primary/10 text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                   <div class="p-1 px-3 rounded-full bg-primary/10 text-sm font-bold text-primary flex items-center gap-2">
                      <component :is="getIcon(form.url, form.category)" class="h-3 w-3" /> Source Verified
                    </div>
                 </div>
@@ -353,22 +365,22 @@ const openLinkContext = (link, e) => {
             <section class="space-y-4">
               <div class="grid grid-cols-1 gap-4">
                   <div class="space-y-1.5">
-                    <p class="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 ml-1">Classification</p>
+                    <p class="text-xs font-bold text-gray-400 ml-1">Classification</p>
                     <div class="grid grid-cols-2 gap-2">
-                       <button v-for="cat in categories.slice(1)" :key="cat" @click="form.category = cat" :class="[ 'px-3 py-2.5 rounded-xl border-2 text-[8px] font-black uppercase tracking-widest transition-all', form.category === cat ? 'bg-primary border-primary text-white' : 'border-gray-100 dark:border-gray-700 text-gray-500 hover:border-primary/30' ]">{{ cat }}</button>
+                       <button v-for="cat in categories.slice(1)" :key="cat" @click="form.category = cat" :class="[ 'px-3 py-2.5 rounded-xl border-2 text-sm font-bold transition-all', form.category === cat ? 'bg-primary border-primary text-white' : 'border-gray-100 dark:border-gray-700 text-gray-500 hover:border-primary/30' ]">{{ cat }}</button>
                     </div>
                   </div>
                 </div>
             </section>
 
             <section class="space-y-4">
-              <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2 ml-1">Notes</h4>
-              <textarea v-model="form.description" rows="5" class="w-full bg-gray-50 dark:bg-gray-700/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 text-[11px] font-medium text-gray-600 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary/20" placeholder="Describe the resource contents..."></textarea>
+              <h4 class="text-xs font-bold text-gray-400 flex items-center gap-2 ml-1">Notes</h4>
+              <textarea v-model="form.description" rows="5" class="w-full bg-gray-50 dark:bg-gray-700/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 text-sm font-medium text-gray-600 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary/20" placeholder="Describe the resource contents..."></textarea>
             </section>
           </div>
 
           <div class="shrink-0 rounded-b-2xl bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-t border-primary/20 dark:border-primary-light/20 px-4 sm:px-6 py-5">
-            <button @click="handleSubmit" :disabled="isSubmitting || !form.title || !form.url" class="group w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all flex items-center justify-center gap-2">
+            <button @click="handleSubmit" :disabled="isSubmitting || !form.title || !form.url" class="group w-full py-4 bg-primary text-white rounded-2xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all flex items-center justify-center gap-2">
               <Loader2 v-if="isSubmitting" class="h-4 w-4 animate-spin" />
               <span v-else>{{ isEditing ? 'Push Updates' : 'Archive resource' }}</span>
               <ArrowRight v-if="!isSubmitting" class="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -389,22 +401,22 @@ const openLinkContext = (link, e) => {
       >
         <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 mb-1 flex items-center justify-between">
            <div class="min-w-0">
-             <p class="text-[9px] font-black text-primary uppercase tracking-widest">{{ contextMenu.link.category }}</p>
-             <p class="text-[12px] font-bold text-gray-900 dark:text-white truncate">{{ contextMenu.link.title }}</p>
+             <p class="text-[11px] font-black text-primary uppercase tracking-widest">{{ contextMenu.link.category }}</p>
+             <p class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ contextMenu.link.title }}</p>
            </div>
            <component :is="getIcon(contextMenu.link.url, contextMenu.link.category)" class="h-4 w-4 text-gray-400" />
         </div>
-        <button @click="openLink(contextMenu.link.url); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-primary/10 text-[11px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
+        <button @click="openLink(contextMenu.link.url); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-primary/10 text-sm font-bold text-gray-700 dark:text-white transition-colors">
           <ExternalLink class="h-4 w-4 text-primary" /> Launch
         </button>
-        <button @click="copyToClipboard(contextMenu.link); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-primary/10 text-[11px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
+        <button @click="copyToClipboard(contextMenu.link); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-primary/10 text-sm font-bold text-gray-700 dark:text-white transition-colors">
           <Copy class="h-4 w-4" /> Copy Path
         </button>
         <div class="h-px bg-gray-100 dark:bg-gray-800 my-1"></div>
-        <button @click="handleEdit(contextMenu.link); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-primary/10 text-[11px] font-black uppercase tracking-widest text-primary transition-colors">
+        <button @click="handleEdit(contextMenu.link); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-primary/10 text-sm font-bold text-primary transition-colors">
           <Edit3 class="h-4 w-4" /> Modify
         </button>
-        <button @click="handleDelete(contextMenu.link); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-red-500/10 text-[11px] font-black uppercase tracking-widest text-red-500 transition-colors">
+        <button @click="handleDelete(contextMenu.link); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-red-500/10 text-sm font-bold text-red-500 transition-colors">
           <Trash2 class="h-4 w-4" /> Destroy
         </button>
       </div>
@@ -413,16 +425,24 @@ const openLinkContext = (link, e) => {
     <!-- Confirm Delete Modal (Standard Premium) -->
     <Transition name="modal">
       <div v-if="showDeleteModal" class="fixed inset-0 z-200 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click="showDeleteModal = false">
-        <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden transform transition-all" @click.stop>
+        <div
+          ref="deleteDialogRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="link-delete-modal-title"
+          tabindex="-1"
+          class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden transform transition-all"
+          @click.stop
+        >
           <div class="p-8 text-center">
             <div class="mx-auto w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mb-6">
               <AlertTriangle class="h-8 w-8 text-red-500" />
             </div>
-            <h3 class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">Delete Resource?</h3>
-            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 leading-relaxed mb-8 px-4 uppercase tracking-widest opacity-60">"{{ linkToDelete?.title }}"</p>
+            <h3 id="link-delete-modal-title" class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">Delete Resource?</h3>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 leading-relaxed mb-8 px-4 opacity-70">"{{ linkToDelete?.title }}"</p>
             <div class="flex flex-col gap-3">
-              <button @click="confirmDelete" :disabled="isSubmitting" class="w-full py-4 bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all flex items-center justify-center gap-2"><Loader2 v-if="isSubmitting" class="h-4 w-4 animate-spin" /><span v-else>Confirm Permanent Removal</span></button>
-              <button @click="showDeleteModal = false" class="w-full py-4 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-all">Keep Resource</button>
+              <button @click="confirmDelete" :disabled="isSubmitting" class="w-full py-4 bg-red-500 text-white rounded-2xl font-bold text-sm shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all flex items-center justify-center gap-2"><Loader2 v-if="isSubmitting" class="h-4 w-4 animate-spin" /><span v-else>Confirm Permanent Removal</span></button>
+              <button @click="showDeleteModal = false" class="w-full py-4 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white rounded-2xl font-bold text-sm hover:bg-gray-200 transition-all">Keep Resource</button>
             </div>
           </div>
         </div>
@@ -432,8 +452,6 @@ const openLinkContext = (link, e) => {
 </template>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(1, 119, 155, 0.2); border-radius: 10px; }
 .modal-enter-active, .modal-leave-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.95); }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }

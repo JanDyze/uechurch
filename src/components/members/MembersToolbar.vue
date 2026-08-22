@@ -14,8 +14,15 @@ import {
   Settings2,
 } from "lucide-vue-next";
 import SearchBar from "../common/SearchBar.vue";
+import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const showViewOptions = ref(false);
+
+const viewOptionsRef = ref(null);
+const closeViewOptions = () => {
+  showViewOptions.value = false;
+};
+useFocusTrap(viewOptionsRef, showViewOptions, closeViewOptions);
 
 const props = defineProps({
   searchQuery: {
@@ -405,6 +412,11 @@ const handleExport = () => {
         <div class="absolute inset-0 bg-black/50" @click="showViewOptions = false" />
 
         <div
+          ref="viewOptionsRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="view-options-sheet-title"
+          tabindex="-1"
           class="sheet-panel relative z-10 w-full rounded-t-2xl border-t border-gray-200 bg-white pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl dark:border-gray-700 dark:bg-gray-800"
         >
           <!-- Grabber -->
@@ -413,7 +425,10 @@ const handleExport = () => {
           </div>
 
           <div class="flex items-center justify-between px-4 pb-2 pt-3">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+            <h3
+              id="view-options-sheet-title"
+              class="text-base font-semibold text-gray-900 dark:text-white"
+            >
               View options
             </h3>
             <button

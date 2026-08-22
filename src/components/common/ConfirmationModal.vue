@@ -1,7 +1,9 @@
 <script setup>
+import { ref } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
-defineProps({
+const props = defineProps({
   show: {
     type: Boolean,
     default: false
@@ -39,6 +41,9 @@ const handleCancel = () => {
   emit('cancel')
   emit('update:show', false)
 }
+
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, () => props.show, handleCancel)
 </script>
 
 <template>
@@ -52,14 +57,20 @@ const handleCancel = () => {
         @click.self="handleCancel"
       >
         <div
+          ref="dialogRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirmation-modal-title"
+          tabindex="-1"
           class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
           @click.stop
         >
         <!-- Header -->
         <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ title }}</h3>
+          <h3 id="confirmation-modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">{{ title }}</h3>
           <button
             @click="handleCancel"
+            aria-label="Close"
             class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <X class="h-5 w-5" />

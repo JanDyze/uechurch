@@ -1,7 +1,9 @@
 <script setup>
+import { ref } from 'vue'
 import { ArrowLeft, Calendar, Clock, MapPin, Users, Trash2, Edit2 } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import { useMediaQuery } from '../../composables/useMediaQuery'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
 
@@ -21,6 +23,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:show', 'edit', 'delete', 'back'])
+
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, () => props.show, () => emit('back'))
 
 const getEventTypeColor = (type) => {
   const colors = {
@@ -67,6 +72,11 @@ const formatDate = (dateStr) => {
         @click="$emit('back')"
       />
       <div
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="event-details-drawer-title"
+        tabindex="-1"
         :class="[
           'flex flex-col min-h-0',
           isMobile
@@ -94,7 +104,7 @@ const formatDate = (dateStr) => {
           <component :is="getIconComponent(event.icon || 'Calendar')" class="h-7 w-7" />
         </div>
         <div class="flex-1 min-w-0">
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white truncate">
+          <h2 id="event-details-drawer-title" class="text-xl font-bold text-gray-900 dark:text-white truncate">
             {{ event.title }}
           </h2>
           <p class="text-sm text-gray-500 dark:text-gray-400 capitalize">
@@ -182,6 +192,7 @@ const formatDate = (dateStr) => {
           @click="$emit('edit')"
           class="p-2 text-white bg-primary dark:bg-primary-light rounded-lg hover:bg-primary-hover dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-primary/25 dark:shadow-primary-light/25"
           :title="event.isVirtual ? 'Override' : 'Edit'"
+          :aria-label="event.isVirtual ? 'Override' : 'Edit'"
         >
           <Edit2 class="h-5 w-5" />
         </button>
@@ -189,6 +200,7 @@ const formatDate = (dateStr) => {
           @click="$emit('delete')"
           class="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors shadow-lg shadow-red-500/25"
           :title="event.isVirtual ? 'Cancel Event' : 'Delete'"
+          :aria-label="event.isVirtual ? 'Cancel Event' : 'Delete'"
         >
           <Trash2 class="h-5 w-5" />
         </button>

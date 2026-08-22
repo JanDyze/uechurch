@@ -57,10 +57,16 @@ const navigate = (path) => {
     @mouseenter="isHovered = true"
     @mouseleave="isHovered = false"
   >
-    <!-- Minimize Button -->
+    <!-- Minimize Button.
+         top-20 is deliberate: the button's right half sits over the main
+         column, where the sticky Topbar (h-16 = 64px, z-70) paints. This aside
+         is `relative z-50`, so it opens its own stacking context — the button's
+         z-index is sealed inside and can never outrank the Topbar. Anything
+         above 64px stays clear of it; top-8 put the button at 32-64px, fully
+         inside the Topbar's band, which is what hid it. -->
     <button
       @click="isMinimized = !isMinimized"
-      class="absolute right-0 top-8 z-50 w-8 h-8 rounded-full bg-white dark:bg-slate-800 text-primary dark:text-slate-300 shadow-md hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center border border-gray-200 dark:border-slate-700"
+      class="absolute right-0 top-20 z-50 w-8 h-8 rounded-full bg-white dark:bg-slate-800 text-primary dark:text-slate-300 shadow-md hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-center border border-gray-200 dark:border-slate-700"
       :class="isHovered ? 'opacity-100' : 'opacity-0'"
       :style="`transform: translateX(50%); transition: opacity ${isHovered ? '0.3s' : '2s'} ease-in-out;`"
       aria-label="Toggle sidebar"
@@ -95,6 +101,8 @@ const navigate = (path) => {
             isMinimized ? 'justify-center' : ''
           ]"
           :title="isMinimized ? item.name : ''"
+          :aria-label="item.name"
+          :aria-current="isActive(item.path) ? 'page' : undefined"
         >
           <component :is="item.icon" :class="['shrink-0 h-6 w-6', isMinimized ? '' : 'mr-3']" />
           <span v-if="!isMinimized" class="truncate whitespace-nowrap">{{ item.name }}</span>
@@ -139,4 +147,3 @@ nav button:hover:not(.active) {
   scrollbar-width: none;  /* Firefox */
 }
 </style>
-

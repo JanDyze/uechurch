@@ -145,6 +145,7 @@ const civilStatusOptions = [
           @click="handleDelete"
           class="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
           title="Delete Member"
+          aria-label="Delete member"
         >
           <Trash2 class="h-5 w-5" />
         </button>
@@ -345,6 +346,8 @@ const civilStatusOptions = [
               </div>
               <button
                 @click="handleFieldSave('isMember', !localMember.isMember)"
+                aria-label="Church Membership"
+                :aria-pressed="localMember.isMember"
                 :class="[
                   'relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
                   localMember.isMember ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'

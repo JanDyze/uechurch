@@ -4,6 +4,7 @@ import * as LucideIcons from 'lucide-vue-next'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { computed, ref } from 'vue'
 import eventTypesData from '../../data/eventTypes.json'
+import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const props = defineProps({
   show: {
@@ -97,6 +98,9 @@ const showDoneEvents = ref(false)
 
 // Filter section visibility toggle
 const showFilters = ref(false)
+
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, () => props.show, () => emit('update:show', false), { trap: false })
 
 const toggleTypeFilter = (type) => {
   const currentFilters = [...props.eventTypeFilter]
@@ -221,6 +225,10 @@ const upcomingEvents = computed(() => {
 <template>
   <div
     v-if="show"
+    ref="dialogRef"
+    role="dialog"
+    aria-labelledby="month-events-drawer-title"
+    tabindex="-1"
     class="m-0 lg:m-3 rounded-none lg:rounded-2xl border-0 lg:border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-full lg:w-[calc(50%-1.5rem)] h-full lg:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-none lg:shadow-xl lg:shadow-primary/25 dark:lg:shadow-primary-light/20 transition-all duration-300"
   >
     <!-- Header -->
@@ -241,7 +249,10 @@ const upcomingEvents = computed(() => {
             class="flex min-w-0 items-center gap-1 rounded-lg px-1.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="Choose month"
           >
-            <span class="truncate text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
+            <span
+              id="month-events-drawer-title"
+              class="truncate text-lg sm:text-2xl font-bold text-gray-900 dark:text-white"
+            >
               {{ currentMonth }}
             </span>
             <ChevronDown
@@ -317,10 +328,12 @@ const upcomingEvents = computed(() => {
         <div class="flex shrink-0 items-center gap-1">
           <button
             @click="showFilters = !showFilters"
+            aria-label="Toggle filters"
+            :aria-expanded="showFilters"
             :class="[
               'p-2 rounded-lg transition-colors',
-              showFilters 
-                ? 'bg-primary text-white' 
+              showFilters
+                ? 'bg-primary text-white'
                 : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             ]"
             title="Toggle Filters"
@@ -329,6 +342,7 @@ const upcomingEvents = computed(() => {
           </button>
           <button
             @click="$emit('update:show', false)"
+            aria-label="Close"
             class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <X class="h-5 w-5" />
@@ -423,6 +437,7 @@ const upcomingEvents = computed(() => {
                   @click="$emit('update:sortOrder', sortOrder === 'asc' ? 'desc' : 'asc')"
                   class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
                   :title="sortOrder === 'asc' ? 'Ascending' : 'Descending'"
+                  :aria-label="sortOrder === 'asc' ? 'Ascending' : 'Descending'"
                 >
                   <ArrowUp v-if="sortOrder === 'asc'" class="h-4 w-4" />
                   <ArrowDown v-else class="h-4 w-4" />

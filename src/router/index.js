@@ -1,10 +1,24 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AdminLayout from '../layouts/AdminLayout.vue'
+import { initAuth, useAuth } from '../composables/useAuth'
 
 const routes = [
   {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/Login.vue'),
+    meta: { guestOnly: true }
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/Register.vue'),
+    meta: { guestOnly: true }
+  },
+  {
     path: '/',
     component: AdminLayout,
+    meta: { requiresAuth: true },
     children: [
       {
         path: '',
@@ -79,6 +93,24 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+// Wait for Firebase to restore the persisted session before resolving any
+// route, otherwise a page refresh would bounce a signed-in user to /login.
+router.beforeEach(async (to) => {
+  await initAuth()
+
+  const { isAuthenticated } = useAuth()
+
+  if (to.meta.requiresAuth && !isAuthenticated.value) {
+    return { name: 'Login', query: to.fullPath === '/' ? {} : { redirect: to.fullPath } }
+  }
+
+  if (to.meta.guestOnly && isAuthenticated.value) {
+    return { path: '/' }
+  }
+
+  return true
 })
 
 export default router
