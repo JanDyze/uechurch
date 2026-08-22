@@ -66,13 +66,13 @@ const toggleMenu = () => {
 const pageTitle = computed(() => {
   const routeNames = {
     Home: 'Dashboard',
-    Members: 'Members',
-    Events: 'Events',
-    Finances: 'Finances',
-    Gallery: 'Gallery',
-    Links: 'Links'
+    MemberDetails: 'Member',
+    MinuteDetails: 'Minutes',
+    PrayerConcerns: 'Prayer Concerns',
+    FinanceAudit: 'Yearly Report'
   };
-  return routeNames[route.name] || 'Dashboard';
+  // Fall back to the route name so new pages are labelled correctly
+  return routeNames[route.name] || route.name || 'Dashboard';
 });
 
 // Biblical Characters Presence simulation

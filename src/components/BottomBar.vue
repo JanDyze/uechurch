@@ -13,6 +13,7 @@ import {
   Image,
   Link2,
   DollarSign,
+  Settings,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -32,6 +33,7 @@ const moreNav = [
   { name: 'Gallery', path: '/gallery', icon: Image },
   { name: 'Links', path: '/links', icon: Link2 },
   { name: 'Finances', path: '/finances', icon: DollarSign },
+  { name: 'Settings', path: '/settings', icon: Settings },
 ]
 
 const isActive = (path) => {
@@ -71,7 +73,7 @@ const closeMoreMenu = () => {
   <Transition name="more-sheet">
     <div
       v-if="showMoreMenu"
-      class="lg:hidden fixed bottom-16 left-0 right-0 z-[56] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto"
+      class="lg:hidden fixed bottom-0 left-0 right-0 z-[56] bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto pb-[env(safe-area-inset-bottom)]"
     >
       <div class="sticky top-0 flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-t-2xl">
         <h3 class="text-sm font-semibold text-gray-900 dark:text-white">More Pages</h3>

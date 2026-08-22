@@ -16,6 +16,7 @@ import {
 } from 'lucide-vue-next'
 import { subscribeToMembers } from '../api/membersService'
 import { subscribeToTransactions } from '../api/financeService'
+import { groupLabelOf } from '../composables/useFinances'
 import { subscribeToEvents } from '../api/eventsService'
 import { subscribeToAttendance } from '../api/attendanceService'
 import { subscribeToMinutes } from '../api/minutesService'
@@ -49,30 +50,27 @@ onMounted(() => {
 onUnmounted(() => unsubs.forEach((u) => u && u()))
 
 // ---- Finance summaries ----
-const income = computed(() =>
-  transactions.value
-    .filter((t) => t.type === 'income')
-    .reduce((s, t) => s + (Number(t.amount) || 0), 0)
-)
-const expenses = computed(() =>
-  transactions.value
-    .filter((t) => t.type === 'expense')
-    .reduce((s, t) => s + (Number(t.amount) || 0), 0)
-)
+// Bank transfers move money between the church's own accounts, so they are
+// neither income nor expense and stay out of these totals.
+const inflows = computed(() => transactions.value.filter((t) => t.direction === 'inflow'))
+const outflows = computed(() => transactions.value.filter((t) => t.direction === 'outflow'))
+
+const income = computed(() => inflows.value.reduce((s, t) => s + (Number(t.amount) || 0), 0))
+const expenses = computed(() => outflows.value.reduce((s, t) => s + (Number(t.amount) || 0), 0))
 const net = computed(() => income.value - expenses.value)
 const peso = (n) => '₱' + Math.abs(n).toLocaleString()
 
-// Top categories as {label, type, amount, pct}
+// Top statement lines as {label, direction, amount, pct}
 const categoryBars = computed(() => {
   const groups = {}
-  for (const t of transactions.value) {
-    const key = `${t.category || 'Uncategorized'}|${t.type}`
+  for (const t of [...inflows.value, ...outflows.value]) {
+    const key = `${groupLabelOf(t)}|${t.direction}`
     groups[key] = (groups[key] || 0) + (Number(t.amount) || 0)
   }
   const rows = Object.entries(groups)
     .map(([key, amount]) => {
-      const [label, type] = key.split('|')
-      return { label, type, amount }
+      const [label, direction] = key.split('|')
+      return { label, direction, amount }
     })
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 6)
@@ -166,7 +164,7 @@ const collections = computed(() => [
             {{ peso(income) }}
           </div>
           <div class="text-[10px] font-bold text-gray-400">
-            {{ transactions.filter((t) => t.type === 'income').length }} record{{ transactions.filter((t) => t.type === 'income').length === 1 ? '' : 's' }}
+            {{ inflows.length }} record{{ inflows.length === 1 ? '' : 's' }}
           </div>
         </router-link>
 
@@ -181,7 +179,7 @@ const collections = computed(() => [
             {{ peso(expenses) }}
           </div>
           <div class="text-[10px] font-bold text-gray-400">
-            {{ transactions.filter((t) => t.type === 'expense').length }} record{{ transactions.filter((t) => t.type === 'expense').length === 1 ? '' : 's' }}
+            {{ outflows.length }} record{{ outflows.length === 1 ? '' : 's' }}
           </div>
         </router-link>
 
@@ -238,7 +236,7 @@ const collections = computed(() => [
           <div v-if="categoryBars.length" class="flex flex-col gap-2.5">
             <div
               v-for="bar in categoryBars"
-              :key="bar.label + bar.type"
+              :key="bar.label + bar.direction"
               class="grid grid-cols-[80px_1fr] items-center gap-2.5"
             >
               <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400 text-right truncate">
@@ -247,11 +245,11 @@ const collections = computed(() => [
               <span class="flex items-center gap-2">
                 <span
                   class="h-3 rounded-r"
-                  :class="bar.type === 'income' ? 'bg-primary' : 'bg-[#bc1c09]'"
+                  :class="bar.direction === 'inflow' ? 'bg-primary' : 'bg-[#bc1c09]'"
                   :style="{ width: bar.pct + '%' }"
                 ></span>
                 <span class="text-[11px] font-black text-gray-700 dark:text-gray-300 tabular-nums whitespace-nowrap">
-                  {{ bar.type === 'income' ? '+' : '−' }}{{ peso(bar.amount) }}
+                  {{ bar.direction === 'inflow' ? '+' : '−' }}{{ peso(bar.amount) }}
                 </span>
               </span>
             </div>

@@ -1,594 +1,457 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import {
   Plus,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  MoreVertical,
   Download,
-  FileText,
+  Printer,
   Wallet,
+  ArrowDownLeft,
   ArrowUpRight,
-  ArrowDownRight,
-  X,
-  Trash2,
-  Loader2,
-  PieChart as PieIcon,
-  DollarSign,
-  Heart,
-  Zap,
-  User,
-  Wrench,
-  Building2,
-  BookOpen,
-  ArrowRight
+  BarChart3,
 } from 'lucide-vue-next'
-import { subscribeToTransactions, addTransaction, deleteTransaction } from '../api/financeService'
+import {
+  useFinances,
+  buildStatement,
+  currentMonthKey,
+  shiftMonth,
+  monthLabel,
+  formatAmount,
+} from '../composables/useFinances'
+import { exportStatement } from '../utils/financeExport'
+import { useToast } from '../composables/useToast'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import SearchBar from '../components/common/SearchBar.vue'
-import * as XLSX from 'xlsx'
+import StatementReport from '../components/finances/StatementReport.vue'
+import LedgerList from '../components/finances/LedgerList.vue'
+import TransactionSheet from '../components/finances/TransactionSheet.vue'
+import OpeningBalanceSheet from '../components/finances/OpeningBalanceSheet.vue'
+import { categoryLabel } from '../data/financeChart'
 
-const transactions = ref([])
-const isLoading = ref(true)
-const selectedType = ref('all')
+const toast = useToast()
+const {
+  transactions,
+  opening,
+  loading,
+  addTransaction,
+  updateTransaction,
+  removeTransaction,
+  saveOpening,
+} = useFinances()
+
+const monthKey = ref(currentMonthKey())
+const tab = ref('statement')
+
+const statement = computed(() => buildStatement(transactions.value, opening.value, monthKey.value))
+
+const stepMonth = (delta) => {
+  monthKey.value = shiftMonth(monthKey.value, delta)
+}
+
+const isCurrentMonth = computed(() => monthKey.value === currentMonthKey())
+
+/* ------------------------------------------------------------------ ledger */
 const searchQuery = ref('')
 const mobileSearchOpen = ref(false)
-const showAddModal = ref(false)
-const isSubmitting = ref(false)
+const ledgerFilter = ref('all')
 
-// Form state
-const form = ref({
-  date: new Date().toISOString().split('T')[0],
-  description: '',
-  category: 'Tithes',
-  amount: 0,
-  type: 'income',
-  payerPayee: '',
-  notes: '',
-  status: 'completed'
-})
-
-const categories = [
-  'Tithes', 'Offerings', 'Missions', 'Building Fund',
-  'Utilities', 'Maintenance', 'Salaries', 'Outreach',
-  'Events', 'General'
+const filters = [
+  { key: 'all', label: 'All' },
+  { key: 'inflow', label: 'In' },
+  { key: 'outflow', label: 'Out' },
+  { key: 'transfer', label: 'Transfer' },
 ]
 
-const getCategoryIcon = (cat) => {
-  switch (cat) {
-    case 'Tithes': return Heart
-    case 'Offerings': return DollarSign
-    case 'Missions': return BookOpen
-    case 'Building Fund': return Building2
-    case 'Utilities': return Zap
-    case 'Maintenance': return Wrench
-    case 'Salaries': return User
-    default: return FileText
-  }
-}
+const ledgerRows = computed(() => {
+  let rows = statement.value.transactions
 
-// Confirmation modal state
-const showConfirmation = ref(false)
-const confirmationConfig = ref({
-  title: 'Confirm Action',
-  message: '',
-  confirmText: 'Confirm',
-  cancelText: 'Cancel',
-  confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
-  onConfirm: null
-})
-
-const showConfirmModal = (config) => {
-  confirmationConfig.value = { ...confirmationConfig.value, ...config }
-  showConfirmation.value = true
-}
-
-const handleConfirmation = () => {
-  if (confirmationConfig.value.onConfirm) {
-    confirmationConfig.value.onConfirm()
-  }
-}
-
-let unsubscribeFinances = null
-
-onMounted(() => {
-  isLoading.value = true
-  unsubscribeFinances = subscribeToTransactions((data) => {
-    transactions.value = data
-    isLoading.value = false
-  })
-})
-
-onUnmounted(() => {
-  if (unsubscribeFinances) unsubscribeFinances()
-})
-
-// Metrics
-const stats = computed(() => {
-  const totalBalance = transactions.value.reduce((acc, t) => {
-    return acc + (t.type === 'income' ? Number(t.amount) : -Number(t.amount))
-  }, 0)
-
-  const thisMonth = new Date().getMonth()
-  const thisYear = new Date().getFullYear()
-
-  const monthlyIncome = transactions.value
-    .filter(t => {
-      const d = new Date(t.date)
-      return d.getMonth() === thisMonth && d.getFullYear() === thisYear && t.type === 'income'
-    })
-    .reduce((acc, t) => acc + Number(t.amount), 0)
-
-  const monthlyExpense = transactions.value
-    .filter(t => {
-      const d = new Date(t.date)
-      return d.getMonth() === thisMonth && d.getFullYear() === thisYear && t.type === 'expense'
-    })
-    .reduce((acc, t) => acc + Number(t.amount), 0)
-
-  return {
-    balance: totalBalance,
-    income: monthlyIncome,
-    expense: monthlyExpense,
-    pending: transactions.value.filter(t => t.status === 'pending').length
-  }
-})
-
-const filteredTransactions = computed(() => {
-  let result = transactions.value
-
-  if (selectedType.value !== 'all') {
-    result = result.filter(t => t.type === selectedType.value)
+  if (ledgerFilter.value !== 'all') {
+    rows = rows.filter((t) => t.direction === ledgerFilter.value)
   }
 
   const query = searchQuery.value.trim().toLowerCase()
   if (query) {
-    result = result.filter(t =>
-      t.description?.toLowerCase().includes(query) ||
-      t.payerPayee?.toLowerCase().includes(query) ||
-      t.category?.toLowerCase().includes(query)
+    rows = rows.filter(
+      (t) =>
+        t.description?.toLowerCase().includes(query) ||
+        t.payerPayee?.toLowerCase().includes(query) ||
+        t.notes?.toLowerCase().includes(query) ||
+        categoryLabel(t).toLowerCase().includes(query)
     )
   }
 
-  return result
+  return rows
 })
 
-const groupedByCategory = computed(() => {
-  const groups = {}
-  transactions.value.forEach(t => {
-    if (!groups[t.category]) groups[t.category] = 0
-    groups[t.category] += Number(t.amount)
-  })
-  return Object.entries(groups)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+/* ------------------------------------------------------ transaction editor */
+const showSheet = ref(false)
+const editingTransaction = ref(null)
+const saving = ref(false)
+
+/** New entries land inside the month being viewed, not always today. */
+const defaultDate = computed(() => {
+  const today = new Date().toISOString().split('T')[0]
+  return isCurrentMonth.value ? today : `${monthKey.value}-01`
 })
 
-const resetForm = () => {
-  form.value = {
-    date: new Date().toISOString().split('T')[0],
-    description: '',
-    category: 'Tithes',
-    amount: 0,
-    type: 'income',
-    payerPayee: '',
-    notes: '',
-    status: 'completed'
-  }
+const openAdd = () => {
+  editingTransaction.value = null
+  showSheet.value = true
 }
 
-const handleAddTransaction = async () => {
-  isSubmitting.value = true
+const openEdit = (transaction) => {
+  editingTransaction.value = transaction
+  showSheet.value = true
+}
+
+const handleSave = async (payload) => {
+  saving.value = true
   try {
-    await addTransaction(form.value)
-    showAddModal.value = false
-    resetForm()
-  } catch (err) {
-    console.error(err)
-    showConfirmModal({
-      title: 'Error',
-      message: 'Failed to add transaction. Please try again.',
-      confirmText: 'OK',
-      cancelText: '',
-      confirmButtonClass: 'bg-primary text-white hover:bg-primary-hover',
-      onConfirm: () => {},
-    })
+    if (editingTransaction.value) {
+      await updateTransaction(editingTransaction.value.firestoreId, payload)
+      toast.success('Transaction updated')
+    } else {
+      await addTransaction(payload)
+      toast.success('Transaction recorded')
+      // Follow the entry to the month it was filed under.
+      monthKey.value = payload.date.slice(0, 7)
+    }
+    showSheet.value = false
+  } catch (error) {
+    console.error('Error saving transaction:', error)
+    toast.error('Failed to save. Please try again.')
   } finally {
-    isSubmitting.value = false
+    saving.value = false
   }
 }
+
+/* --------------------------------------------------------- opening balance */
+const showOpening = ref(false)
+const savingOpening = ref(false)
+
+const handleSaveOpening = async (payload) => {
+  savingOpening.value = true
+  try {
+    await saveOpening(payload)
+    toast.success('Starting balance saved')
+    showOpening.value = false
+  } catch (error) {
+    console.error('Error saving opening balance:', error)
+    toast.error('Failed to save. Please try again.')
+  } finally {
+    savingOpening.value = false
+  }
+}
+
+/* ------------------------------------------------------------------ delete */
+const showConfirmation = ref(false)
+const confirmationConfig = ref({
+  title: '',
+  message: '',
+  confirmText: 'Delete',
+  cancelText: 'Cancel',
+  confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
+  onConfirm: null,
+})
 
 const confirmDelete = (transaction) => {
-  showConfirmModal({
+  confirmationConfig.value = {
+    ...confirmationConfig.value,
     title: 'Delete Transaction',
-    message: `Are you sure you want to delete "${transaction.description}"? This will affect the net balance and cannot be undone.`,
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
-    confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
+    message: `Delete "${transaction.description}"? The statement balances will be recalculated without it.`,
     onConfirm: async () => {
       try {
-        await deleteTransaction(transaction.firestoreId)
-      } catch (err) {
-        console.error(err)
-        showConfirmModal({
-          title: 'Error',
-          message: 'Failed to delete transaction. Please try again.',
-          confirmText: 'OK',
-          cancelText: '',
-          confirmButtonClass: 'bg-primary text-white hover:bg-primary-hover',
-          onConfirm: () => {},
-        })
+        await removeTransaction(transaction.firestoreId)
+        showSheet.value = false
+        toast.success('Transaction deleted')
+      } catch (error) {
+        console.error('Error deleting transaction:', error)
+        toast.error('Failed to delete. Please try again.')
       }
-    }
-  })
+    },
+  }
+  showConfirmation.value = true
 }
 
-const exportToExcel = () => {
-  const data = transactions.value.map(t => ({
-    Date: t.date,
-    Description: t.description,
-    Category: t.category,
-    Type: t.type.toUpperCase(),
-    Amount: t.amount,
-    'Payer/Payee': t.payerPayee,
-    Status: t.status,
-    Notes: t.notes
-  }))
+/* ------------------------------------------------------------------- menu */
+const showMenu = ref(false)
 
-  const ws = XLSX.utils.json_to_sheet(data)
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, "Transactions")
-  XLSX.writeFile(wb, `UEC_Finances_${new Date().getFullYear()}.xlsx`)
+const handleExport = () => {
+  showMenu.value = false
+  exportStatement(statement.value)
 }
 
-const formatCurrency = (val) => {
-  return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val)
+const handlePrint = () => {
+  showMenu.value = false
+  window.print()
 }
 
-const formatDate = (dateStr) => {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-const statusBadgeClass = (status) => {
-  if (status === 'completed') return 'bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/40'
-  if (status === 'pending') return 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/40'
-  return 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600'
+const openOpeningSheet = () => {
+  showMenu.value = false
+  showOpening.value = true
 }
 </script>
 
 <template>
-  <div class="flex flex-col h-full overflow-y-auto lg:overflow-hidden">
-    <!-- Toolbar -->
-    <div class="sticky top-0 z-40 mb-4 shrink-0 rounded-xl border border-gray-200/80 bg-white/95 px-2 py-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:px-3">
-      <div class="flex items-center justify-end gap-1.5 sm:gap-2 flex-nowrap w-full">
+  <div class="flex flex-col h-full overflow-y-auto">
+    <!-- Month bar -->
+    <div
+      class="sticky top-0 z-40 -mx-3 sm:-mx-4 lg:-mx-8 px-3 sm:px-4 lg:px-8 py-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-100 dark:border-gray-800 no-print"
+    >
+      <div class="flex items-center gap-2 w-full max-w-3xl mx-auto">
         <button
-          @click="exportToExcel"
-          class="flex h-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 px-2.5 sm:px-4 gap-1 sm:gap-1.5"
-          title="Export to Excel"
+          @click="stepMonth(-1)"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          aria-label="Previous month"
         >
-          <Download class="h-5 w-5 shrink-0" />
-          <span class="whitespace-nowrap text-xs sm:text-sm">Export</span>
+          <ChevronLeft class="h-5 w-5" />
         </button>
 
-        <button
-          @click="showAddModal = true"
-          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
-          title="Record a new transaction"
+        <label
+          class="relative flex h-10 flex-1 min-w-0 items-center justify-center gap-1 rounded-lg bg-gray-100 dark:bg-gray-800 px-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
         >
-          <Plus class="h-5 w-5 shrink-0" />
-          <span class="whitespace-nowrap text-xs sm:text-sm">Add</span>
+          <span class="text-sm font-semibold text-gray-900 dark:text-white truncate">
+            {{ statement.label }}
+          </span>
+          <ChevronDown class="h-4 w-4 shrink-0 text-gray-400" />
+          <input
+            v-model="monthKey"
+            type="month"
+            class="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
+            aria-label="Choose month"
+          />
+        </label>
+
+        <button
+          @click="stepMonth(1)"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          aria-label="Next month"
+        >
+          <ChevronRight class="h-5 w-5" />
+        </button>
+
+        <!-- Overflow menu -->
+        <div class="relative shrink-0">
+          <button
+            @click="showMenu = !showMenu"
+            class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            aria-label="More actions"
+          >
+            <MoreVertical class="h-5 w-5" />
+          </button>
+
+          <div v-if="showMenu" class="fixed inset-0 z-40" @click="showMenu = false"></div>
+
+          <Transition name="fade">
+            <div
+              v-if="showMenu"
+              class="absolute right-0 top-full mt-2 z-50 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl overflow-hidden"
+            >
+              <button
+                @click="handleExport"
+                class="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              >
+                <Download class="h-4 w-4 text-gray-400" /> Export this month
+              </button>
+              <button
+                @click="handlePrint"
+                class="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              >
+                <Printer class="h-4 w-4 text-gray-400" /> Print statement
+              </button>
+              <button
+                @click="openOpeningSheet"
+                class="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              >
+                <Wallet class="h-4 w-4 text-gray-400" /> Starting balance
+              </button>
+              <router-link
+                to="/finances/audit"
+                @click="showMenu = false"
+                class="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-t border-gray-100 dark:border-gray-700"
+              >
+                <BarChart3 class="h-4 w-4 text-gray-400" /> Yearly report
+              </router-link>
+            </div>
+          </Transition>
+        </div>
+
+        <button
+          @click="openAdd"
+          class="flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-white shadow-sm transition-transform active:scale-95"
+        >
+          <Plus class="h-5 w-5" />
+          <span class="text-sm font-medium hidden sm:inline">Record</span>
         </button>
       </div>
     </div>
 
-    <!-- Metrics -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-4 shrink-0">
-      <div class="rounded-lg border border-primary/20 bg-primary/5 dark:bg-primary/10 p-3 sm:p-4">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="p-1.5 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary shrink-0">
-            <Wallet class="h-4 w-4" />
-          </div>
-          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">Net Balance</p>
-        </div>
-        <p class="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 dark:text-white truncate">{{ formatCurrency(stats.balance) }}</p>
-      </div>
-
-      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-4">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="p-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 shrink-0">
-            <ArrowUpRight class="h-4 w-4" />
-          </div>
-          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">Monthly Income</p>
-        </div>
-        <p class="text-base sm:text-lg lg:text-xl font-semibold text-green-600 dark:text-green-400 truncate">{{ formatCurrency(stats.income) }}</p>
-      </div>
-
-      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-4">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 shrink-0">
-            <ArrowDownRight class="h-4 w-4" />
-          </div>
-          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">Monthly Expense</p>
-        </div>
-        <p class="text-base sm:text-lg lg:text-xl font-semibold text-red-600 dark:text-red-400 truncate">{{ formatCurrency(stats.expense) }}</p>
-      </div>
-
-      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-4">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 shrink-0">
-            <Loader2 class="h-4 w-4" />
-          </div>
-          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">Total Logs</p>
-        </div>
-        <p class="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 dark:text-white truncate">
-          {{ transactions.length }}
-          <span v-if="stats.pending" class="text-xs font-normal text-amber-600 dark:text-amber-400">({{ stats.pending }} pending)</span>
+    <div class="pt-3 pb-6 space-y-3 w-full max-w-3xl mx-auto print-area">
+      <!-- Balance summary -->
+      <div class="rounded-2xl bg-primary text-white p-4 shadow-sm">
+        <p class="text-[11px] font-bold uppercase tracking-widest text-white/70">
+          Ending balance &middot; {{ statement.label }}
         </p>
+        <p class="mt-1 text-3xl font-bold tabular-nums tracking-tight">
+          &#8369;{{ formatAmount(statement.ending.total) }}
+        </p>
+
+        <div class="mt-3 grid grid-cols-2 gap-2">
+          <div class="rounded-lg bg-white/10 px-3 py-2">
+            <p class="text-[10px] font-medium uppercase tracking-wide text-white/60">Cash on Hand</p>
+            <p class="text-sm font-semibold tabular-nums">
+              {{ formatAmount(statement.ending.cashOnHand) }}
+            </p>
+          </div>
+          <div class="rounded-lg bg-white/10 px-3 py-2">
+            <p class="text-[10px] font-medium uppercase tracking-wide text-white/60">Eastwest</p>
+            <p class="text-sm font-semibold tabular-nums">
+              {{ formatAmount(statement.ending.bankEastwest) }}
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-3 flex items-center gap-3 text-xs border-t border-white/15 pt-3">
+          <span class="flex items-center gap-1 tabular-nums">
+            <ArrowDownLeft class="h-3.5 w-3.5 text-emerald-200" />
+            {{ formatAmount(statement.inflow.total) }}
+          </span>
+          <span class="flex items-center gap-1 tabular-nums">
+            <ArrowUpRight class="h-3.5 w-3.5 text-red-200" />
+            {{ formatAmount(statement.outflow.total) }}
+          </span>
+          <span class="ml-auto font-semibold tabular-nums">
+            Net {{ statement.net >= 0 ? '+' : '' }}{{ formatAmount(statement.net) }}
+          </span>
+        </div>
       </div>
-    </div>
 
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col gap-4 lg:flex-row lg:min-h-0 lg:overflow-hidden">
+      <!-- Starting balance prompt -->
+      <button
+        v-if="!opening.isSet && !loading"
+        @click="showOpening = true"
+        class="w-full flex items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-left no-print"
+      >
+        <Wallet class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-amber-900 dark:text-amber-200">
+            Set the starting balance
+          </p>
+          <p class="text-xs text-amber-700 dark:text-amber-300/80">
+            Cash on hand and Eastwest before your first entry, so every balance is right.
+          </p>
+        </div>
+      </button>
 
-      <!-- Transactions -->
-      <div class="flex-1 overflow-hidden bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col lg:min-h-0">
-        <!-- Search & Filter -->
-        <div class="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
+      <!-- Tabs -->
+      <div class="grid grid-cols-2 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-gray-800 no-print">
+        <button
+          @click="tab = 'statement'"
+          :class="[
+            'h-10 rounded-lg text-sm font-semibold transition-colors',
+            tab === 'statement'
+              ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+              : 'text-gray-500 dark:text-gray-400',
+          ]"
+        >
+          Statement
+        </button>
+        <button
+          @click="tab = 'ledger'"
+          :class="[
+            'h-10 rounded-lg text-sm font-semibold transition-colors',
+            tab === 'ledger'
+              ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+              : 'text-gray-500 dark:text-gray-400',
+          ]"
+        >
+          Transactions
+          <span class="text-xs font-normal text-gray-400">
+            ({{ statement.transactions.length }})
+          </span>
+        </button>
+      </div>
+
+      <!-- Statement -->
+      <div v-if="tab === 'statement'">
+        <div v-if="loading" class="space-y-3">
+          <div
+            v-for="i in 4"
+            :key="`statement-skeleton-${i}`"
+            class="h-28 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse"
+          ></div>
+        </div>
+        <StatementReport
+          v-else
+          :statement="statement"
+          :opening-is-set="opening.isSet"
+          @edit-opening="showOpening = true"
+        />
+      </div>
+
+      <!-- Ledger -->
+      <div v-else class="space-y-3">
+        <div class="flex items-center gap-2 no-print">
           <SearchBar
             v-model="searchQuery"
             v-model:open="mobileSearchOpen"
-            placeholder="Search by description, payee, or category"
+            placeholder="Search description, payee, or category"
           />
-          <select
-            v-model="selectedType"
-            :class="['h-10 shrink-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary lg:w-40', mobileSearchOpen ? 'hidden lg:block' : 'block']"
+          <div
+            :class="[
+              'flex gap-1 overflow-x-auto no-scrollbar',
+              mobileSearchOpen ? 'hidden lg:flex' : 'flex',
+            ]"
           >
-            <option value="all">All Types</option>
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-          </select>
-        </div>
-
-        <!-- Table (desktop only) -->
-        <div class="hidden lg:block flex-1 overflow-y-auto custom-scrollbar">
-          <table class="w-full text-left border-collapse">
-            <thead class="sticky top-0 bg-white dark:bg-gray-800 z-10 border-b border-gray-200 dark:border-gray-700">
-              <tr>
-                <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">Date</th>
-                <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400">Description</th>
-                <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 text-right">Amount</th>
-                <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 text-center">Status</th>
-                <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-              <tr v-if="isLoading" v-for="i in 5" :key="i" class="animate-pulse">
-                <td v-for="j in 5" :key="j" class="px-4 py-3"><div class="h-4 bg-gray-100 dark:bg-gray-700 rounded-lg w-full"></div></td>
-              </tr>
-              <tr v-else-if="filteredTransactions.length === 0">
-                <td colspan="5" class="px-4 py-16 text-center">
-                  <div class="flex flex-col items-center">
-                    <FileText class="h-10 w-10 text-gray-300 dark:text-gray-600 mb-3" />
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                      {{ searchQuery.trim() ? 'No transactions match your search' : 'No transactions found' }}
-                    </p>
-                  </div>
-                </td>
-              </tr>
-              <tr v-for="t in filteredTransactions" :key="t.id" class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <td class="px-4 py-3">
-                  <div class="flex flex-col">
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">{{ formatDate(t.date) }}</span>
-                    <span class="text-xs text-gray-400 dark:text-gray-500">{{ t.category }}</span>
-                  </div>
-                </td>
-                <td class="px-4 py-3">
-                  <div class="flex items-center gap-3">
-                    <div :class="[
-                      'p-2 rounded-lg shrink-0',
-                      t.type === 'income' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                    ]">
-                      <component :is="getCategoryIcon(t.category)" class="h-4 w-4" />
-                    </div>
-                    <div class="flex flex-col min-w-0">
-                      <p class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-50">{{ t.description }}</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400 truncate">From/To: {{ t.payerPayee || 'Internal' }}</p>
-                    </div>
-                  </div>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <span :class="['text-sm font-semibold', t.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400']">
-                    {{ t.type === 'income' ? '+' : '-' }}{{ formatCurrency(t.amount) }}
-                  </span>
-                </td>
-                <td class="px-4 py-3">
-                  <div class="flex justify-center">
-                    <span :class="['px-2 py-0.5 rounded-full text-xs border capitalize', statusBadgeClass(t.status)]">
-                      {{ t.status }}
-                    </span>
-                  </div>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button @click="confirmDelete(t)" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                      <Trash2 class="h-4 w-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- List (mobile & tablet) -->
-        <div class="lg:hidden overflow-y-auto">
-          <template v-if="isLoading">
-            <div class="p-3 space-y-2">
-              <div v-for="i in 5" :key="i" class="h-16 rounded-lg bg-gray-100 dark:bg-gray-700 animate-pulse"></div>
-            </div>
-          </template>
-          <div v-else-if="filteredTransactions.length === 0" class="flex flex-col items-center py-16">
-            <FileText class="h-10 w-10 text-gray-300 dark:text-gray-600 mb-3" />
-            <p class="text-sm text-gray-500 dark:text-gray-400">
-              {{ searchQuery.trim() ? 'No transactions match your search' : 'No transactions found' }}
-            </p>
-          </div>
-          <div v-else class="divide-y divide-gray-100 dark:divide-gray-700">
-            <div
-              v-for="t in filteredTransactions"
-              :key="t.id"
-              class="px-4 py-3 flex items-center gap-3"
+            <button
+              v-for="filter in filters"
+              :key="filter.key"
+              @click="ledgerFilter = filter.key"
+              :class="[
+                'h-10 shrink-0 rounded-lg px-3 text-xs font-medium transition-colors',
+                ledgerFilter === filter.key
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+              ]"
             >
-              <div :class="[
-                'p-2 rounded-lg shrink-0',
-                t.type === 'income' ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-              ]">
-                <component :is="getCategoryIcon(t.category)" class="h-4 w-4" />
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-start justify-between gap-2">
-                  <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ t.description }}</p>
-                  <span :class="['shrink-0 text-sm font-semibold', t.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400']">
-                    {{ t.type === 'income' ? '+' : '-' }}{{ formatCurrency(t.amount) }}
-                  </span>
-                </div>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ formatDate(t.date) }} &middot; {{ t.category }}</p>
-                <div class="flex items-center justify-between mt-1.5">
-                  <span :class="['px-2 py-0.5 rounded-full text-xs border capitalize', statusBadgeClass(t.status)]">
-                    {{ t.status }}
-                  </span>
-                  <button @click="confirmDelete(t)" class="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                    <Trash2 class="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Panel -->
-      <div class="w-full lg:w-80 flex flex-col gap-4 shrink-0">
-        <!-- Top Categories -->
-        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Top Categories</h3>
-            <PieIcon class="h-4 w-4 text-primary" />
-          </div>
-
-          <div v-if="groupedByCategory.length" class="space-y-3">
-            <div v-for="[cat, val] in groupedByCategory" :key="cat" class="space-y-1.5">
-              <div class="flex items-center justify-between text-xs">
-                <span class="text-gray-600 dark:text-gray-400">{{ cat }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ formatCurrency(val) }}</span>
-              </div>
-              <div class="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  class="h-full bg-primary rounded-full transition-all duration-500"
-                  :style="{ width: `${(val / Math.max(...groupedByCategory.map(x => x[1]))) * 100}%` }"
-                ></div>
-              </div>
-            </div>
-          </div>
-          <div v-else class="py-8 text-center text-gray-400 dark:text-gray-500 text-xs">
-            No categorical data available
+              {{ filter.label }}
+            </button>
           </div>
         </div>
 
-        <!-- Audit Report link -->
-        <router-link
-          to="/finances/audit"
-          class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
-        >
-          <div class="min-w-0">
-            <p class="text-sm font-semibold text-gray-900 dark:text-white">Full Audit Report</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">Yearly income &amp; expense breakdown</p>
-          </div>
-          <ArrowRight class="h-4 w-4 text-gray-400 shrink-0 transition-transform group-hover:translate-x-1 group-hover:text-primary" />
-        </router-link>
+        <LedgerList
+          :transactions="ledgerRows"
+          :loading="loading"
+          :empty-message="
+            searchQuery.trim() || ledgerFilter !== 'all'
+              ? 'No transactions match this filter'
+              : `No transactions in ${monthLabel(monthKey)}`
+          "
+          @select="openEdit"
+        />
       </div>
     </div>
 
-    <!-- Add Transaction Modal -->
-    <Transition name="modal">
-      <div v-if="showAddModal" class="fixed inset-0 z-100 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showAddModal = false"></div>
-        <div class="relative bg-white dark:bg-gray-800 w-full max-w-lg rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-y-auto custom-scrollbar">
-          <!-- Header -->
-          <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">New Transaction</h3>
-            <button @click="showAddModal = false" class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              <X class="h-5 w-5" />
-            </button>
-          </div>
+    <!-- Sheets -->
+    <TransactionSheet
+      v-model:show="showSheet"
+      :transaction="editingTransaction"
+      :default-date="defaultDate"
+      :saving="saving"
+      @save="handleSave"
+      @delete="confirmDelete"
+    />
 
-          <form @submit.prevent="handleAddTransaction" class="p-6 space-y-4">
-            <!-- Type Toggle -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Transaction Type</label>
-              <div class="flex p-1 bg-gray-100 dark:bg-gray-700 rounded-lg w-full">
-                <button
-                  type="button"
-                  @click="form.type = 'income'"
-                  :class="['flex-1 py-2 rounded-md text-sm font-medium transition-all', form.type === 'income' ? 'bg-white dark:bg-gray-600 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400']"
-                >Income</button>
-                <button
-                  type="button"
-                  @click="form.type = 'expense'"
-                  :class="['flex-1 py-2 rounded-md text-sm font-medium transition-all', form.type === 'expense' ? 'bg-white dark:bg-gray-600 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400']"
-                >Expense</button>
-              </div>
-            </div>
+    <OpeningBalanceSheet
+      v-model:show="showOpening"
+      :opening="opening"
+      :saving="savingOpening"
+      @save="handleSaveOpening"
+    />
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
-                <input v-model="form.date" type="date" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent" />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-                <select v-model="form.category" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent">
-                  <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-              <input v-model="form.description" type="text" required placeholder="e.g. Weekly Tithes" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent" />
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (PHP)</label>
-                <input v-model="form.amount" type="number" step="0.01" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent" />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payer / Payee</label>
-                <input v-model="form.payerPayee" type="text" placeholder="Individual or company" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent" />
-              </div>
-            </div>
-
-            <div class="pt-2 flex gap-3">
-              <button
-                type="button"
-                @click="showAddModal = false"
-                class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
-              >Cancel</button>
-              <button
-                type="submit"
-                :disabled="isSubmitting"
-                class="flex-1 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors text-sm font-medium flex items-center justify-center gap-2"
-              >
-                <Loader2 v-if="isSubmitting" class="h-4 w-4 animate-spin" />
-                Save Transaction
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Confirmation Modal -->
     <ConfirmationModal
       :show="showConfirmation"
       :title="confirmationConfig.title"
@@ -597,32 +460,36 @@ const statusBadgeClass = (status) => {
       :cancel-text="confirmationConfig.cancelText"
       :confirm-button-class="confirmationConfig.confirmButtonClass"
       @update:show="showConfirmation = $event"
-      @confirm="handleConfirmation"
+      @confirm="confirmationConfig.onConfirm?.()"
       @cancel="showConfirmation = false"
     />
   </div>
 </template>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.1);
-  border-radius: 10px;
-}
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1);
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-.modal-enter-active, .modal-leave-active {
-  transition: all 0.2s ease;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
 }
-.modal-enter-from, .modal-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
-  transform: scale(0.97);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-area {
+    overflow: visible !important;
+  }
 }
 </style>

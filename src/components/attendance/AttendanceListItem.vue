@@ -21,7 +21,11 @@ const emit = defineEmits(['delete', 'record-attendance', 'edit-attendance', 'cli
 const handleClick = () => {
   if (props.record.source === 'attendance') {
     emit('edit-attendance', props.record)
-  } else if (props.record.source === 'event' || props.record.source === 'minute') {
+  } else if (
+    props.record.source === 'event' ||
+    props.record.source === 'minute' ||
+    props.record.source === 'recurring'
+  ) {
     emit('record-attendance', props.record)
   } else {
     emit('click', props.record)
@@ -47,6 +51,11 @@ const getCategory = () => {
 }
 
 const hasAttendance = () => props.record.totalAttendees > 0
+
+// Rows synthesised from an event/meeting that has no saved attendance behind
+// it yet. Nothing is stored, so there is nothing to open in edit mode or
+// delete - they are prompts, not records.
+const isPlaceholder = () => props.record.source !== 'attendance'
 </script>
 
 <template>
@@ -56,7 +65,7 @@ const hasAttendance = () => props.record.totalAttendees > 0
       'px-4 py-3 flex items-center gap-4 cursor-pointer transition-colors select-none',
       selected
         ? 'bg-primary/10 dark:bg-primary/20'
-        : 'hover:bg-gray-50 dark:hover:bg-gray-750'
+        : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
     ]"
   >
     <!-- Big Day Display -->
@@ -78,22 +87,40 @@ const hasAttendance = () => props.record.totalAttendees > 0
         <span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
           {{ getCategory() }}
         </span>
-        <span 
+        <span
           v-if="hasAttendance()"
           class="text-xs text-green-600 dark:text-green-400 flex items-center gap-1"
         >
           <Users class="h-3 w-3" />
           {{ record.totalAttendees }}
         </span>
-        <span v-else class="text-xs text-gray-400 italic">No attendance</span>
+        <!-- A saved record where nobody was marked present -->
+        <span
+          v-else-if="!isPlaceholder()"
+          class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"
+        >
+          <Users class="h-3 w-3" />
+          0 present
+        </span>
+        <!-- Not a record at all - the event/meeting is waiting to be recorded -->
+        <span
+          v-else
+          class="text-xs text-gray-400 dark:text-gray-500 rounded border border-dashed border-gray-300 dark:border-gray-600 px-1.5 py-0.5"
+        >
+          Not recorded
+        </span>
       </div>
     </div>
 
-    <!-- Status indicator -->
-    <div 
+    <!-- Status indicator: filled = saved record, hollow = nothing saved yet -->
+    <div
       :class="[
         'w-2 h-2 rounded-full shrink-0',
-        hasAttendance() ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+        hasAttendance()
+          ? 'bg-green-500'
+          : isPlaceholder()
+          ? 'border border-gray-300 dark:border-gray-600'
+          : 'bg-gray-300 dark:bg-gray-600'
       ]"
     />
   </div>

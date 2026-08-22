@@ -37,6 +37,9 @@ export default defineConfig({
     }),
   ],
   server: {
+    // Bind to all interfaces so `npm run dev` is reachable from phones on the
+    // same Wi-Fi without needing the --host flag every time
+    host: true,
     allowedHosts: [
       '84960e178ae6.ngrok-free.app',
       '.ngrok-free.app', // This allows all ngrok subdomains

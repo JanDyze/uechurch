@@ -12,7 +12,8 @@ import {
   ClipboardCheck,
   Heart,
   Image,
-  Link2
+  Link2,
+  Settings
 } from 'lucide-vue-next'
 import { ref } from 'vue'
 
@@ -31,6 +32,7 @@ const navigation = [
   { name: 'Gallery', path: '/gallery', icon: Image },
   { name: 'Links', path: '/links', icon: Link2 },
   { name: 'Finances', path: '/finances', icon: DollarSign },
+  { name: 'Settings', path: '/settings', icon: Settings },
 ]
 
 const isActive = (path) => {

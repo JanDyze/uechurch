@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { X, Search, Check } from 'lucide-vue-next'
+import { X, Search, Check, Trash2 } from 'lucide-vue-next'
 import { useMembers } from '../../composables/useMembers'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 
@@ -22,10 +22,22 @@ const props = defineProps({
   eventData: {
     type: Object,
     default: null
+  },
+  // Attendance recorded against an event: the event owns the title and date,
+  // so show them read-only instead of letting the two drift apart.
+  detailsLocked: {
+    type: Boolean,
+    default: false
+  },
+  // 'event' | 'minute' when this drawer was opened from a generated
+  // "Not recorded" row, which can only be removed by deleting its source.
+  placeholderKind: {
+    type: String,
+    default: null
   }
 })
 
-const emit = defineEmits(['update:show', 'update:attendanceData', 'save', 'cancel'])
+const emit = defineEmits(['update:show', 'update:attendanceData', 'save', 'cancel', 'delete', 'delete-source'])
 
 const { members } = useMembers()
 const searchQuery = ref('')
@@ -98,6 +110,31 @@ const isPresent = (memberId) => {
   return (formData.value.attendees || []).some(id => String(id) === String(memberId) || id === memberId)
 }
 
+// Bulk actions operate on the members currently shown, so searching for a
+// family name and tapping "Mark shown" marks just that group.
+const markAllShown = () => {
+  const attendees = [...(formData.value.attendees || [])]
+  filteredMembers.value.forEach(member => {
+    const id = member.id || member.firestoreId
+    if (!attendees.some(a => String(a) === String(id))) {
+      attendees.push(id)
+    }
+  })
+  emit('update:attendanceData', { ...formData.value, attendees })
+}
+
+const clearAllShown = () => {
+  const shownIds = new Set(
+    filteredMembers.value.map(member => String(member.id || member.firestoreId))
+  )
+  const attendees = (formData.value.attendees || []).filter(
+    a => !shownIds.has(String(a))
+  )
+  emit('update:attendanceData', { ...formData.value, attendees })
+}
+
+const isSearching = computed(() => searchQuery.value.trim().length > 0)
+
 const handleSave = () => {
   if (isFormValid.value) {
     emit('save')
@@ -154,7 +191,7 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
       </div>
 
       <!-- Event Details Form (only for new attendance) -->
-      <div v-if="isNewAttendance || isEdit" class="shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
+      <div v-if="(isNewAttendance || isEdit) && !detailsLocked" class="shrink-0 px-5 py-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
         <div>
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Title *</label>
           <input
@@ -198,6 +235,9 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
           {{ formData.date }}
           <span v-if="formData.eventType" class="ml-2 px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700">{{ formData.eventType }}</span>
         </p>
+        <p v-if="detailsLocked" class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+          Title and date come from the {{ formData.eventType === 'meeting' ? 'meeting' : 'event' }}. Edit them there.
+        </p>
       </div>
 
       <!-- Search -->
@@ -213,6 +253,27 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
         </div>
       </div>
 
+      <!-- Bulk actions -->
+      <div class="shrink-0 px-5 py-2 flex items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-700">
+        <span class="text-xs text-gray-500 dark:text-gray-400">
+          {{ filteredMembers.length }} {{ filteredMembers.length === 1 ? 'member' : 'members' }} shown
+        </span>
+        <div class="flex items-center gap-1.5">
+          <button
+            @click="markAllShown"
+            class="px-2.5 py-1.5 text-xs font-medium rounded-lg text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+          >
+            {{ isSearching ? 'Mark shown' : 'Mark all' }}
+          </button>
+          <button
+            @click="clearAllShown"
+            class="px-2.5 py-1.5 text-xs font-medium rounded-lg text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+
       <!-- Members List -->
       <div class="flex-1 overflow-y-auto">
         <div v-if="filteredMembers.length === 0" class="p-8 text-center text-gray-400 text-sm">
@@ -223,7 +284,7 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
             v-for="member in filteredMembers"
             :key="member.id || member.firestoreId"
             @click="toggleAttendee(member.id || member.firestoreId)"
-            class="w-full px-5 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors text-left"
+            class="w-full px-5 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left"
           >
             <div :class="[
               'w-5 h-5 rounded flex items-center justify-center shrink-0 transition-colors',
@@ -241,21 +302,48 @@ const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'o
       </div>
 
       <!-- Footer -->
-      <div class="shrink-0 px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <span class="text-sm text-gray-500 dark:text-gray-400">
-          <span class="font-semibold text-gray-900 dark:text-white">{{ presentCount }}</span> / {{ totalCount }} present
-        </span>
+      <div class="shrink-0 px-5 py-4 border-t border-gray-200 dark:border-gray-700">
+        <div class="flex items-center gap-3">
+          <!-- Deletes the saved attendance record only -->
+          <button
+            v-if="isEdit"
+            @click="emit('delete')"
+            class="shrink-0 flex h-10 w-10 items-center justify-center rounded-lg text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+            title="Delete this attendance record"
+            aria-label="Delete this attendance record"
+          >
+            <Trash2 class="h-5 w-5" />
+          </button>
+          <span class="flex-1 text-sm text-gray-500 dark:text-gray-400">
+            <span class="font-semibold text-gray-900 dark:text-white">{{ presentCount }}</span> / {{ totalCount }} present
+            <span v-if="!isEdit" class="block text-xs text-gray-400 dark:text-gray-500">
+              Not saved yet
+            </span>
+          </span>
+          <button
+            @click="handleSave"
+            :disabled="!isFormValid"
+            :class="[
+              'px-5 py-2 text-sm font-medium rounded-lg transition-colors',
+              isFormValid
+                ? 'bg-primary dark:bg-primary-light text-white hover:bg-primary-hover dark:hover:bg-[#1ca3b8]'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+            ]"
+          >
+            Save Attendance
+          </button>
+        </div>
+
+        <!-- Nothing is saved for this row yet, so the only thing to remove is
+             the event/meeting that generates it. Spelled out on its own line so
+             it cannot be mistaken for deleting attendance. -->
         <button
-          @click="handleSave"
-          :disabled="!isFormValid"
-          :class="[
-            'px-5 py-2 text-sm font-medium rounded-lg transition-colors',
-            isFormValid
-              ? 'bg-primary dark:bg-primary-light text-white hover:bg-primary-hover dark:hover:bg-[#1ca3b8]'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-          ]"
+          v-if="!isEdit && placeholderKind"
+          @click="emit('delete-source')"
+          class="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
         >
-          Save Attendance
+          <Trash2 class="h-4 w-4" />
+          Delete this {{ placeholderKind === 'minute' ? 'meeting' : 'event' }}
         </button>
       </div>
       </div>

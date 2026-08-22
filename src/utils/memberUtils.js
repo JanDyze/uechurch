@@ -52,6 +52,13 @@ export const getFamilyRoleLabel = (role) => {
   return labels[role] || role;
 };
 
+// Returns "" rather than "Invalid Date" for missing/unparseable dates
+export const formatBirthDate = (dateOfBirth) => {
+  if (!dateOfBirth) return "";
+  const date = new Date(dateOfBirth);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString();
+};
+
 export const calculateAgeFromDate = (dateOfBirth) => {
   if (!dateOfBirth) return undefined;
   const today = new Date();

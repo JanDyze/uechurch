@@ -32,7 +32,8 @@ const { members } = useMembers()
 // Birthday events from members (pass firestoreEvents to check for overrides)
 const { birthdayEvents, todaysBirthdays } = useBirthdayEvents(members, firestoreEvents)
 
-// Recurring events (Sunday Service, etc.) - pass firestoreEvents to check for overrides, members for attendee count
+// Recurring events, expanded from the schedules configured in Settings.
+// firestoreEvents is passed so per-date overrides win; members sets attendee count.
 const { recurringEvents } = useRecurringEvents(firestoreEvents, members)
 
 // Merge Firestore events with birthday events and recurring events
@@ -513,6 +514,7 @@ const monthEvents = computed(() => {
         :loading="loading"
         :month-events="monthEvents"
         :current-month="currentMonth"
+        :current-date="currentDate"
         :event-type-filter="monthEventTypeFilter"
         :sort-by="monthSortBy"
         :sort-order="monthSortOrder"
@@ -521,6 +523,8 @@ const monthEvents = computed(() => {
         @update:sort-by="monthSortBy = $event"
         @update:sort-order="monthSortOrder = $event"
         @event-click="openEventDetails"
+        @navigate-month="navigateMonth"
+        @set-date="handleSetDate"
       />
 
       <!-- Add/Edit Event Drawer -->

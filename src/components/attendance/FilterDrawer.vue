@@ -32,6 +32,10 @@ defineProps({
   hasActiveFilters: {
     type: Boolean,
     default: false
+  },
+  showNotRecorded: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -40,6 +44,7 @@ const emit = defineEmits([
   'update:dateFilter',
   'update:eventTypeFilter',
   'update:memberFilter',
+  'update:showNotRecorded',
   'clearFilters'
 ])
 
@@ -94,6 +99,35 @@ const emit = defineEmits([
             >
               <X class="h-4 w-4" />
               Clear all filters
+            </button>
+          </div>
+
+          <!-- Not-recorded events/meetings -->
+          <div class="flex items-center justify-between gap-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Show not recorded
+              </p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Past events and meetings with no attendance taken
+              </p>
+            </div>
+            <button
+              @click="$emit('update:showNotRecorded', !showNotRecorded)"
+              :class="[
+                'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors',
+                showNotRecorded ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+              ]"
+              role="switch"
+              :aria-checked="showNotRecorded"
+              aria-label="Show events and meetings with no attendance recorded"
+            >
+              <span
+                :class="[
+                  'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                  showNotRecorded ? 'translate-x-6' : 'translate-x-1'
+                ]"
+              ></span>
             </button>
           </div>
 

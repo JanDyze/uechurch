@@ -66,6 +66,11 @@ const routes = [
         path: 'finances/audit',
         name: 'FinanceAudit',
         component: () => import('../views/FinanceAudit.vue')
+      },
+      {
+        path: 'settings',
+        name: 'Settings',
+        component: () => import('../views/Settings.vue')
       }
     ]
   }
