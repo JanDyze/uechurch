@@ -10,17 +10,24 @@ import {
   Filter,
   Download,
   MoreVertical,
+  Tag,
 } from "lucide-vue-next";
 import SearchBar from "../common/SearchBar.vue";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const mobileSearchOpen = ref(false);
 const showOverflowMenu = ref(false);
+const showTagManager = ref(false);
+const newTagInput = ref("");
 
 const props = defineProps({
   searchQuery: {
     type: String,
     default: "",
+  },
+  allTags: {
+    type: Array,
+    default: () => [],
   },
   viewMode: {
     type: String,
@@ -57,6 +64,7 @@ const emit = defineEmits([
   "update:showAddMember",
   "export",
   "switchLayout",
+  "addTag",
 ]);
 
 const gridIcon = computed(() => {
@@ -110,10 +118,21 @@ const handleExportClick = () => {
 
 const closeOverflowMenu = () => {
   showOverflowMenu.value = false;
+  showTagManager.value = false;
 };
 
 const overflowMenuRef = ref(null);
 useFocusTrap(overflowMenuRef, showOverflowMenu, closeOverflowMenu, { trap: false });
+
+const tagManagerRef = ref(null);
+useFocusTrap(tagManagerRef, showTagManager, closeOverflowMenu, { trap: false });
+
+const handleAddTag = () => {
+  const trimmed = newTagInput.value.trim();
+  if (!trimmed) return;
+  emit("addTag", trimmed);
+  newTagInput.value = "";
+};
 
 onMounted(() => {
   window.addEventListener("click", closeOverflowMenu);
@@ -153,6 +172,69 @@ onUnmounted(() => {
             class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#bc1c09]"
           ></span>
         </button>
+
+        <!-- Tag Manager Button -->
+        <div class="relative shrink-0">
+          <button
+            @click.stop="showTagManager = !showTagManager; showOverflowMenu = false"
+            :class="[
+              'flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
+              showTagManager
+                ? 'bg-primary text-white shadow-sm dark:bg-primary'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600',
+            ]"
+            title="Manage ministry tags"
+            aria-label="Manage ministry tags"
+            aria-haspopup="true"
+            :aria-expanded="showTagManager"
+          >
+            <Tag class="h-5 w-5" />
+          </button>
+
+          <Transition name="fade">
+            <div
+              v-if="showTagManager"
+              ref="tagManagerRef"
+              role="dialog"
+              aria-label="Manage ministry tags"
+              tabindex="-1"
+              @click.stop
+              class="absolute right-0 top-full mt-2 w-64 rounded-xl border border-gray-100 bg-white p-3 shadow-2xl dark:border-gray-700 dark:bg-gray-800 z-50"
+            >
+              <p class="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                Ministry Tags
+              </p>
+              <div v-if="allTags.length > 0" class="flex flex-wrap gap-1.5 mb-3 max-h-32 overflow-y-auto">
+                <span
+                  v-for="tag in allTags"
+                  :key="tag"
+                  class="px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                >
+                  {{ tag }}
+                </span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <input
+                  v-model="newTagInput"
+                  type="text"
+                  placeholder="New tag name..."
+                  @keydown.enter.prevent="handleAddTag"
+                  class="flex-1 min-w-0 px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 dark:focus:ring-primary-light/20"
+                />
+                <button
+                  type="button"
+                  @click="handleAddTag"
+                  :disabled="!newTagInput.trim()"
+                  class="p-1.5 rounded-md bg-primary dark:bg-primary-light text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary-hover dark:hover:bg-[#1a9aab] transition-colors shrink-0"
+                  title="Add tag"
+                  aria-label="Add tag"
+                >
+                  <Plus class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
 
         <!-- Configuration Button (desktop) -->
         <button

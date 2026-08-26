@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useMembers } from "../composables/useMembers";
 import { useMediaQuery } from "../composables/useMediaQuery";
@@ -19,7 +19,8 @@ import MemberListItem from "../components/members/MemberListItem.vue";
 import MemberCardSkeleton from "../components/members/MemberCardSkeleton.vue";
 import ConfirmationModal from "../components/common/ConfirmationModal.vue";
 import { exportToExcel } from "../utils/exportUtils";
-import { getFullName } from "../utils/memberUtils";
+import { getFullName, mergeWithPresetTags } from "../utils/memberUtils";
+import { subscribeToCustomTags, addCustomTag } from "../api/tagsService";
 
 const toast = useToast();
 
@@ -34,6 +35,44 @@ const { members, loading, addMemberToFirestore, updateMemberInFirestore, removeM
 
 // Filters
 const { filters, allTags, filteredMembers: baseFilteredMembers, hasActiveFilters, applyFilters, clearFilters } = useMemberFilters(members, searchQuery);
+
+// Custom tags created from the toolbar's "Add tag" control, registered as
+// selectable options without being applied to any member yet.
+const customTags = ref([]);
+let unsubscribeCustomTags = null;
+
+onMounted(() => {
+  unsubscribeCustomTags = subscribeToCustomTags((tags) => {
+    customTags.value = tags.map((t) => t.name);
+  });
+});
+
+onUnmounted(() => {
+  if (unsubscribeCustomTags) unsubscribeCustomTags();
+});
+
+// Tags offered when assigning/editing a member's tags: existing tags plus
+// ready-to-pick presets and toolbar-created tags, even before anyone has
+// been tagged with them. Filtering/exporting deliberately keep using the
+// plain `allTags` above, since offering a filter for a tag nobody has yet
+// would just be dead weight.
+const assignableTags = computed(() => mergeWithPresetTags(allTags.value, customTags.value));
+
+const handleAddTag = async (name) => {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return;
+  const exists = assignableTags.value.some((t) => t.toLowerCase() === trimmed.toLowerCase());
+  if (exists) {
+    toast.info('That tag already exists');
+    return;
+  }
+  try {
+    await addCustomTag(trimmed);
+    toast.success(`"${trimmed}" tag added`);
+  } catch (err) {
+    toast.error('Failed to add tag. Please try again.');
+  }
+};
 
 // Sorting
 const { sortBy, sortOrder, sortMembers } = useMemberSorting();
@@ -404,8 +443,10 @@ const isDrawerOpen = computed(() => {
       v-model:showConfig="showConfig"
       v-model:showAddMember="showAddMemberComputed"
       :hasActiveFilters="hasActiveFilters"
+      :allTags="assignableTags"
       @export="showExport = true"
       @switchLayout="handleSwitchLayout"
+      @addTag="handleAddTag"
     />
 
     <!-- Members List -->
@@ -496,7 +537,7 @@ const isDrawerOpen = computed(() => {
       <AddMemberDrawer
         v-model:showAddMember="showAddMemberComputed"
         :newMember="newMember"
-        :allTags="allTags"
+        :allTags="assignableTags"
         :canAddMember="canAddMember"
         :addMemberTooltip="addMemberTooltip"
         @update:newMember="newMember = $event"
@@ -508,7 +549,7 @@ const isDrawerOpen = computed(() => {
       <MemberDetailsDrawer
         v-model:showDetails="showDetailsComputed"
         :member="selectedMember"
-        :allTags="allTags"
+        :allTags="assignableTags"
         :loading="loading"
         @update="handleMemberUpdate"
         @delete="handleMemberDelete"

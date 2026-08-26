@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Trash2, Calendar, MapPin, Phone, Briefcase, Users, Tag, User, Image as ImageIcon } from 'lucide-vue-next'
 import { useMembers } from '../composables/useMembers'
-import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate } from '../utils/memberUtils'
+import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate, mergeWithPresetTags } from '../utils/memberUtils'
+import { subscribeToCustomTags } from '../api/tagsService'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import ImageCropper from '../components/members/ImageCropper.vue'
 import InlineEditField from '../components/common/InlineEditField.vue'
@@ -11,6 +12,20 @@ import InlineEditField from '../components/common/InlineEditField.vue'
 const route = useRoute()
 const router = useRouter()
 const { members, loading, updateMemberInFirestore, removeMember } = useMembers()
+
+// Custom tags created from the Members page toolbar's "Add tag" control
+const customTags = ref([])
+let unsubscribeCustomTags = null
+
+onMounted(() => {
+  unsubscribeCustomTags = subscribeToCustomTags((tags) => {
+    customTags.value = tags.map((t) => t.name)
+  })
+})
+
+onUnmounted(() => {
+  if (unsubscribeCustomTags) unsubscribeCustomTags()
+})
 
 const showImageCropper = ref(false)
 
@@ -38,7 +53,7 @@ const allTags = computed(() => {
   members.value.forEach(m => {
     if (m.tags) m.tags.forEach(t => tags.add(t))
   })
-  return Array.from(tags).sort()
+  return mergeWithPresetTags(Array.from(tags), customTags.value)
 })
 
 // Confirmation modal

@@ -14,6 +14,7 @@ import {
   Image,
   Link2,
   DollarSign,
+  ListMusic,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -32,6 +33,7 @@ const moreNav = [
   { name: 'Prayer Concerns', path: '/prayer-concerns', icon: Heart },
   { name: 'Gallery', path: '/gallery', icon: Image },
   { name: 'Links', path: '/links', icon: Link2 },
+  { name: 'Song List', path: '/songs', icon: ListMusic },
   { name: 'Finances', path: '/finances', icon: DollarSign },
 ]
 
