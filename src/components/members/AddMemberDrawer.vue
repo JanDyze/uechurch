@@ -357,7 +357,7 @@ const civilStatusOptions = [
 
                     <div>
                       <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags</p>
-                      <div class="flex flex-wrap gap-2">
+                      <div v-if="allTags.length > 0" class="flex flex-wrap gap-2">
                         <button
                           v-for="tag in allTags"
                           :key="tag"
@@ -373,6 +373,7 @@ const civilStatusOptions = [
                           {{ tag }}
                         </button>
                       </div>
+                      <p v-else class="text-xs text-gray-400 dark:text-gray-500 italic">No tags yet — add one from the Tags button in the toolbar.</p>
                     </div>
                   </div>
                 </Transition>

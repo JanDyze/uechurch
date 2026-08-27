@@ -13,6 +13,7 @@ import {
   Heart,
   Image,
   Link2,
+  ListMusic,
   Settings
 } from 'lucide-vue-next'
 import { ref } from 'vue'
@@ -31,6 +32,7 @@ const navigation = [
   { name: 'Prayer Concerns', path: '/prayer-concerns', icon: Heart },
   { name: 'Gallery', path: '/gallery', icon: Image },
   { name: 'Links', path: '/links', icon: Link2 },
+  { name: 'Song List', path: '/songs', icon: ListMusic },
   { name: 'Finances', path: '/finances', icon: DollarSign },
   { name: 'Settings', path: '/settings', icon: Settings },
 ]

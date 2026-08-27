@@ -126,6 +126,17 @@ const hasValue = computed(() => {
 });
 
 // Tags handling
+
+// forceEdit mode has no visible Save button (see template), so tag changes
+// must self-commit here or they're silently lost when the drawer's own
+// "Edit" toggle is used instead of this field's own double-click editor.
+const commitTagsIfForced = () => {
+  if (props.forceEdit) {
+    emit('update:modelValue', editValue.value);
+    emit('save', editValue.value);
+  }
+};
+
 const toggleTag = (tag) => {
   if (!Array.isArray(editValue.value)) {
     editValue.value = [];
@@ -136,6 +147,7 @@ const toggleTag = (tag) => {
   } else {
     editValue.value.splice(index, 1);
   }
+  commitTagsIfForced();
 };
 
 const isTagSelected = (tag) => {
@@ -271,7 +283,7 @@ const viewModeAriaLabel = computed(() => {
           
           <!-- Tags -->
           <div v-else-if="type === 'tags'" class="pt-3 pb-2 px-3 border border-primary dark:border-primary-light rounded-lg bg-white dark:bg-gray-800">
-            <div class="flex flex-wrap gap-1.5">
+            <div v-if="allTags && allTags.length > 0" class="flex flex-wrap gap-1.5">
               <button
                 v-for="tag in allTags"
                 :key="tag"
@@ -287,6 +299,7 @@ const viewModeAriaLabel = computed(() => {
                 {{ tag }}
               </button>
             </div>
+            <p v-else class="text-xs text-gray-400 dark:text-gray-500 italic">No tags yet — add one from the Tags button in the Members toolbar.</p>
           </div>
           
           <!-- Select dropdown arrow -->

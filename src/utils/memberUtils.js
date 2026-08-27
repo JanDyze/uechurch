@@ -52,6 +52,29 @@ export const getFamilyRoleLabel = (role) => {
   return labels[role] || role;
 };
 
+// Common ministry roles offered as ready-to-pick tags, even before anyone
+// has been tagged with them yet (allTags is otherwise only ever derived
+// from tags already present on existing members).
+export const PRESET_MINISTRY_TAGS = [
+  "Song Leader",
+  "Usher",
+  "Instrumentalist",
+  "Preacher",
+  "SG Leader",
+];
+
+export const mergeWithPresetTags = (existingTags = [], extraTags = []) => {
+  const merged = [...PRESET_MINISTRY_TAGS];
+  const lowerSet = new Set(merged.map((t) => t.toLowerCase()));
+  [...extraTags, ...existingTags].forEach((tag) => {
+    if (tag && !lowerSet.has(tag.toLowerCase())) {
+      merged.push(tag);
+      lowerSet.add(tag.toLowerCase());
+    }
+  });
+  return merged.sort((a, b) => a.localeCompare(b));
+};
+
 // Returns "" rather than "Invalid Date" for missing/unparseable dates
 export const formatBirthDate = (dateOfBirth) => {
   if (!dateOfBirth) return "";
