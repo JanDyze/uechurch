@@ -1,10 +1,11 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import {
   Grid3x3,
   LayoutGrid,
   List,
   ListTodo,
+  SlidersHorizontal,
   Plus,
   Filter,
   Download,
@@ -177,6 +178,8 @@ const openFilters = () => {
 const closeOverflowMenu = () => {
   showOverflowMenu.value = false;
   showTagManager.value = false;
+};
+
 const openAddMember = () => {
   showViewOptions.value = false;
   emit("update:showFilters", false);
@@ -203,6 +206,11 @@ const handleAddTag = () => {
 onMounted(() => {
   window.addEventListener("click", closeOverflowMenu);
 });
+
+onUnmounted(() => {
+  window.removeEventListener("click", closeOverflowMenu);
+});
+
 const selectViewMode = (mode) => {
   if (mode === props.viewMode) return;
   emit("update:viewMode", mode);
@@ -435,6 +443,10 @@ const handleExport = () => {
           ]"
           :title="viewMode === 'simple' ? 'Configure visible fields (available in detailed view)' : 'Configure visible fields'"
           :aria-label="viewMode === 'simple' ? 'Configure visible fields (available in detailed view)' : 'Configure visible fields'"
+        >
+          <SlidersHorizontal class="h-5 w-5" />
+        </button>
+
         <!-- View Mode Controls -->
         <div
           class="flex shrink-0 items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-700"

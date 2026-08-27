@@ -13,7 +13,7 @@ import {
   Heart,
   Image,
   Link2,
-  ListMusic
+  ListMusic,
   Settings
 } from 'lucide-vue-next'
 import { ref } from 'vue'
