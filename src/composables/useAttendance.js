@@ -2,6 +2,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { subscribeToAttendance, addAttendance, updateAttendance, deleteAttendance } from '../api/attendanceService'
 import { useEvents } from './useEvents'
 import { useMinutes } from './useMinutes'
+import { useRecurringEvents } from './useRecurringEvents'
 
 export function useAttendance() {
   const attendance = ref([])
@@ -10,6 +11,8 @@ export function useAttendance() {
 
   const { events } = useEvents()
   const { minutes } = useMinutes()
+  // Services configured in Settings, expanded into dated occurrences
+  const { recurringEvents } = useRecurringEvents(events)
 
   onMounted(() => {
     unsubscribe = subscribeToAttendance((data) => {
@@ -48,30 +51,40 @@ export function useAttendance() {
       }
     })
 
-    // Add attendance records from dedicated attendance collection
+    // Add attendance records from dedicated attendance collection.
+    // `source` describes where a row LIVES, not what it points at: every saved
+    // attendance document is owned by this page and stays editable/deletable,
+    // whether or not it was recorded against an event. Only the placeholder
+    // rows synthesised below from events/minutes are read-only here.
     attendance.value.forEach(record => {
-      // Find the linked event if eventId exists
+      // Find the event or meeting this record was recorded against, if any
       let linkedEvent = null
+      let linkedMinute = null
       if (record.eventId) {
-        linkedEvent = events.value.find(e => 
-          (e.firestoreId || e.id) === record.eventId
-        )
+        linkedEvent =
+          events.value.find(e => (e.firestoreId || e.id) === record.eventId) || null
+        if (!linkedEvent) {
+          linkedMinute =
+            minutes.value.find(m => (m.firestoreId || m.id) === record.eventId) || null
+        }
       }
-
-      // If linked to an event, keep it as "event" source, otherwise "attendance"
-      const source = linkedEvent ? 'event' : 'attendance'
 
       records.push({
         ...record,
-        source: source,
+        source: 'attendance',
+        // Title/date belong to the event or meeting, so they are shown read-only
+        linkedSource: linkedEvent ? 'event' : linkedMinute ? 'minute' : null,
         // Include expected attendees from linked event
         expectedAttendees: linkedEvent ? (linkedEvent.attendees || 0) : (record.expectedAttendees || 0)
       })
     })
 
-    // Add attendance from minutes (only if past or today)
+    // Add attendance from minutes (only if past or today), unless attendance
+    // has already been recorded for that meeting - same de-duplication the
+    // events loop below does, otherwise the meeting shows up twice.
     minutes.value.forEach(minute => {
-      if (isPastOrToday(minute.date)) {
+      const minuteId = minute.firestoreId || minute.id
+      if (isPastOrToday(minute.date) && !attendanceByEventId.has(minuteId)) {
         records.push({
           id: `minute-${minute.id || minute.firestoreId}`,
           firestoreId: minute.firestoreId || minute.id,
@@ -116,6 +129,41 @@ export function useAttendance() {
           })
         }
       }
+    })
+
+    // Add recurring services from Settings. Deliberately narrow: only the
+    // current month, and only occurrences that have already happened, so a
+    // weekly service does not flood the list with a year of future dates.
+    const currentYear = today.getFullYear()
+    const currentMonthIndex = today.getMonth()
+
+    recurringEvents.value.forEach(event => {
+      const eventDate = new Date(event.date)
+      const inCurrentMonth =
+        eventDate.getFullYear() === currentYear &&
+        eventDate.getMonth() === currentMonthIndex
+
+      if (!inCurrentMonth || !isPastOrToday(event.date)) return
+      // Already recorded, or replaced by a saved event for that date
+      if (attendanceByEventId.has(event.id)) return
+
+      records.push({
+        id: event.id,
+        firestoreId: null, // Generated from a schedule, not a stored event
+        eventId: event.id,
+        eventType: event.type || 'worship',
+        eventTitle: event.title || 'Service',
+        date: event.date || '',
+        time: event.time || '',
+        location: event.location || '',
+        attendees: [],
+        expectedAttendees: event.attendees || 0,
+        totalAttendees: 0,
+        notes: event.description || '',
+        source: 'recurring',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
     })
 
     // Sort by date descending

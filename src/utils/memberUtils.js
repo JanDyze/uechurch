@@ -73,6 +73,11 @@ export const mergeWithPresetTags = (existingTags = [], extraTags = []) => {
     }
   });
   return merged.sort((a, b) => a.localeCompare(b));
+// Returns "" rather than "Invalid Date" for missing/unparseable dates
+export const formatBirthDate = (dateOfBirth) => {
+  if (!dateOfBirth) return "";
+  const date = new Date(dateOfBirth);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString();
 };
 
 export const calculateAgeFromDate = (dateOfBirth) => {

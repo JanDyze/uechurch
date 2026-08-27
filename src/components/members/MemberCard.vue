@@ -1,5 +1,6 @@
 <script setup>
-import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, getFamilyRoleLabel } from "../../utils/memberUtils";
+import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, formatBirthDate } from "../../utils/memberUtils";
+import { useLongPress } from "../../composables/useLongPress";
 
 const props = defineProps({
   member: {
@@ -9,10 +10,6 @@ const props = defineProps({
   viewMode: {
     type: String,
     default: "simple",
-  },
-  visibleFields: {
-    type: Object,
-    default: () => ({}),
   },
   selected: {
     type: Boolean,
@@ -26,14 +23,28 @@ const handleContextMenu = (event) => {
   event.preventDefault();
   emit("contextmenu", { member: props.member, x: event.clientX, y: event.clientY });
 };
+
+// Touch devices have no right-click, so long-press opens the same menu
+const longPress = useLongPress(({ x, y }) => {
+  emit("contextmenu", { member: props.member, x, y });
+});
+
+const handleClick = () => {
+  if (longPress.consumeClick()) return;
+  emit("click", props.member);
+};
 </script>
 
 <template>
   <div 
-    @click="emit('click', member)"
+    @click="handleClick"
     @contextmenu="handleContextMenu"
+    @touchstart="longPress.onTouchStart"
+    @touchmove="longPress.onTouchMove"
+    @touchend="longPress.onTouchEnd"
+    @touchcancel="longPress.onTouchEnd"
     :class="[
-      'p-3 rounded-lg transition-all cursor-pointer select-none',
+      'p-3 rounded-lg transition-all cursor-pointer select-none touch-callout-none',
       selected
         ? 'bg-primary/10 dark:bg-primary/20 border-2 border-primary shadow-lg shadow-primary/20'
         : 'bg-gray-50 dark:bg-gray-700/50 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -90,32 +101,30 @@ const handleContextMenu = (event) => {
         >
           "{{ member.nickname }}"
         </p>
+        <!-- Each row shows only when the member actually has that detail, so
+             incomplete records never render empty labels or "Invalid Date". -->
         <div
           class="text-xs text-gray-500 dark:text-gray-400 space-y-0.5 pt-1 border-t border-gray-200 dark:border-gray-600"
         >
-          <p v-if="visibleFields.dateOfBirth" class="truncate">
+          <p v-if="formatBirthDate(member.dateOfBirth)" class="truncate">
             <span class="font-medium">DOB:</span>
-            {{ new Date(member.dateOfBirth).toLocaleDateString() }}
+            {{ formatBirthDate(member.dateOfBirth) }}
           </p>
-          <p v-if="visibleFields.age" class="truncate">
+          <p v-if="member.age !== null && member.age !== undefined" class="truncate">
             <span class="font-medium">Age:</span> {{ member.age }}
           </p>
-          <p v-if="visibleFields.civilStatus" class="truncate">
+          <p v-if="member.civilStatus" class="truncate">
             <span class="font-medium">Status:</span>
             {{ member.civilStatus }}
           </p>
-          <p v-if="visibleFields.occupation" class="truncate">
+          <p v-if="member.occupation" class="truncate">
             <span class="font-medium">Occ:</span> {{ member.occupation }}
           </p>
-          <p v-if="visibleFields.contactNumber" class="truncate">
+          <p v-if="member.contactNumber" class="truncate">
             <span class="font-medium">Contact:</span>
             {{ member.contactNumber }}
           </p>
-          <p
-            v-if="visibleFields.address"
-            class="truncate text-xs"
-            :title="member.address"
-          >
+          <p v-if="member.address" class="truncate text-xs" :title="member.address">
             <span class="font-medium">Address:</span> {{ member.address }}
           </p>
         </div>

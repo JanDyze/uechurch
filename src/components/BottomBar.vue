@@ -15,6 +15,7 @@ import {
   Link2,
   DollarSign,
   ListMusic,
+  Settings,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -35,6 +36,7 @@ const moreNav = [
   { name: 'Links', path: '/links', icon: Link2 },
   { name: 'Song List', path: '/songs', icon: ListMusic },
   { name: 'Finances', path: '/finances', icon: DollarSign },
+  { name: 'Settings', path: '/settings', icon: Settings },
 ]
 
 const isActive = (path) => {

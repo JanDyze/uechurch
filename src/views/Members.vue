@@ -9,7 +9,6 @@ import { useMemberForm } from "../composables/useMemberForm";
 import { useToast } from "../composables/useToast";
 import MembersToolbar from "../components/members/MembersToolbar.vue";
 import FilterDrawer from "../components/members/FilterDrawer.vue";
-import ConfigDrawer from "../components/members/ConfigDrawer.vue";
 import AddMemberDrawer from "../components/members/AddMemberDrawer.vue";
 import MemberDetailsDrawer from "../components/members/MemberDetailsDrawer.vue";
 import MemberContextMenu from "../components/members/MemberContextMenu.vue";
@@ -82,9 +81,6 @@ const filteredMembers = computed(() => {
   return sortMembers(baseFilteredMembers.value);
 });
 
-// View state with URL params
-const activeDrawer = ref(null);
-
 // LocalStorage keys
 const STORAGE_KEY_LAYOUT = 'members_layout';
 const STORAGE_KEY_VIEW_MODE = 'members_viewMode';
@@ -113,16 +109,6 @@ const layoutMode = computed({
 const showExport = ref(false);
 const selectedMember = ref(null);
 const showDetails = ref(false);
-
-// Field visibility configuration
-const visibleFields = ref({
-  dateOfBirth: true,
-  age: true,
-  civilStatus: true,
-  occupation: true,
-  contactNumber: true,
-  address: true,
-});
 
 // Member form
 const { showAddMember, newMember, canAddMember, addMemberTooltip, calculateAge, addMember } = useMemberForm(
@@ -204,27 +190,22 @@ const handleClearFilters = () => {
   toast.info('All filters cleared');
 };
 
-const showConfig = computed({
-  get: () => activeDrawer.value === 'config',
-  set: (value) => {
-    if (value) {
-      showAddMember.value = false;
-      showDetails.value = false;
-      selectedMember.value = null;
-      activeDrawer.value = 'config';
-      updateQueryParams({ filter: null, add: null, view: null });
-    } else {
-      activeDrawer.value = null;
-    }
+// Remove a single filter from the toolbar chips (mobile)
+const handleRemoveFilter = ({ key, value }) => {
+  const next = { ...filters.value, tags: [...(filters.value.tags || [])] };
+  if (key === 'tags') {
+    next.tags = next.tags.filter((tag) => tag !== value);
+  } else {
+    next[key] = null;
   }
-});
+  applyFilters(next);
+};
 
 // Computed property for showAddMember to work with v-model and URL params
 const showAddMemberComputed = computed({
   get: () => route.query.add === 'true',
   set: (value) => {
     if (value) {
-      activeDrawer.value = null;
       showDetails.value = false;
       selectedMember.value = null;
       showAddMember.value = true;
@@ -270,13 +251,11 @@ const syncViewDrawer = () => {
 watch(() => route.query, (query) => {
   // Sync filter drawer
   if (query.filter === 'true') {
-    activeDrawer.value = null;
     showAddMember.value = false;
   }
-  
+
   // Sync add drawer
   if (query.add === 'true') {
-    activeDrawer.value = null;
     showAddMember.value = true;
   } else {
     showAddMember.value = false;
@@ -292,6 +271,15 @@ watch(() => members.value, () => {
     syncViewDrawer();
   }
 });
+
+// Add member handler - the drawer is driven by the `add` query param, so a
+// successful save has to close it there (not via the form's own ref).
+const handleAddMember = async () => {
+  const added = await addMember();
+  if (added) {
+    showAddMemberComputed.value = false;
+  }
+};
 
 // Export handler
 const handleExport = (config) => {
@@ -328,10 +316,8 @@ const handleContextView = (member) => {
 };
 
 const handleContextEdit = (member) => {
-  selectedMember.value = member;
-  showDetails.value = true;
-  showAddMember.value = false;
-  activeDrawer.value = null;
+  // Same as handleMemberClick: the drawer opens off the `view` query param
+  updateQueryParams({ view: member?.firestoreId || member?.id, filter: null, add: null });
   // Trigger edit mode in the drawer after it opens
   setTimeout(() => {
     const drawer = document.querySelector('.add-member-drawer');
@@ -409,8 +395,9 @@ const handleMemberDelete = async (member) => {
     onConfirm: async () => {
       try {
         await removeMember(member);
-        showDetails.value = false;
-        selectedMember.value = null;
+        // Details drawer is driven by the `view` query param - clearing it
+        // also resets showDetails/selectedMember via the computed setter.
+        showDetailsComputed.value = false;
         toast.success('Member deleted');
       } catch (error) {
         console.error('Error deleting member:', error);
@@ -428,7 +415,7 @@ const selectedMemberId = computed(() => {
 // Check if any side drawer is open (member details uses modal on mobile)
 const isDrawerOpen = computed(() => {
   const memberDetailsOpen = showDetailsComputed.value && !isMobile.value;
-  return showFilters.value || showConfig.value || showAddMemberComputed.value || memberDetailsOpen;
+  return showFilters.value || showAddMemberComputed.value || memberDetailsOpen;
 });
 </script>
 
@@ -440,13 +427,19 @@ const isDrawerOpen = computed(() => {
       v-model:viewMode="viewMode"
       v-model:layoutMode="layoutMode"
       v-model:showFilters="showFilters"
-      v-model:showConfig="showConfig"
       v-model:showAddMember="showAddMemberComputed"
       :hasActiveFilters="hasActiveFilters"
       :allTags="assignableTags"
       @export="showExport = true"
       @switchLayout="handleSwitchLayout"
       @addTag="handleAddTag"
+      :filters="filters"
+      :resultCount="filteredMembers.length"
+      :totalCount="members.length"
+      @export="showExport = true"
+      @switchLayout="handleSwitchLayout"
+      @removeFilter="handleRemoveFilter"
+      @clearFilters="handleClearFilters"
     />
 
     <!-- Members List -->
@@ -473,7 +466,6 @@ const isDrawerOpen = computed(() => {
           :key="member.id"
             :member="member"
             :viewMode="viewMode"
-            :visibleFields="visibleFields"
             :selected="selectedMemberId === member.id || selectedMemberId === member.firestoreId"
             @click="handleMemberClick"
             @contextmenu="handleContextMenu"
@@ -501,7 +493,6 @@ const isDrawerOpen = computed(() => {
           :key="member.id"
             :member="member"
             :viewMode="viewMode"
-            :visibleFields="visibleFields"
             :selected="selectedMemberId === member.id || selectedMemberId === member.firestoreId"
             @click="handleMemberClick"
             @contextmenu="handleContextMenu"
@@ -525,14 +516,6 @@ const isDrawerOpen = computed(() => {
         @clearFilters="handleClearFilters"
       />
 
-      <!-- Config Drawer -->
-      <ConfigDrawer
-        v-model:showConfig="showConfig"
-        :visibleFields="visibleFields"
-        :viewMode="viewMode"
-        @update:visibleFields="visibleFields = $event"
-      />
-
       <!-- Add Member Drawer -->
       <AddMemberDrawer
         v-model:showAddMember="showAddMemberComputed"
@@ -541,7 +524,7 @@ const isDrawerOpen = computed(() => {
         :canAddMember="canAddMember"
         :addMemberTooltip="addMemberTooltip"
         @update:newMember="newMember = $event"
-        @addMember="addMember"
+        @addMember="handleAddMember"
         @calculateAge="calculateAge"
       />
 

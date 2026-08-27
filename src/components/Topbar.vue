@@ -71,19 +71,13 @@ const toggleMenu = () => {
 const pageTitle = computed(() => {
   const routeNames = {
     Home: 'Dashboard',
-    Members: 'Members',
-    MemberDetails: 'Member Details',
-    Events: 'Events',
-    Minutes: 'Minutes',
-    MinuteDetails: 'Minute Details',
-    Attendance: 'Attendance',
+    MemberDetails: 'Member',
+    MinuteDetails: 'Minutes',
     PrayerConcerns: 'Prayer Concerns',
-    Finances: 'Finances',
-    FinanceAudit: 'Finance Audit',
-    Gallery: 'Gallery',
-    Links: 'Links'
+    FinanceAudit: 'Yearly Report'
   };
-  return routeNames[route.name] || 'Dashboard';
+  // Fall back to the route name so new pages are labelled correctly
+  return routeNames[route.name] || route.name || 'Dashboard';
 });
 
 // Live presence — identity is the signed-in account, not a random persona

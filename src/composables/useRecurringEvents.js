@@ -1,127 +1,91 @@
 import { computed } from 'vue';
+import { useRecurringSchedules } from './useRecurringSchedules';
 
-// Helper to get which occurrence of a weekday this is in the month (1st, 2nd, 3rd, etc.)
+// Which occurrence of its weekday this date is within the month (1st, 2nd, ...)
 function getWeekdayOccurrence(date) {
   const dayOfMonth = date.getDate();
   return Math.ceil(dayOfMonth / 7);
 }
 
+function toDateString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Stable id for a generated occurrence, so edits to a single date can override
+// it without touching the rest of the series.
+function virtualIdFor(schedule, dateString) {
+  return `recurring-${schedule.id}-${dateString}`;
+}
+
+/**
+ * Expands the recurring schedules configured in Settings into calendar events
+ * for the current year. Nothing is hardcoded here - if there are no schedules,
+ * no recurring events are generated.
+ */
 export function useRecurringEvents(firestoreEvents = { value: [] }, members = { value: [] }) {
-  // Expected attendees based on member count
+  const { schedules, loading } = useRecurringSchedules();
+
+  // Expected attendees defaults to the size of the congregation
   const expectedAttendees = computed(() => members.value?.length || 0);
-  // Generate Sunday Service events for current year
-  const sundayServiceEvents = computed(() => {
-    const currentYear = new Date().getFullYear();
-    const events = [];
 
-    // Get all Sundays in the current year
-    const startDate = new Date(currentYear, 0, 1); // Jan 1
-    const endDate = new Date(currentYear, 11, 31); // Dec 31
-
-    // Find first Sunday
-    let current = new Date(startDate);
-    while (current.getDay() !== 0) {
-      current.setDate(current.getDate() + 1);
-    }
-
-    // Generate event for each Sunday
-    while (current <= endDate) {
-      const year = current.getFullYear();
-      const month = String(current.getMonth() + 1).padStart(2, '0');
-      const day = String(current.getDate()).padStart(2, '0');
-      const dateString = `${year}-${month}-${day}`;
-      const virtualId = `sunday-service-${dateString}`;
-
-      // Skip if there's an override for this specific virtual event
-      const hasOverride = firestoreEvents.value.some(e => e.overrideOf === virtualId);
-      if (!hasOverride) {
-        events.push({
-          id: virtualId,
-          firestoreId: null, // Virtual event, not in Firestore
-          title: 'Sunday Service',
-          type: 'worship',
-          date: dateString,
-          time: '09:00',
-          location: 'UEC Canubing II',
-          description: 'Weekly Sunday worship service. Come and join us in praising the Lord!',
-          attendees: expectedAttendees.value,
-          icon: 'Church',
-          // Recurring event fields
-          isRecurring: true,
-          isVirtual: true,
-          recurringType: 'weekly',
-        });
-      }
-
-      // Move to next Sunday
-      current.setDate(current.getDate() + 7);
-    }
-
-    return events;
-  });
-
-  // Generate Online Prayer Meeting events for 2nd-5th Wednesdays
-  const prayerMeetingEvents = computed(() => {
-    const currentYear = new Date().getFullYear();
-    const events = [];
-
-    // Get all Wednesdays in the current year
-    const startDate = new Date(currentYear, 0, 1); // Jan 1
-    const endDate = new Date(currentYear, 11, 31); // Dec 31
-
-    // Find first Wednesday (day 3)
-    let current = new Date(startDate);
-    while (current.getDay() !== 3) {
-      current.setDate(current.getDate() + 1);
-    }
-
-    // Generate event for each qualifying Wednesday (2nd, 3rd, 4th, 5th)
-    while (current <= endDate) {
-      const occurrence = getWeekdayOccurrence(current);
-      
-      // Only 2nd, 3rd, 4th, or 5th Wednesday
-      if (occurrence >= 2) {
-        const year = current.getFullYear();
-        const month = String(current.getMonth() + 1).padStart(2, '0');
-        const day = String(current.getDate()).padStart(2, '0');
-        const dateString = `${year}-${month}-${day}`;
-        const virtualId = `prayer-meeting-${dateString}`;
-
-        // Skip if there's an override for this specific virtual event
-        const hasOverride = firestoreEvents.value.some(e => e.overrideOf === virtualId);
-        if (!hasOverride) {
-          events.push({
-            id: virtualId,
-            firestoreId: null, // Virtual event, not in Firestore
-            title: 'Online Prayer Meeting',
-            type: 'prayer',
-            date: dateString,
-            time: '19:00',
-            location: 'Online (Zoom/Google Meet)',
-            description: 'Weekly online prayer meeting. Join us to pray together as a community.',
-            attendees: expectedAttendees.value,
-            icon: 'HandHeart',
-            // Recurring event fields
-            isRecurring: true,
-            isVirtual: true,
-            recurringType: 'weekly',
-          });
-        }
-      }
-
-      // Move to next Wednesday
-      current.setDate(current.getDate() + 7);
-    }
-
-    return events;
-  });
-
-  // Get all recurring events combined
   const recurringEvents = computed(() => {
-    return [...sundayServiceEvents.value, ...prayerMeetingEvents.value];
+    const currentYear = new Date().getFullYear();
+    const endDate = new Date(currentYear, 11, 31);
+    const events = [];
+
+    schedules.value
+      .filter((schedule) => schedule.enabled)
+      .forEach((schedule) => {
+        // Walk to the first matching weekday of the year
+        const current = new Date(currentYear, 0, 1);
+        while (current.getDay() !== schedule.weekday) {
+          current.setDate(current.getDate() + 1);
+        }
+
+        while (current <= endDate) {
+          const occurrence = getWeekdayOccurrence(current);
+          const wanted =
+            !schedule.occurrences?.length || schedule.occurrences.includes(occurrence);
+
+          if (wanted) {
+            const dateString = toDateString(current);
+            const virtualId = virtualIdFor(schedule, dateString);
+
+            // A saved event overriding this date replaces the generated one
+            const hasOverride = firestoreEvents.value.some(
+              (e) => e.overrideOf === virtualId
+            );
+
+            if (!hasOverride) {
+              events.push({
+                id: virtualId,
+                firestoreId: null, // Generated, not stored
+                title: schedule.title,
+                type: schedule.type,
+                date: dateString,
+                time: schedule.time,
+                location: schedule.location,
+                description: schedule.description,
+                attendees: expectedAttendees.value,
+                icon: schedule.icon,
+                isRecurring: true,
+                isVirtual: true,
+                recurringType: 'weekly',
+                scheduleId: schedule.id,
+              });
+            }
+          }
+
+          current.setDate(current.getDate() + 7);
+        }
+      });
+
+    return events;
   });
 
-  // Get recurring events for a specific month
   const getRecurringEventsForMonth = (year, month) => {
     return recurringEvents.value.filter((event) => {
       const eventDate = new Date(event.date);
@@ -130,8 +94,8 @@ export function useRecurringEvents(firestoreEvents = { value: [] }, members = { 
   };
 
   return {
-    sundayServiceEvents,
-    prayerMeetingEvents,
+    schedules,
+    loading,
     recurringEvents,
     getRecurringEventsForMonth,
   };

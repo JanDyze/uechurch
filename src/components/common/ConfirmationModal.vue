@@ -47,21 +47,24 @@ useFocusTrap(dialogRef, () => props.show, handleCancel)
 </script>
 
 <template>
-  <Transition name="modal">
-    <div
-      v-if="show"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      @click.self="handleCancel"
-    >
+  <!-- Teleported and above the z-80 mobile drawers: a confirmation is a
+       blocking prompt and must never render behind the sheet that opened it. -->
+  <Teleport to="body">
+    <Transition name="modal">
       <div
-        ref="dialogRef"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirmation-modal-title"
-        tabindex="-1"
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
-        @click.stop
+        v-if="show"
+        class="fixed inset-0 z-120 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        @click.self="handleCancel"
       >
+        <div
+          ref="dialogRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirmation-modal-title"
+          tabindex="-1"
+          class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+          @click.stop
+        >
         <!-- Header -->
         <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <h3 id="confirmation-modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">{{ title }}</h3>
@@ -98,9 +101,10 @@ useFocusTrap(dialogRef, () => props.show, handleCancel)
             {{ confirmText }}
           </button>
         </div>
+        </div>
       </div>
-    </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

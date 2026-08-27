@@ -46,10 +46,11 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
     }
   };
 
-  // Add new member
+  // Add new member. Returns true when the member was saved so the caller
+  // can close its drawer (visibility lives in the URL, not in this ref).
   const addMember = async () => {
     if (!canAddMember.value) {
-      return;
+      return false;
     }
     
     const age = calculateAgeFromDate(newMember.value.dateOfBirth);
@@ -113,9 +114,11 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
       };
       
       showAddMember.value = false;
+      return true;
     } catch (error) {
       console.error('Error adding member:', error);
       toast.error('Failed to add member. Please try again.');
+      return false;
     }
   };
 

@@ -1,17 +1,22 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAttendance } from '../composables/useAttendance'
 import { useMembers } from '../composables/useMembers'
 import { useEvents } from '../composables/useEvents'
+import { useMinutes } from '../composables/useMinutes'
 import AttendanceToolbar from '../components/attendance/AttendanceToolbar.vue'
 import FilterDrawer from '../components/attendance/FilterDrawer.vue'
 import AttendanceChecker from '../components/attendance/AttendanceChecker.vue'
 import AttendanceListItem from '../components/attendance/AttendanceListItem.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
+import { useToast } from '../composables/useToast'
+
+const toast = useToast()
 
 const { aggregatedAttendance, loading, addAttendanceToFirestore, updateAttendanceInFirestore, removeAttendance } = useAttendance()
 const { members } = useMembers()
-const { events } = useEvents()
+const { removeEvent } = useEvents()
+const { removeMinute } = useMinutes()
 
 const searchQuery = ref('')
 const showFilters = ref(false)
@@ -19,6 +24,17 @@ const showRecordAttendance = ref(false)
 const dateFilter = ref(null)
 const eventTypeFilter = ref(null)
 const memberFilter = ref(null)
+
+// Past events/meetings with no attendance saved are shown as prompts. They are
+// generated, not stored, so they cannot be deleted - this hides them instead.
+// Persisted, so turning them off stays off.
+const STORAGE_KEY_SHOW_NOT_RECORDED = 'attendance_showNotRecorded'
+const showNotRecorded = ref(
+  localStorage.getItem(STORAGE_KEY_SHOW_NOT_RECORDED) !== 'false'
+)
+watch(showNotRecorded, (value) => {
+  localStorage.setItem(STORAGE_KEY_SHOW_NOT_RECORDED, String(value))
+})
 const editingAttendance = ref(null)
 const selectedEvent = ref(null)
 const newAttendanceData = ref({
@@ -58,6 +74,11 @@ const handleConfirmation = () => {
 // Filter attendance records
 const filteredAttendance = computed(() => {
   let filtered = aggregatedAttendance.value
+
+  // Hide the generated "not recorded" prompts, leaving only saved records
+  if (!showNotRecorded.value) {
+    filtered = filtered.filter(record => record.source === 'attendance')
+  }
 
   // Search filter
   if (searchQuery.value.trim()) {
@@ -136,30 +157,23 @@ const eventTypes = computed(() => {
 
 
 const handleDeleteAttendance = (record) => {
-  // Only allow deletion of dedicated attendance records (not linked to events), not from events/minutes
-  // Check if it's linked to an event by checking if eventId exists and matches an event
-  const isLinkedToEvent = record.eventId && events.value.some(e => (e.firestoreId || e.id) === record.eventId)
-  
-  if (record.source === 'event' || isLinkedToEvent) {
-    showConfirmModal({
-      title: 'Cannot Delete',
-      message: 'This attendance record is linked to an event or meeting. Delete the event or meeting instead.',
-      confirmText: 'OK',
-      cancelText: '',
-      onConfirm: () => {},
-    })
-    return
-  }
+  // Placeholder rows for events/meetings have no saved record behind them,
+  // so there is nothing to delete. Saved records are always deletable.
+  if (!record || record.source !== 'attendance') return
 
   showConfirmModal({
     title: 'Delete Attendance Record',
-    message: `Are you sure you want to delete the attendance record for "${record.eventTitle}"?`,
+    message: record.linkedSource
+      ? `Delete the attendance recorded for "${record.eventTitle}"? The ${record.linkedSource === 'minute' ? 'meeting' : 'event'} itself stays, so it will reappear in this list as "Not recorded". To hide those, turn off "Show not recorded" in Filters.`
+      : `Are you sure you want to delete the attendance record for "${record.eventTitle}"?`,
     confirmText: 'Delete',
     cancelText: 'Cancel',
     confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
     onConfirm: async () => {
       try {
         await removeAttendance(record)
+        handleCancelAttendance()
+        toast.success('Attendance record deleted')
       } catch (error) {
         console.error('Error deleting attendance:', error)
         showConfirmModal({
@@ -174,11 +188,55 @@ const handleDeleteAttendance = (record) => {
   })
 }
 
+// Only event/meeting placeholders have something stored to delete. Recurring
+// occurrences come from a Settings schedule with no document behind them, so
+// they get no delete button - they are managed in Settings instead.
+const placeholderKind = computed(() => {
+  const source = selectedEvent.value?.source
+  return source === 'event' || source === 'minute' ? source : null
+})
+
+// "Not recorded" rows are generated from an event or meeting, so the only way
+// to remove one is to delete the thing that generates it. Deletes the real
+// event/meeting, same as doing it from the Events or Minutes page.
+const handleDeleteSource = () => {
+  const record = selectedEvent.value
+  if (!record) return
+
+  const isMeeting = record.source === 'minute'
+  const title = record.eventTitle || record.title || 'this item'
+
+  showConfirmModal({
+    title: isMeeting ? 'Delete Meeting' : 'Delete Event',
+    message: isMeeting
+      ? `Delete the meeting "${title}"? This also removes it and its minutes from the Minutes page. This cannot be undone.`
+      : `Delete the event "${title}"? This also removes it from the Events page. This cannot be undone.`,
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
+    onConfirm: async () => {
+      try {
+        if (isMeeting) {
+          await removeMinute(record)
+        } else {
+          await removeEvent(record)
+        }
+        handleCancelAttendance()
+        toast.success(isMeeting ? 'Meeting deleted' : 'Event deleted')
+      } catch (error) {
+        console.error('Error deleting source item:', error)
+        toast.error(`Failed to delete ${isMeeting ? 'meeting' : 'event'}. Please try again.`)
+      }
+    }
+  })
+}
+
 const clearFilters = () => {
   searchQuery.value = ''
   dateFilter.value = null
   eventTypeFilter.value = null
   memberFilter.value = null
+  showNotRecorded.value = true
 }
 
 const hasActiveFilters = computed(() => {
@@ -186,7 +244,8 @@ const hasActiveFilters = computed(() => {
     searchQuery.value.trim() ||
     dateFilter.value ||
     eventTypeFilter.value ||
-    memberFilter.value
+    memberFilter.value ||
+    !showNotRecorded.value
   )
 })
 
@@ -446,6 +505,8 @@ const handleCancelAttendance = () => {
         :event-types="eventTypes"
         :members="members"
         :has-active-filters="hasActiveFilters"
+        :show-not-recorded="showNotRecorded"
+        @update:show-not-recorded="showNotRecorded = $event"
         @update:show-filters="showFilters = $event"
         @update:date-filter="dateFilter = $event"
         @update:event-type-filter="eventTypeFilter = $event"
@@ -459,10 +520,14 @@ const handleCancelAttendance = () => {
         :is-edit="!!editingAttendance"
         :attendance-data="newAttendanceData"
         :event-data="selectedEvent"
+        :details-locked="!!editingAttendance?.linkedSource"
+        :placeholder-kind="placeholderKind"
         @update:show="showRecordAttendance = $event"
         @update:attendance-data="newAttendanceData = $event"
         @save="handleSaveAttendance"
         @cancel="handleCancelAttendance"
+        @delete="handleDeleteAttendance(editingAttendance)"
+        @delete-source="handleDeleteSource"
       />
     </div>
 

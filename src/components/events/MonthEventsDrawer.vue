@@ -1,5 +1,5 @@
 <script setup>
-import { Clock, MapPin, Users, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Check, Filter } from 'lucide-vue-next'
+import { Clock, MapPin, Users, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Check, Filter } from 'lucide-vue-next'
 import * as LucideIcons from 'lucide-vue-next'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { computed, ref } from 'vue'
@@ -23,6 +23,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  currentDate: {
+    type: Date,
+    default: () => new Date()
+  },
   eventTypeFilter: {
     type: Array,
     default: () => []
@@ -44,8 +48,47 @@ const emit = defineEmits([
   'update:eventTypeFilter',
   'update:sortBy',
   'update:sortOrder',
-  'eventClick'
+  'eventClick',
+  'navigateMonth',
+  'setDate'
 ])
+
+/* Month navigation - the calendar is hidden on mobile while this card is open,
+   so months have to be reachable from here. */
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+]
+
+const showMonthPicker = ref(false)
+const pickerYear = ref(new Date().getFullYear())
+
+const toggleMonthPicker = () => {
+  if (!showMonthPicker.value) {
+    pickerYear.value = props.currentDate.getFullYear()
+  }
+  showMonthPicker.value = !showMonthPicker.value
+}
+
+const selectMonth = (monthIndex) => {
+  emit('setDate', new Date(pickerYear.value, monthIndex, 1))
+  showMonthPicker.value = false
+}
+
+const goToCurrentMonth = () => {
+  const now = new Date()
+  emit('setDate', new Date(now.getFullYear(), now.getMonth(), 1))
+  showMonthPicker.value = false
+}
+
+const isSelectedMonth = (monthIndex) =>
+  pickerYear.value === props.currentDate.getFullYear() &&
+  monthIndex === props.currentDate.getMonth()
+
+const isCurrentMonth = (monthIndex) => {
+  const now = new Date()
+  return pickerYear.value === now.getFullYear() && monthIndex === now.getMonth()
+}
 
 // Type filter dropdown state
 const showTypeDropdown = ref(false)
@@ -190,12 +233,99 @@ const upcomingEvents = computed(() => {
   >
     <!-- Header -->
     <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent lg:rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-5 py-4">
-      <div class="flex items-start justify-between mb-4">
-        <div>
-          <h2 id="month-events-drawer-title" class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{{ currentMonth }}</h2>
-          <p class="text-sm text-primary dark:text-primary-light font-medium mt-0.5">Events</p>
+      <div class="flex items-center justify-between gap-2 mb-4">
+        <!-- Month navigator -->
+        <div class="relative flex items-center gap-0.5 min-w-0">
+          <button
+            @click="emit('navigateMonth', 'prev')"
+            class="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors active:scale-95"
+            aria-label="Previous month"
+          >
+            <ChevronLeft class="h-5 w-5" />
+          </button>
+
+          <button
+            @click="toggleMonthPicker"
+            class="flex min-w-0 items-center gap-1 rounded-lg px-1.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="Choose month"
+          >
+            <span
+              id="month-events-drawer-title"
+              class="truncate text-lg sm:text-2xl font-bold text-gray-900 dark:text-white"
+            >
+              {{ currentMonth }}
+            </span>
+            <ChevronDown
+              :class="['h-4 w-4 shrink-0 text-gray-400 transition-transform', showMonthPicker ? 'rotate-180' : '']"
+            />
+          </button>
+
+          <button
+            @click="emit('navigateMonth', 'next')"
+            class="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors active:scale-95"
+            aria-label="Next month"
+          >
+            <ChevronRight class="h-5 w-5" />
+          </button>
+
+          <!-- Month picker -->
+          <div
+            v-if="showMonthPicker"
+            @click="showMonthPicker = false"
+            class="fixed inset-0 z-40"
+          ></div>
+          <div
+            v-if="showMonthPicker"
+            class="absolute top-full left-0 z-50 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-xl"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <button
+                @click="pickerYear--"
+                class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                aria-label="Previous year"
+              >
+                <ChevronLeft class="h-4 w-4" />
+              </button>
+              <span class="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
+                {{ pickerYear }}
+              </span>
+              <button
+                @click="pickerYear++"
+                class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                aria-label="Next year"
+              >
+                <ChevronRight class="h-4 w-4" />
+              </button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-1">
+              <button
+                v-for="(name, index) in MONTH_NAMES"
+                :key="name"
+                @click="selectMonth(index)"
+                :class="[
+                  'h-10 rounded-lg text-xs font-medium transition-colors',
+                  isSelectedMonth(index)
+                    ? 'bg-primary text-white shadow-sm'
+                    : isCurrentMonth(index)
+                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
+                ]"
+              >
+                {{ name }}
+              </button>
+            </div>
+
+            <button
+              @click="goToCurrentMonth"
+              class="mt-2 h-9 w-full rounded-lg bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              This month
+            </button>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
+
+        <div class="flex shrink-0 items-center gap-1">
           <button
             @click="showFilters = !showFilters"
             aria-label="Toggle filters"

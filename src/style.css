@@ -10,6 +10,12 @@
   --color-primary-hover: #015a77;
 }
 
+/* Stops iOS showing its own copy/save callout during a long-press,
+   which would otherwise hijack our long-press context menus. */
+.touch-callout-none {
+  -webkit-touch-callout: none;
+}
+
 :root {
   --color-primary: #01779b;
   --color-primary-hover: #015a77;
