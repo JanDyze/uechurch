@@ -12,10 +12,37 @@ const token = ref(null);
 const enabling = ref(false);
 let messagingInstance = null;
 let foregroundBound = false;
+let serviceWorkerRegistration = null;
+
+async function ensureFirebaseServiceWorker() {
+  if (!("serviceWorker" in navigator)) return null;
+  if (serviceWorkerRegistration) return serviceWorkerRegistration;
+
+  try {
+    serviceWorkerRegistration =
+      (await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js")) ||
+      (await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
+        scope: "/",
+      }));
+
+    await navigator.serviceWorker.ready;
+    return serviceWorkerRegistration;
+  } catch (e) {
+    console.error("Firebase messaging service worker registration failed:", e);
+    throw e;
+  }
+}
 
 async function getMessagingIfSupported() {
   if (messagingInstance) return messagingInstance;
   if (!(await isSupported().catch(() => false))) return null;
+
+  try {
+    await ensureFirebaseServiceWorker();
+  } catch {
+    return null;
+  }
+
   messagingInstance = getMessaging(app);
   return messagingInstance;
 }
