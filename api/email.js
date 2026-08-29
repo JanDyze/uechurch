@@ -19,8 +19,8 @@
 // with `emailDigests.enabled === true`. Nobody is mailed for having signed in
 // once.
 import { FieldValue } from "firebase-admin/firestore";
-import { db, requireAdmin, isCronRequest } from "./_lib/firebaseAdmin.js";
-import { isMailConfigured, sendBulk, sendTo, isValidEmail } from "./_lib/mailer.js";
+import { db, requireAdmin, isCronRequest } from "../lib/firebaseAdmin.js";
+import { isMailConfigured, sendBulk, sendTo, isValidEmail } from "../lib/mailer.js";
 import {
   buildEventDigest,
   buildActivityReport,
@@ -28,14 +28,14 @@ import {
   rangeFor,
   DIGEST_KINDS,
   ACTIVITY_RANGES,
-} from "./_lib/digest.js";
+} from "../lib/digest.js";
 import {
   zonedDateString,
   parseDateString,
   addDays,
   formatLongDate,
   DEFAULT_TIMEZONE,
-} from "./_lib/occurrences.js";
+} from "../lib/occurrences.js";
 
 // A scheduled run can build three digests, and the activity report reads
 // sixteen collections before it writes a word. The 10s default is not enough
