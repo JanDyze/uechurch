@@ -43,7 +43,7 @@ onMounted(initNotifications)
       :style="{ '--origin-x': transitionOrigin.x + 'px', '--origin-y': transitionOrigin.y + 'px' }"
     >
       <span class="theme-text" :class="isDark ? 'text-light' : 'text-dark'">
-        {{ isDark ? 'then darkness come...' : 'Let there be Light!' }}
+        {{ isDark ? 'Then darkness came...' : 'Let there be light!' }}
       </span>
     </div>
   </div>
