@@ -17,6 +17,32 @@ export const DEFAULT_CHURCH = {
   logoDark: '',
 }
 
+// The public page at "/" — what a visitor who is not signed in sees. Like the
+// church identity above, these are only the starting values: everything here is
+// editable under Settings > Public page, so the page never needs a code change.
+// The parts a congregation cannot share honestly by default (service times,
+// address, phone) start empty, and their sections stay hidden until filled in
+// rather than showing invented details.
+export const DEFAULT_LANDING = {
+  // Turning this off sends "/" straight to the sign-in screen, for an install
+  // that is only ever used as an internal tool.
+  enabled: true,
+  tagline: 'A place to belong.',
+  intro:
+    'Wherever you are on your journey, there is room for you here. Come as you are — we would love to meet you this week.',
+  // Base64 webp uploaded from Settings. Empty means the bundled photo.
+  heroImage: '',
+  // [{ name, when, note }] — rendered in the order they are added.
+  services: [],
+  aboutTitle: 'Who we are',
+  about: '',
+  address: '',
+  mapUrl: '',
+  phone: '',
+  email: '',
+  facebook: '',
+}
+
 export const DEFAULT_CATEGORIES = {
   gallery: ['Worship', 'Outreach', 'Fellowship', 'Special Events', 'Minutes Photos'],
   links: ['Video', 'Social', 'Resource', 'Worship', 'Document', 'Official', 'Design'],

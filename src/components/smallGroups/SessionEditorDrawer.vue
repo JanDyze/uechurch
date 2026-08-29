@@ -38,6 +38,7 @@ const blankForm = () => ({
   presentIds: [],
   guests: [],
   prayerRequests: [],
+  challenges: '',
   notes: '',
 })
 
@@ -58,6 +59,7 @@ watch(
         presentIds: [...props.session.attendance.presentIds],
         guests: props.session.attendance.guests.map((guest) => ({ ...guest })),
         prayerRequests: props.session.prayerRequests.map((request) => ({ ...request })),
+        challenges: props.session.challenges || '',
         notes: props.session.notes,
       }
     } else {
@@ -145,6 +147,7 @@ const handleSave = () => {
         name: request.name || '',
         memberId: request.memberId ?? null,
       })),
+    challenges: form.value.challenges,
     notes: form.value.notes,
   })
 }
@@ -455,6 +458,12 @@ const sectionClass =
                 @upload="$emit('upload-photo', $event)"
                 @delete="$emit('delete-photo', $event)"
               />
+            </section>
+
+            <!-- Challenges -->
+            <section>
+              <h4 :class="sectionClass">{{ t('challenges') }}</h4>
+              <textarea v-model="form.challenges" rows="3" :class="inputClass" />
             </section>
 
             <!-- Notes -->

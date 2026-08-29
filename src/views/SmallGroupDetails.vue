@@ -27,6 +27,7 @@ import {
   rosterMembers,
   formatTimeRange,
   formatSessionDate,
+  formatRelativeSessionDate,
 } from '../utils/sgUtils'
 import { exportSgGroupSessions } from '../utils/sgExport'
 import SessionListItem from '../components/smallGroups/SessionListItem.vue'
@@ -68,10 +69,15 @@ const schedule = computed(() => {
 })
 
 // Sessions arrive newest first, so the head of the list is the last meeting.
-const lastMetLabel = computed(() => {
-  const date = sessions.value[0]?.date
-  return date ? formatSessionDate(date, lang.value) : '—'
-})
+// Recency is what the chip is for, so it reads "3 days ago" and keeps the
+// calendar date on the tooltip.
+const lastMetDate = computed(() => sessions.value[0]?.date || '')
+const lastMetLabel = computed(() =>
+  lastMetDate.value ? formatRelativeSessionDate(lastMetDate.value, lang.value) : '—'
+)
+const lastMetExact = computed(() =>
+  lastMetDate.value ? formatSessionDate(lastMetDate.value, lang.value) : ''
+)
 
 /* ------------------------------------------------------------ session edit */
 const showSessionDrawer = ref(false)
@@ -313,15 +319,17 @@ const sessionsByMonth = computed(() => {
              than a full-bleed banner: at page width a 16:9 hero ran to roughly
              430px on desktop and pushed the roster and sessions below the fold.
              It keeps COVER_ASPECT exactly, so the framing still matches what
-             the cropper previewed — it is only smaller. With the text moved off
-             the image, the scrim is gone and the name is plain dark-on-white. -->
+             the cropper previewed — it is only smaller. Leader, schedule and
+             the three counts all sit beside the thumbnail rather than in strips
+             and a card row of their own: a group with only a name used to leave
+             the whole right half of the card empty. -->
         <section
           v-if="group"
-          class="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+          class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-4"
         >
-          <div class="p-3 sm:p-4 flex items-start gap-3 sm:gap-4">
+          <div class="flex items-start gap-3 sm:gap-4">
             <div
-              class="relative w-28 sm:w-44 shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-gradient-to-br from-primary/25 via-primary/10 to-primary/5 dark:from-primary/30 dark:via-primary/15 dark:to-gray-800"
+              class="relative w-24 sm:w-36 shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-gradient-to-br from-primary/25 via-primary/10 to-primary/5 dark:from-primary/30 dark:via-primary/15 dark:to-gray-800"
             >
               <img
                 v-if="group.coverPhoto"
@@ -331,7 +339,7 @@ const sessionsByMonth = computed(() => {
               />
               <UsersRound
                 v-else
-                class="absolute inset-0 m-auto h-7 w-7 sm:h-9 sm:w-9 text-primary/40"
+                class="absolute inset-0 m-auto h-6 w-6 sm:h-8 sm:w-8 text-primary/40"
               />
             </div>
 
@@ -357,6 +365,22 @@ const sessionsByMonth = computed(() => {
                 {{ group.description }}
               </p>
 
+              <div v-if="leader" class="mt-1.5 flex items-center gap-1.5 min-w-0">
+                <img
+                  :src="getAvatarUrl(leader)"
+                  :alt="getFullName(leader)"
+                  class="h-5 w-5 shrink-0 rounded-full object-cover bg-gray-100 dark:bg-gray-700"
+                />
+                <p class="min-w-0 truncate text-xs text-gray-500 dark:text-gray-400">
+                  <span class="font-medium text-gray-700 dark:text-gray-200">{{
+                    getFullName(leader)
+                  }}</span>
+                  · {{ t('leader') }}
+                </p>
+              </div>
+
+              <!-- Schedule, place and the three counts share one chip cloud so
+                   the space next to the thumbnail fills up at any width. -->
               <div class="mt-2 flex flex-wrap items-center gap-1.5">
                 <span
                   v-if="schedule"
@@ -370,88 +394,36 @@ const sessionsByMonth = computed(() => {
                 >
                   <MapPin class="h-3.5 w-3.5 shrink-0" /><span class="truncate">{{ group.location }}</span>
                 </span>
+
+                <span
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700/60"
+                >
+                  <UsersRound class="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span class="font-semibold text-gray-900 dark:text-white">{{ roster.length }}</span>
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('members') }}</span>
+                </span>
+                <span
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700/60"
+                >
+                  <BookOpen class="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span class="font-semibold text-gray-900 dark:text-white">{{ sessions.length }}</span>
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('sessions') }}</span>
+                </span>
+                <span
+                  v-if="sessions.length"
+                  :title="lastMetExact"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700/60 min-w-0 max-w-full"
+                >
+                  <History class="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span class="shrink-0 text-gray-500 dark:text-gray-400">{{ t('lastMet') }}</span>
+                  <span class="truncate font-semibold text-gray-900 dark:text-white">{{
+                    lastMetLabel
+                  }}</span>
+                </span>
               </div>
             </div>
           </div>
-
-          <!-- Leader gets its own strip so the block above stays a clean
-               thumbnail-and-text row at every width. -->
-          <div
-            v-if="leader"
-            class="px-3 sm:px-4 py-2.5 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2.5"
-          >
-            <img
-              :src="getAvatarUrl(leader)"
-              :alt="getFullName(leader)"
-              class="h-8 w-8 shrink-0 rounded-full object-cover bg-gray-100 dark:bg-gray-700"
-            />
-            <div class="min-w-0">
-              <p class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                {{ t('leader') }}
-              </p>
-              <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {{ getFullName(leader) }}
-              </p>
-            </div>
-          </div>
         </section>
-
-        <!-- At a glance -->
-        <div v-if="group" class="grid grid-cols-3 gap-2 sm:gap-3">
-          <div
-            class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 flex items-center gap-2.5 min-w-0"
-          >
-            <span
-              class="h-8 w-8 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center"
-            >
-              <UsersRound class="h-4 w-4" />
-            </span>
-            <div class="min-w-0">
-              <p class="text-lg font-bold leading-tight text-gray-900 dark:text-white">
-                {{ roster.length }}
-              </p>
-              <p class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500 truncate">
-                {{ t('members') }}
-              </p>
-            </div>
-          </div>
-
-          <div
-            class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 flex items-center gap-2.5 min-w-0"
-          >
-            <span
-              class="h-8 w-8 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center"
-            >
-              <BookOpen class="h-4 w-4" />
-            </span>
-            <div class="min-w-0">
-              <p class="text-lg font-bold leading-tight text-gray-900 dark:text-white">
-                {{ sessions.length }}
-              </p>
-              <p class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500 truncate">
-                {{ t('sessions') }}
-              </p>
-            </div>
-          </div>
-
-          <div
-            class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 flex items-center gap-2.5 min-w-0"
-          >
-            <span
-              class="h-8 w-8 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center"
-            >
-              <History class="h-4 w-4" />
-            </span>
-            <div class="min-w-0">
-              <p class="text-sm font-bold leading-tight text-gray-900 dark:text-white truncate">
-                {{ lastMetLabel }}
-              </p>
-              <p class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500 truncate">
-                {{ t('lastMet') }}
-              </p>
-            </div>
-          </div>
-        </div>
 
         <!-- Roster -->
         <section

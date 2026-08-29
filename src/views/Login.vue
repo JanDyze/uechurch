@@ -41,7 +41,7 @@ const handleSubmit = async () => {
 
 const goAfterSignIn = () => {
   const redirect = route.query.redirect
-  router.replace(typeof redirect === 'string' ? redirect : '/')
+  router.replace(typeof redirect === 'string' ? redirect : '/dashboard')
 }
 
 const handleGoogleSignedIn = (user) => {

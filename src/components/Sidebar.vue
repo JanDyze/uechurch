@@ -36,7 +36,7 @@ const NAV_GROUPS = [
   {
     key: 'overview',
     label: '',
-    items: [{ name: 'Dashboard', path: '/', icon: Home, capability: 'dashboard.view' }],
+    items: [{ name: 'Dashboard', path: '/dashboard', icon: Home, capability: 'dashboard.view' }],
   },
   {
     key: 'people',

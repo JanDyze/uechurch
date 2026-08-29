@@ -27,14 +27,14 @@ messaging.onBackgroundMessage((payload) => {
     body: data.body || "",
     icon: "/icons/pwa-192x192.png",
     badge: "/icons/badge-96x96.png",
-    data: { url: data.url || "/" },
+    data: { url: data.url || "/dashboard" },
   });
 });
 
 // Focus or open the app when a notification is clicked
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/";
+  const url = (event.notification.data && event.notification.data.url) || "/dashboard";
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {

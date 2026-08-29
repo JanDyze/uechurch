@@ -2,8 +2,21 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AdminLayout from '../layouts/AdminLayout.vue'
 import { initAuth, useAuth } from '../composables/useAuth'
 import { initPermissions, usePermissions } from '../composables/usePermissions'
+import { getLandingEnabled } from '../composables/useAppSettings'
+
+// Where a signed-in member belongs: "/" is the visitors' page now.
+const HOME = '/dashboard'
 
 const routes = [
+  // The public front door. Registered before the app shell below so it — not
+  // the shell — is what "/" resolves to; the guard sends signed-in members on
+  // to their dashboard.
+  {
+    path: '/',
+    name: 'Landing',
+    component: () => import('../views/Landing.vue'),
+    meta: { public: true }
+  },
   {
     path: '/login',
     name: 'Login',
@@ -22,7 +35,7 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       {
-        path: '',
+        path: 'dashboard',
         name: 'Home',
         component: () => import('../views/Home.vue')
       },
@@ -154,11 +167,25 @@ router.beforeEach(async (to) => {
   const { isAuthenticated } = useAuth()
 
   if (to.meta.requiresAuth && !isAuthenticated.value) {
-    return { name: 'Login', query: to.fullPath === '/' ? {} : { redirect: to.fullPath } }
+    return {
+      name: 'Login',
+      query: to.fullPath === HOME ? {} : { redirect: to.fullPath }
+    }
+  }
+
+  if (to.name === 'Landing') {
+    // Turned off, this install is an internal tool with no public face. On a
+    // cold load the setting may not have arrived yet, so it reads as "shown"
+    // here and Landing.vue finishes the decision once it does.
+    if (!getLandingEnabled()) return { name: 'Login' }
+    // A member who is already signed in wants the app, not the welcome mat —
+    // except when they came from Settings to preview what visitors see.
+    if (isAuthenticated.value && to.query.preview === undefined) return { path: HOME }
+    return true
   }
 
   if (to.meta.guestOnly && isAuthenticated.value) {
-    return { path: '/' }
+    return { path: HOME }
   }
 
   // Roles come from the signed-in member's ministry tags, so they can only be
@@ -176,9 +203,9 @@ router.beforeEach(async (to) => {
     const { can, isAdmin, hasNoAdmins } = usePermissions()
 
     if (adminOnly && !isAdmin.value && !hasNoAdmins.value) {
-      return { path: '/', query: { denied: to.path } }
+      return { path: HOME, query: { denied: to.path } }
     }
-    if (capability && !can(capability)) return { path: '/', query: { denied: to.path } }
+    if (capability && !can(capability)) return { path: HOME, query: { denied: to.path } }
   }
 
   return true

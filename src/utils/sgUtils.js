@@ -24,15 +24,53 @@ export const rosterMembers = (group, members) => {
     .sort((a, b) => getFullName(a).localeCompare(getFullName(b)))
 }
 
-export const formatSessionDate = (date, lang = 'en') => {
+const sgLocale = (lang) => (lang === 'tl' ? 'fil-PH' : 'en-US')
+
+/**
+ * Session dates are stored as plain "YYYY-MM-DD". `new Date()` reads those as
+ * UTC midnight, which lands on the day before in western timezones, so the
+ * parts are read back out by hand and the date is built in local time.
+ */
+export const parseSessionDate = (date) => {
+  if (!date) return null
+  const ymd = typeof date === 'string' && date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  const parsed = ymd
+    ? new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
+    : new Date(date)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+/** `month` takes any Intl month style; 'short' is for tight spots like chips. */
+export const formatSessionDate = (date, lang = 'en', month = 'long') => {
   if (!date) return ''
-  const parsed = new Date(date)
-  if (Number.isNaN(parsed.getTime())) return date
-  return parsed.toLocaleDateString(lang === 'tl' ? 'fil-PH' : 'en-US', {
+  const parsed = parseSessionDate(date)
+  if (!parsed) return date
+  return parsed.toLocaleDateString(sgLocale(lang), {
     year: 'numeric',
-    month: 'long',
+    month,
     day: 'numeric',
   })
+}
+
+/**
+ * "today", "yesterday", "3 days ago", "2 months ago". Compared by calendar day
+ * rather than elapsed hours, so a session recorded this morning still reads as
+ * today. Intl carries the wording, so the Tagalog toggle needs no strings.
+ */
+export const formatRelativeSessionDate = (date, lang = 'en') => {
+  const parsed = parseSessionDate(date)
+  if (!parsed) return ''
+
+  const now = new Date()
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const days = Math.round((startOfDay(parsed) - startOfDay(now)) / 86400000)
+
+  const rtf = new Intl.RelativeTimeFormat(sgLocale(lang), { numeric: 'auto' })
+  const distance = Math.abs(days)
+  if (distance < 7) return rtf.format(days, 'day')
+  if (distance < 28) return rtf.format(Math.round(days / 7), 'week')
+  if (distance < 365) return rtf.format(Math.round(days / 30), 'month')
+  return rtf.format(Math.round(days / 365), 'year')
 }
 
 /** "9:00 AM – 11:00 AM", or just the start if no end was recorded. */

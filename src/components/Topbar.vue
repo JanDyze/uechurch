@@ -5,6 +5,7 @@ import { Bell, Sun, Moon, X, Users, LogOut, UserCheck, UserPlus, Clock3, Chevron
 import { useRouter } from "vue-router";
 import { useTheme } from "../composables/useTheme";
 import { useNotifications } from "../composables/useNotifications";
+import { useEmailDigest } from "../composables/useEmailDigest";
 import { subscribeToNotifications } from "../api/notifyService";
 import { useFocusTrap } from "../composables/useFocusTrap";
 import { useAuth } from "../composables/useAuth";
@@ -22,6 +23,27 @@ const { isDark, toggleTheme } = useTheme();
 const { displayName, email: userEmail, avatarUrl, logout } = useAuth();
 const toast = useToast();
 const { isEnabled: notificationsEnabled, enabling, enable } = useNotifications();
+
+// Email digests sit next to the push switch because they answer the same
+// question — how do I hear about what is on — and Settings, where the rest of
+// the controls live, is administrators only.
+const {
+  isEnabled: emailDigestsEnabled,
+  saving: savingEmailDigests,
+  toggleEnabled: toggleEmailDigests,
+} = useEmailDigest();
+
+const handleEmailDigestToggle = async () => {
+  try {
+    await toggleEmailDigests();
+    toast.success(
+      emailDigestsEnabled.value ? "Email digests on" : "Email digests off"
+    );
+  } catch (e) {
+    console.error("Error saving email digest preference:", e);
+    toast.error("Could not save that. Please try again.");
+  }
+};
 
 // Notifications panel + history
 const isNotifOpen = ref(false);
@@ -260,6 +282,37 @@ const openMyProfile = () => {
                   <span class="text-[9px] font-black uppercase tracking-widest text-gray-400">
                     Enabled on this device
                   </span>
+                </div>
+
+                <!-- Email digests. Push is per-device; this one follows the
+                     account, so it reads the signed-in address back. -->
+                <div class="px-4 pb-3 pt-1 flex items-center gap-3">
+                  <div class="min-w-0 flex-1">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                      Email digests
+                    </p>
+                    <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                      {{ emailDigestsEnabled ? userEmail : "What's on, sent to your inbox" }}
+                    </p>
+                  </div>
+                  <button
+                    @click="handleEmailDigestToggle"
+                    :disabled="savingEmailDigests"
+                    role="switch"
+                    :aria-checked="emailDigestsEnabled"
+                    aria-label="Email digests"
+                    :class="[
+                      'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
+                      emailDigestsEnabled ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700',
+                    ]"
+                  >
+                    <span
+                      :class="[
+                        'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform',
+                        emailDigestsEnabled ? 'translate-x-[1.15rem]' : 'translate-x-0.5',
+                      ]"
+                    ></span>
+                  </button>
                 </div>
 
                 <!-- History -->

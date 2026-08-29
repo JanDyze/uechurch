@@ -59,6 +59,9 @@ export const SG_LABELS = {
     totalAttendance: 'Total Attendance',
 
 
+    // Challenges
+    challenges: 'Challenges / Concerns',
+
     // Prayer
     prayerRequests: 'Prayer Requests',
     addPrayerRequest: 'Add Prayer Request',
@@ -143,6 +146,8 @@ export const SG_LABELS = {
     totalGuests: 'Kabuuang Bisita',
     totalAttendance: 'Kabuuang Pagdalo',
 
+
+    challenges: 'Mga Hamon / Alalahanin',
 
     prayerRequests: 'Mga Kahilingan sa Panalangin',
     addPrayerRequest: 'Magdagdag ng Kahilingan',

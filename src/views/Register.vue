@@ -22,7 +22,7 @@ const error = ref('')
 const handleGoogleSignedIn = (user) => {
   error.value = ''
   toast.success(`Welcome, ${user.displayName || user.email}!`)
-  router.replace('/')
+  router.replace('/dashboard')
 }
 
 const validate = () => {
@@ -42,7 +42,7 @@ const handleSubmit = async () => {
     await register(email.value, password.value, fullName.value)
     // Firebase signs the new user in automatically, so the guard lets us through.
     toast.success('Account created. Welcome!')
-    router.replace('/')
+    router.replace('/dashboard')
   } catch (e) {
     error.value = getAuthErrorMessage(e)
   } finally {

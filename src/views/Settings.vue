@@ -17,6 +17,8 @@ import MemberLinkAdmin from '../components/settings/MemberLinkAdmin.vue'
 import RolePermissionsAdmin from '../components/settings/RolePermissionsAdmin.vue'
 import MinistryTagsAdmin from '../components/settings/MinistryTagsAdmin.vue'
 import ChurchSettings from '../components/settings/ChurchSettings.vue'
+import EmailDigestAdmin from '../components/settings/EmailDigestAdmin.vue'
+import LandingPageAdmin from '../components/settings/LandingPageAdmin.vue'
 import { useAppSettings } from '../composables/useAppSettings'
 
 const { categories: appCategories, church, saveChurch, saveCategories } = useAppSettings()
@@ -30,10 +32,12 @@ const router = useRouter()
 // refresh — or a link to a specific tab — lands where you expect.
 const TABS = [
   { key: 'church', label: 'Church' },
+  { key: 'landing', label: 'Public page' },
   { key: 'schedule', label: 'Schedule' },
   { key: 'tags', label: 'Tags' },
   { key: 'roles', label: 'Roles' },
   { key: 'accounts', label: 'Accounts' },
+  { key: 'email', label: 'Email' },
 ]
 
 const activeTab = ref(TABS.some((t) => t.key === route.query.tab) ? route.query.tab : 'schedule')
@@ -390,6 +394,9 @@ const formatTime = (time) => {
     <!-- Church identity and category vocabularies -->
     <ChurchSettings v-show="activeTab === 'church'" class="mb-4" />
 
+    <!-- The visitors' page at "/" -->
+    <LandingPageAdmin v-show="activeTab === 'landing'" class="mb-4" />
+
     <!-- Ministry tags -->
     <MinistryTagsAdmin v-show="activeTab === 'tags'" class="mb-4" />
 
@@ -398,6 +405,9 @@ const formatTime = (time) => {
 
     <!-- Member accounts and administrators -->
     <MemberLinkAdmin v-show="activeTab === 'accounts'" class="mb-4" />
+
+    <!-- Digest subscriptions, manual sends and the activity report -->
+    <EmailDigestAdmin v-show="activeTab === 'email'" class="mb-4" />
 
     <!-- Editor -->
     <Teleport to="body">

@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       const resp = await messaging.sendEachForMulticast({
         tokens: batch,
         notification: { title: title.trim(), body: (body || "").trim() },
-        data: { url: url || "/" },
+        data: { url: url || "/dashboard" },
         webpush: {
           // Deliver immediately instead of batching for battery savings
           headers: { Urgency: "high" },
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
     await db.collection("notifications").add({
       title: title.trim(),
       body: (body || "").trim(),
-      url: url || "/",
+      url: url || "/dashboard",
       sentAt: FieldValue.serverTimestamp(),
       sent,
       failed,

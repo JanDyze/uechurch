@@ -118,6 +118,7 @@ const normalizeSession = (docSnap) => {
       guests: Array.isArray(attendance.guests) ? attendance.guests : [],
     },
     prayerRequests: Array.isArray(data.prayerRequests) ? data.prayerRequests : [],
+    challenges: data.challenges || '',
     notes: data.notes || '',
     createdBy: data.createdBy || '',
     createdAt: data.createdAt?.toDate?.() || new Date(),

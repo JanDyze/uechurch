@@ -40,6 +40,13 @@ const timeValue = computed(() =>
 )
 const nameOf = (id) => (isBlank.value ? '' : memberNameById(props.members, id))
 
+/** Long-text blocks have three states: written content, ruled writing space on
+ *  the blank form, and — on a filled report with nothing written — a dash. The
+ *  rules are there to be written on, so a filled report never spends six lines
+ *  of paper on them. */
+const written = (raw) => (isBlank.value ? '' : (raw || '').trim())
+const blankOnReport = (raw) => !isBlank.value && !written(raw)
+
 const guestRows = computed(() => {
   if (isBlank.value) return Array.from({ length: 5 }, () => ({ name: '', contact: '', invitedBy: '' }))
   const guests = props.session.attendance.guests || []
@@ -79,7 +86,7 @@ const groupSchedule = computed(() => {
     <!-- Session details -->
     <section class="sg-section">
       <h2 class="sg-section-title">{{ t('session') }}</h2>
-      <div class="sg-fields">
+      <div class="sg-fields sg-fields-meta">
         <div class="sg-field">
           <span class="sg-label">{{ t('date') }}</span>
           <span class="sg-value">{{ dateValue }}</span>
@@ -88,7 +95,7 @@ const groupSchedule = computed(() => {
           <span class="sg-label">{{ t('startTime') }} / {{ t('endTime') }}</span>
           <span class="sg-value">{{ timeValue }}</span>
         </div>
-        <div class="sg-field sg-field-wide">
+        <div class="sg-field">
           <span class="sg-label">{{ t('venue') }}</span>
           <span class="sg-value">{{ value(session?.venue) }}</span>
         </div>
@@ -103,25 +110,35 @@ const groupSchedule = computed(() => {
     <section class="sg-section">
       <h2 class="sg-section-title">{{ t('lesson') }}</h2>
       <div class="sg-fields">
-        <div class="sg-field sg-field-wide">
+        <div class="sg-field">
           <span class="sg-label">{{ t('lessonTitle') }}</span>
           <span class="sg-value">{{ value(session?.lesson?.title) }}</span>
         </div>
-        <div class="sg-field sg-field-wide">
+        <div class="sg-field">
           <span class="sg-label">{{ t('scripture') }}</span>
           <span class="sg-value">{{ value(session?.lesson?.scripture) }}</span>
         </div>
       </div>
 
-      <p class="sg-label sg-block-label">{{ t('discussionNotes') }}</p>
-      <p v-if="!isBlank && session.lesson.notes" class="sg-prose">{{ session.lesson.notes }}</p>
-      <div v-else class="sg-lines"><span v-for="n in 4" :key="`dn-${n}`" class="sg-line" /></div>
+      <p class="sg-label sg-block-label">
+        {{ t('discussionNotes') }}
+        <span v-if="blankOnReport(session?.lesson?.notes)" class="sg-none">—</span>
+      </p>
+      <p v-if="written(session?.lesson?.notes)" class="sg-prose">{{ session.lesson.notes }}</p>
+      <div v-else-if="isBlank" class="sg-lines">
+        <span v-for="n in 4" :key="`dn-${n}`" class="sg-line" />
+      </div>
 
-      <p class="sg-label sg-block-label">{{ t('takeaways') }}</p>
-      <p v-if="!isBlank && session.lesson.takeaways" class="sg-prose">
+      <p class="sg-label sg-block-label">
+        {{ t('takeaways') }}
+        <span v-if="blankOnReport(session?.lesson?.takeaways)" class="sg-none">—</span>
+      </p>
+      <p v-if="written(session?.lesson?.takeaways)" class="sg-prose">
         {{ session.lesson.takeaways }}
       </p>
-      <div v-else class="sg-lines"><span v-for="n in 3" :key="`tk-${n}`" class="sg-line" /></div>
+      <div v-else-if="isBlank" class="sg-lines">
+        <span v-for="n in 3" :key="`tk-${n}`" class="sg-line" />
+      </div>
     </section>
 
     <!-- Attendance -->
@@ -205,16 +222,30 @@ const groupSchedule = computed(() => {
           <em v-if="request.name" class="sg-requester">— {{ request.name }}</em>
         </li>
       </ol>
-      <div v-else class="sg-lines">
+      <div v-else-if="isBlank" class="sg-lines">
         <span v-for="n in 4" :key="`pr-${n}`" class="sg-line" />
       </div>
+      <p v-else class="sg-none">{{ t('none') }}</p>
+    </section>
+
+    <!-- Challenges -->
+    <section class="sg-section">
+      <h2 class="sg-section-title">{{ t('challenges') }}</h2>
+      <p v-if="written(session?.challenges)" class="sg-prose">{{ session.challenges }}</p>
+      <div v-else-if="isBlank" class="sg-lines">
+        <span v-for="n in 3" :key="`ch-${n}`" class="sg-line" />
+      </div>
+      <p v-else class="sg-none">{{ t('none') }}</p>
     </section>
 
     <!-- Notes -->
     <section class="sg-section">
       <h2 class="sg-section-title">{{ t('notes') }}</h2>
-      <p v-if="!isBlank && session.notes" class="sg-prose">{{ session.notes }}</p>
-      <div v-else class="sg-lines"><span v-for="n in 3" :key="`nt-${n}`" class="sg-line" /></div>
+      <p v-if="written(session?.notes)" class="sg-prose">{{ session.notes }}</p>
+      <div v-else-if="isBlank" class="sg-lines">
+        <span v-for="n in 3" :key="`nt-${n}`" class="sg-line" />
+      </div>
+      <p v-else class="sg-none">{{ t('none') }}</p>
     </section>
 
     <!-- Photos: filled reports only; a blank form has nothing to show. -->
@@ -262,7 +293,7 @@ const groupSchedule = computed(() => {
   align-items: center;
   gap: 0.85rem;
   border-bottom: 2px solid #01779b;
-  padding-bottom: 0.85rem;
+  padding-bottom: 0.65rem;
 }
 .sg-logo {
   height: 44px;
@@ -294,7 +325,7 @@ const groupSchedule = computed(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem 1.5rem;
-  padding: 0.7rem 0;
+  padding: 0.55rem 0 0.15rem;
   font-size: 10.5px;
 }
 
@@ -302,10 +333,10 @@ const groupSchedule = computed(() => {
    frame is what separates one group from the next, so the fields inside need
    no rules of their own. */
 .sg-section {
-  margin-top: 1.15rem;
+  margin-top: 0.85rem;
   border: 1px solid #d1d5db;
   border-radius: 0.4rem;
-  padding: 0.85rem 0.9rem 0.95rem;
+  padding: 0.7rem 0.85rem 0.8rem;
   break-inside: avoid;
   page-break-inside: avoid;
 }
@@ -315,22 +346,27 @@ const groupSchedule = computed(() => {
   letter-spacing: 0.11em;
   text-transform: uppercase;
   color: #01779b;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.6rem;
 }
 
 .sg-fields {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.8rem 1.25rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1.1rem;
+}
+/* The session's four fields are all short — date, time, venue, leader — so on
+   anything wider than a phone they read as one metadata strip rather than
+   three half-empty rows. */
+@media (min-width: 640px) {
+  .sg-fields-meta {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 .sg-field {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
   min-width: 0;
-}
-.sg-field-wide {
-  grid-column: 1 / -1;
 }
 .sg-label {
   font-size: 8.5px;
@@ -340,8 +376,15 @@ const groupSchedule = computed(() => {
   color: #6b7280;
 }
 .sg-block-label {
-  margin-top: 1rem;
-  margin-bottom: 0.35rem;
+  margin-top: 0.7rem;
+  margin-bottom: 0.25rem;
+}
+/* Placeholder for a field left empty on a filled report. */
+.sg-none {
+  color: #9ca3af;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
 }
 .sg-value {
   min-height: 1.05rem;
@@ -414,8 +457,8 @@ const groupSchedule = computed(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem 1.75rem;
-  margin-top: 0.85rem;
-  padding-top: 0.6rem;
+  margin-top: 0.7rem;
+  padding-top: 0.5rem;
   border-top: 1px solid #e5e7eb;
   font-size: 10.5px;
 }
@@ -456,7 +499,7 @@ const groupSchedule = computed(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
-  margin-top: 2.25rem;
+  margin-top: 1.5rem;
   break-inside: avoid;
 }
 .sg-sign {

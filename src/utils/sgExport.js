@@ -117,6 +117,10 @@ const buildSessionSheet = (session, group, members, lang) => {
   }
   push([])
 
+  section('challenges')
+  push(['', session.challenges || ''], { 1: styles.fieldValue })
+  push([])
+
   section('notes')
   push(['', session.notes || ''], { 1: styles.fieldValue })
 

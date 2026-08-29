@@ -13,6 +13,11 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/email?type=auto",
+      "schedule": "0 22 * * *"
+    }
   ]
 }
-
