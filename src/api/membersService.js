@@ -32,6 +32,9 @@ const normalizeMember = (data, docId) => {
     tags: Array.isArray(data.tags) ? data.tags : [],
     isMember: data.isMember !== undefined ? data.isMember : true,
     image: data.image || null,
+    // Firebase auth uid of the account this member has been linked to, set
+    // only when an administrator approves a claim (see memberClaimsService).
+    uid: data.uid || null,
   };
 };
 

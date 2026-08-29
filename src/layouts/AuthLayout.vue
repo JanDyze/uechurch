@@ -2,7 +2,9 @@
 import { Moon, Sun } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
 import church from '../assets/church.jpg'
-import logo from '../assets/uec-logo.png'
+import { useAppSettings } from '../composables/useAppSettings'
+
+const { church: churchInfo, logoUrl } = useAppSettings()
 
 defineProps({
   title: String,
@@ -21,11 +23,11 @@ const { isDark, toggleTheme } = useTheme()
 
       <div class="relative flex flex-col justify-between p-12 text-white">
         <div class="flex items-center gap-3">
-          <img :src="logo" alt="UEC Logo" class="h-14 w-auto" />
+          <img :src="logoUrl" :alt="churchInfo.shortName" class="h-14 w-auto" />
           <div>
-            <h1 class="text-xl font-black tracking-tight">UEC Canubing II</h1>
+            <h1 class="text-xl font-black tracking-tight">{{ churchInfo.shortName }}</h1>
             <p class="text-[10px] font-bold uppercase tracking-widest text-white/70 mt-0.5">
-              United Evangelical Church
+              {{ churchInfo.fullName }}
             </p>
           </div>
         </div>
@@ -40,7 +42,7 @@ const { isDark, toggleTheme } = useTheme()
         </div>
 
         <p class="text-[10px] font-bold uppercase tracking-widest text-white/50">
-          &copy; {{ new Date().getFullYear() }} UEC Canubing II
+          &copy; {{ new Date().getFullYear() }} {{ churchInfo.shortName }}
         </p>
       </div>
     </div>
@@ -63,9 +65,9 @@ const { isDark, toggleTheme } = useTheme()
         <div class="w-full max-w-sm">
           <!-- Mobile branding -->
           <div class="flex flex-col items-center gap-2 mb-8 lg:hidden">
-            <img :src="logo" alt="UEC Logo" class="h-16 w-auto" />
+            <img :src="logoUrl" :alt="churchInfo.shortName" class="h-16 w-auto" />
             <h1 class="text-base font-black text-gray-900 dark:text-white tracking-tight">
-              UEC Canubing II
+              {{ churchInfo.shortName }}
             </h1>
           </div>
 

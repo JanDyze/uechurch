@@ -2,6 +2,9 @@
 import { ref } from 'vue'
 import { Plus, Heart } from 'lucide-vue-next'
 import SearchBar from '../common/SearchBar.vue'
+import { usePermissions } from '../../composables/usePermissions'
+
+const { canManage } = usePermissions()
 
 defineProps({
   searchQuery: {
@@ -32,6 +35,7 @@ const mobileSearchOpen = ref(false)
       <!-- Action Buttons -->
       <div :class="['flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 ml-auto', mobileSearchOpen ? 'hidden lg:flex' : 'flex']">
         <button
+          v-if="canManage('prayer')"
           @click="emit('newConcern')"
           class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
           :class="{ 'bg-primary-hover dark:bg-primary-hover': showAddConcern }"

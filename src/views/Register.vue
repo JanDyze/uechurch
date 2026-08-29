@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Eye, EyeOff, Loader2 } from 'lucide-vue-next'
 import AuthLayout from '../layouts/AuthLayout.vue'
+import GoogleSignInButton from '../components/auth/GoogleSignInButton.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 
@@ -17,6 +18,12 @@ const confirmPassword = ref('')
 const showPassword = ref(false)
 const submitting = ref(false)
 const error = ref('')
+
+const handleGoogleSignedIn = (user) => {
+  error.value = ''
+  toast.success(`Welcome, ${user.displayName || user.email}!`)
+  router.replace('/')
+}
 
 const validate = () => {
   if (!fullName.value.trim()) return 'Please enter your full name.'
@@ -145,6 +152,12 @@ const handleSubmit = async () => {
         {{ submitting ? 'Creating account...' : 'Create account' }}
       </button>
     </form>
+
+    <GoogleSignInButton
+      label="Sign up with Google"
+      @signed-in="handleGoogleSignedIn"
+      @error="error = $event"
+    />
 
     <p class="mt-8 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">
       Already registered?

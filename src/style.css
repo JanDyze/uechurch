@@ -10,6 +10,59 @@
   --color-primary-hover: #015a77;
 }
 
+/* Hides the scrollbar on deliberately swipeable strips (tab bars, chip rows)
+   while keeping them scrollable. Defined once here — several components each
+   used to carry their own copy. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ print
+   The app shell is a fixed-height flex column with hidden overflow, which
+   clips anything printed to a single screenful. These rules unwind it and
+   drop the chrome, so any view can print by marking its own furniture
+   `no-print` and its content `print-area`. `print-only` is for sheets that
+   exist solely on paper (e.g. the blank Small Group form). */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-area {
+    overflow: visible !important;
+  }
+
+  html,
+  body,
+  #app {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  .print-root,
+  .print-main {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+}
+
 /* Stops iOS showing its own copy/save callout during a long-press,
    which would otherwise hijack our long-press context menus. */
 .touch-callout-none {

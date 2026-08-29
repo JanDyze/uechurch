@@ -2,6 +2,9 @@
 import { ref } from 'vue'
 import { Filter, Plus } from 'lucide-vue-next'
 import SearchBar from '../common/SearchBar.vue'
+import { usePermissions } from '../../composables/usePermissions'
+
+const { canManage } = usePermissions()
 
 const mobileSearchOpen = ref(false)
 
@@ -63,6 +66,7 @@ const emit = defineEmits([
 
         <!-- Record Attendance Button -->
         <button
+          v-if="canManage('attendance')"
           @click="emit('toggle-record-attendance')"
           class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
           :class="{ 'bg-primary-hover dark:bg-primary-hover': showRecordAttendance }"

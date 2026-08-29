@@ -2,6 +2,9 @@
 import { ref } from 'vue'
 import { Plus, Calendar } from 'lucide-vue-next'
 import SearchBar from '../common/SearchBar.vue'
+import { usePermissions } from '../../composables/usePermissions'
+
+const { canManage } = usePermissions()
 
 defineProps({
   searchQuery: {
@@ -50,6 +53,7 @@ const mobileSearchOpen = ref(false)
           <Calendar class="h-5 w-5" />
         </button>
         <button
+          v-if="canManage('events')"
           @click="emit('addEvent')"
           class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
           :class="{ 'bg-primary-hover dark:bg-primary-hover': showAddEvent }"

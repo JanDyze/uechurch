@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Eye, EyeOff, Loader2 } from 'lucide-vue-next'
 import AuthLayout from '../layouts/AuthLayout.vue'
+import GoogleSignInButton from '../components/auth/GoogleSignInButton.vue'
 import { useAuth } from '../composables/useAuth'
 import { useToast } from '../composables/useToast'
 
@@ -30,13 +31,23 @@ const handleSubmit = async () => {
   try {
     await login(email.value, password.value)
     toast.success('Welcome back!')
-    const redirect = route.query.redirect
-    router.replace(typeof redirect === 'string' ? redirect : '/')
+    goAfterSignIn()
   } catch (e) {
     error.value = getAuthErrorMessage(e)
   } finally {
     submitting.value = false
   }
+}
+
+const goAfterSignIn = () => {
+  const redirect = route.query.redirect
+  router.replace(typeof redirect === 'string' ? redirect : '/')
+}
+
+const handleGoogleSignedIn = (user) => {
+  error.value = ''
+  toast.success(`Welcome, ${user.displayName || user.email}!`)
+  goAfterSignIn()
 }
 
 const handleForgotPassword = async () => {
@@ -59,6 +70,12 @@ const handleForgotPassword = async () => {
 
 <template>
   <AuthLayout title="Sign in" subtitle="Welcome back">
+    <GoogleSignInButton
+      divider-position="bottom"
+      @signed-in="handleGoogleSignedIn"
+      @error="error = $event"
+    />
+
     <form novalidate class="space-y-5" @submit.prevent="handleSubmit">
       <!-- Error banner -->
       <p

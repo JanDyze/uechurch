@@ -1,15 +1,46 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Repeat, Plus, Pencil, Trash2, X, CalendarClock } from 'lucide-vue-next'
 import {
   useRecurringSchedules,
   WEEKDAYS,
   OCCURRENCES,
+  SHOW_BEFORE_OPTIONS,
+  DEFAULT_SHOW_BEFORE,
+  showBeforeLabel,
 } from '../composables/useRecurringSchedules'
 import { useToast } from '../composables/useToast'
 import { useMediaQuery } from '../composables/useMediaQuery'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
-import eventTypes from '../data/eventTypes.json'
+import MemberLinkAdmin from '../components/settings/MemberLinkAdmin.vue'
+import RolePermissionsAdmin from '../components/settings/RolePermissionsAdmin.vue'
+import MinistryTagsAdmin from '../components/settings/MinistryTagsAdmin.vue'
+import ChurchSettings from '../components/settings/ChurchSettings.vue'
+import { useAppSettings } from '../composables/useAppSettings'
+
+const { categories: appCategories, church, saveChurch, saveCategories } = useAppSettings()
+const eventTypes = computed(() => appCategories.value.eventTypes)
+
+const route = useRoute()
+const router = useRouter()
+
+// Settings grew from one section to four, and three of them are tall. Tabs keep
+// the phone viewport to one screenful each; the tab lives in the URL so a
+// refresh — or a link to a specific tab — lands where you expect.
+const TABS = [
+  { key: 'church', label: 'Church' },
+  { key: 'schedule', label: 'Schedule' },
+  { key: 'tags', label: 'Tags' },
+  { key: 'roles', label: 'Roles' },
+  { key: 'accounts', label: 'Accounts' },
+]
+
+const activeTab = ref(TABS.some((t) => t.key === route.query.tab) ? route.query.tab : 'schedule')
+
+watch(activeTab, (tab) => {
+  router.replace({ query: { ...route.query, tab } })
+})
 
 const toast = useToast()
 const isMobile = useMediaQuery('(max-width: 1023px)')
@@ -26,6 +57,7 @@ const blankSchedule = () => ({
   description: '',
   icon: 'Calendar',
   enabled: true,
+  showBefore: DEFAULT_SHOW_BEFORE,
 })
 
 const showEditor = ref(false)
@@ -53,6 +85,7 @@ const openEdit = (schedule) => {
     description: schedule.description,
     icon: schedule.icon,
     enabled: schedule.enabled,
+    showBefore: schedule.showBefore ?? DEFAULT_SHOW_BEFORE,
   }
   showEditor.value = true
 }
@@ -144,6 +177,39 @@ const describe = (schedule) => {
   return `${ordinals} ${day} of the month`
 }
 
+// Spells the rule out with the schedule's real numbers, so an admin can see
+// that "1 hour before" on a 9:00 AM service means 8:00 AM without doing the
+// arithmetic themselves.
+const describeVisibility = (schedule) => {
+  const start = formatTime(schedule.time)
+  if (schedule.showBefore === 'sameDay') {
+    return `Ready to record all day, from midnight. Starts ${start}.`
+  }
+  if (!schedule.showBefore) {
+    return `Ready to record from ${start}, when it starts.`
+  }
+
+  const [hours, minutes] = (schedule.time || '00:00').split(':').map(Number)
+  // An arbitrary reference day - only the time of day and how many days back
+  // the lead time reaches are used.
+  const startsAt = new Date(2000, 5, 15, hours || 0, minutes || 0)
+  const opensAt = new Date(startsAt.getTime() - schedule.showBefore * 60 * 1000)
+  const clock = formatTime(
+    `${String(opensAt.getHours()).padStart(2, '0')}:${String(opensAt.getMinutes()).padStart(2, '0')}`
+  )
+  const midnightOf = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const daysEarlier = Math.round(
+    (midnightOf(startsAt) - midnightOf(opensAt)) / (24 * 60 * 60 * 1000)
+  )
+  const when =
+    daysEarlier === 0
+      ? clock
+      : daysEarlier === 1
+        ? `${clock} the day before`
+        : `${clock}, ${daysEarlier} days before`
+  return `Ready to record from ${when}. Starts ${start}.`
+}
+
 const formatTime = (time) => {
   if (!time) return ''
   const [h, m] = time.split(':')
@@ -155,18 +221,53 @@ const formatTime = (time) => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full overflow-y-auto">
+  <!-- A plain block scroll container, deliberately not `flex flex-col`. As a
+       flex column, each tab panel is a flex item that defaults to shrink:1, so
+       a panel taller than the viewport gets squashed to fit instead of
+       overflowing — and since the panels are `overflow-hidden` for their
+       rounded corners, the squashed content was simply clipped with nothing to
+       scroll. Block layout lets the panels keep their natural height so this
+       container actually overflows. -->
+  <div class="h-full overflow-y-auto">
     <!-- Header -->
-    <div class="shrink-0 mb-4">
+    <div class="mb-4">
       <h1 class="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
       <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
         Manage how the app works for your church
       </p>
     </div>
 
+    <!-- Tabs: scroll sideways on a narrow phone rather than wrapping.
+         No negative-margin bleed here — this column is `overflow-y-auto`, and
+         CSS computes the other axis to `auto` alongside it, so anything wider
+         than the content box puts a horizontal scrollbar on the whole page. -->
+    <div class="mb-4 overflow-x-auto no-scrollbar">
+      <div
+        class="flex w-max min-w-full gap-1 p-1 rounded-xl bg-gray-100 dark:bg-gray-800"
+        role="tablist"
+      >
+        <button
+          v-for="tab in TABS"
+          :key="tab.key"
+          role="tab"
+          :aria-selected="activeTab === tab.key"
+          @click="activeTab = tab.key"
+          :class="[
+            'flex-1 whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-lg transition-colors',
+            activeTab === tab.key
+              ? 'bg-white dark:bg-gray-700 text-primary dark:text-white shadow-sm'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
+          ]"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+    </div>
+
     <!-- Recurring events -->
     <section
-      class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden"
+      v-show="activeTab === 'schedule'"
+      class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden mb-4"
     >
       <div
         class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-100 dark:border-gray-700"
@@ -244,6 +345,9 @@ const formatTime = (time) => {
               {{ describe(schedule) }} &middot; {{ formatTime(schedule.time) }}
               <span v-if="schedule.location"> &middot; {{ schedule.location }}</span>
             </p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+              Attendance: {{ showBeforeLabel(schedule.showBefore).toLowerCase() }}
+            </p>
           </div>
 
           <button
@@ -281,6 +385,19 @@ const formatTime = (time) => {
         </li>
       </ul>
     </section>
+
+    <!-- Member account links -->
+    <!-- Church identity and category vocabularies -->
+    <ChurchSettings v-show="activeTab === 'church'" class="mb-4" />
+
+    <!-- Ministry tags -->
+    <MinistryTagsAdmin v-show="activeTab === 'tags'" class="mb-4" />
+
+    <!-- Tag-based roles -->
+    <RolePermissionsAdmin v-show="activeTab === 'roles'" class="mb-4" />
+
+    <!-- Member accounts and administrators -->
+    <MemberLinkAdmin v-show="activeTab === 'accounts'" class="mb-4" />
 
     <!-- Editor -->
     <Teleport to="body">
@@ -403,12 +520,34 @@ const formatTime = (time) => {
 
               <div>
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  Show in attendance
+                </label>
+                <select
+                  v-model="form.showBefore"
+                  class="w-full h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
+                >
+                  <option
+                    v-for="option in SHOW_BEFORE_OPTIONS"
+                    :key="String(option.value)"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+                <p class="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                  {{ describeVisibility(form) }} Whoever opens Attendance before then
+                  will not see it yet, and may record a separate event instead.
+                </p>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                   Location
                 </label>
                 <input
                   v-model="form.location"
                   type="text"
-                  placeholder="e.g. UEC Canubing II"
+                  :placeholder="`e.g. ${church.shortName}`"
                   class="w-full h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
                 />
               </div>

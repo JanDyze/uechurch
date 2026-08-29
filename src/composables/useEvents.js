@@ -5,7 +5,6 @@ import {
   updateEvent,
   deleteEvent as deleteEventDoc,
 } from "../api/eventsService";
-import eventsData from "../assets/events.json";
 
 export function useEvents() {
   const events = ref([]);
@@ -55,13 +54,9 @@ export function useEvents() {
 
   // Initialize: Set up real-time listeners
   onMounted(() => {
-    try {
-      setupEventsListener();
-    } catch (error) {
-      console.error("Error setting up Firestore listeners:", error);
-      // Fallback to local data if Firestore fails
-      events.value = eventsData;
-    }
+    // See useMembers: onSnapshot failures arrive through its error callback,
+    // not as a throw, so there is nothing here for a catch to handle.
+    setupEventsListener();
   });
 
   // Cleanup: Unsubscribe when component unmounts

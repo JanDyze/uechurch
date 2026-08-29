@@ -3,7 +3,7 @@ import { ref, computed } from "vue";
 import { X, Image as ImageIcon, ChevronDown, User, Phone, Church } from "lucide-vue-next";
 import ImageCropper from "./ImageCropper.vue";
 import FloatingInput from "../common/FloatingInput.vue";
-import { calculateAgeFromDate } from "../../utils/memberUtils";
+import { calculateAgeFromDate, CIVIL_STATUS_OPTIONS as civilStatusOptions } from "../../utils/memberUtils";
 import { useMediaQuery } from "../../composables/useMediaQuery";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 
@@ -83,12 +83,6 @@ const sexOptions = [
   { value: 'Female', label: 'Female' },
 ];
 
-const civilStatusOptions = [
-  { value: 'Single', label: 'Single' },
-  { value: 'Married', label: 'Married' },
-  { value: 'Widowed', label: 'Widowed' },
-  { value: 'Separated', label: 'Separated' },
-];
 
 </script>
 

@@ -2,7 +2,7 @@
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { X, Trash2, User, Phone, Briefcase, Image as ImageIcon, ExternalLink, Edit2, Check } from "lucide-vue-next";
-import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate } from "../../utils/memberUtils";
+import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate, CIVIL_STATUS_OPTIONS as civilStatusOptions } from "../../utils/memberUtils";
 import { useMediaQuery } from "../../composables/useMediaQuery";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 import ImageCropper from "./ImageCropper.vue";
@@ -108,12 +108,6 @@ const sexOptions = [
   { value: 'Female', label: 'Female' },
 ];
 
-const civilStatusOptions = [
-  { value: 'Single', label: 'Single' },
-  { value: 'Married', label: 'Married' },
-  { value: 'Widowed', label: 'Widowed' },
-  { value: 'Separated', label: 'Separated' },
-];
 
 </script>
 

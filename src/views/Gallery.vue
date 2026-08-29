@@ -6,7 +6,13 @@ import { subscribeToAlbums, uploadPhotoToBase64, addAlbum, subscribeToAlbumPhoto
 import { subscribeToEvents } from '../api/eventsService'
 import churchCover from '../assets/church.jpg'
 import { useMediaQuery } from '../composables/useMediaQuery'
+import { useAppSettings } from '../composables/useAppSettings'
+import { withAllOption } from '../data/appDefaults'
+import { compressImageToBase64 } from '../utils/imageUtils'
 import SearchBar from '../components/common/SearchBar.vue'
+import { usePermissions } from '../composables/usePermissions'
+
+const { canManage } = usePermissions()
 
 const route = useRoute()
 const router = useRouter()
@@ -20,7 +26,8 @@ const props = defineProps({
 })
 
 // Categories for the gallery
-const categories = ['All', 'Worship', 'Outreach', 'Fellowship', 'Special Events', 'Minutes Photos']
+const { categories: appCategories } = useAppSettings()
+const categories = computed(() => withAllOption(appCategories.value.gallery))
 const selectedCategory = ref('All')
 const searchQuery = ref('')
 const selectedEvent = ref(null) 
@@ -285,30 +292,6 @@ const handleKeydown = (e) => {
 
 const triggerUpload = () => { if (!selectedEvent.value) return; fileInput.value.click() }
 
-const compressToThreshold = async (file) => {
-  return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        let quality = 0.9, base64 = '', width = img.width, height = img.height
-        const MAX_SIZE = 900 * 1024, MAX_DIM = 2000
-        if (width > MAX_DIM || height > MAX_DIM) {
-          if (width > height) { height *= MAX_DIM / width; width = MAX_DIM }
-          else { width *= MAX_DIM / height; height = MAX_DIM }
-        }
-        canvas.width = width; canvas.height = height
-        const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height)
-        do { base64 = canvas.toDataURL('image/webp', quality); quality -= 0.1 } while (base64.length > MAX_SIZE && quality > 0.1)
-        resolve(base64)
-      }
-      img.src = e.target.result
-    }
-    reader.readAsDataURL(file)
-  })
-}
-
 const handleFileUpload = async (event) => {
   const files = event.target.files
   if (!files.length) return
@@ -330,7 +313,7 @@ const handleFileUpload = async (event) => {
     }
     for (let i = 0; i < files.length; i++) {
        uploadProgress.value = `Uploading ${i + 1}/${files.length}`
-       const base64 = await compressToThreshold(files[i])
+       const base64 = await compressImageToBase64(files[i])
        await uploadPhotoToBase64(currentId, base64, '')
     }
     event.target.value = ''
@@ -474,7 +457,7 @@ const formatDate = (dateStr) => {
               </div>
             </Transition>
           </div>
-          <button v-if="selectedEvent && route.params.id" @click="triggerUpload" :class="[ 'flex h-10 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover transition-all px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0', isUploading ? 'opacity-50 cursor-not-allowed' : '' ]" :disabled="isUploading">
+          <button v-if="canManage('gallery') && selectedEvent && route.params.id" @click="triggerUpload" :class="[ 'flex h-10 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover transition-all px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0', isUploading ? 'opacity-50 cursor-not-allowed' : '' ]" :disabled="isUploading">
             <Loader2 v-if="isUploading" class="h-5 w-5 animate-spin shrink-0" />
             <Upload v-else class="h-5 w-5 shrink-0" />
             <span class="hidden sm:inline whitespace-nowrap">Add</span>
@@ -562,7 +545,7 @@ const formatDate = (dateStr) => {
           <div v-else-if="albumPhotos.length === 0" class="flex flex-col items-center justify-center py-24 text-gray-500">
             <ImageIcon class="h-16 w-16 mb-4 opacity-10" /><h3 class="text-lg font-bold">This album is empty</h3>
             <p class="text-[11px] mt-1 max-w-xs text-center font-black uppercase tracking-widest opacity-40">Add photos to this album.</p>
-            <button @click="triggerUpload" :disabled="isUploading" class="mt-8 px-8 py-3 bg-primary text-white rounded-xl flex items-center gap-2 font-black uppercase tracking-widest text-[10px] transition-all"><Upload class="h-4 w-4" /><span>Add Photo</span></button>
+            <button v-if="canManage('gallery')" @click="triggerUpload" :disabled="isUploading" class="mt-8 px-8 py-3 bg-primary text-white rounded-xl flex items-center gap-2 font-black uppercase tracking-widest text-[10px] transition-all"><Upload class="h-4 w-4" /><span>Add Photo</span></button>
           </div>
           <div v-else class="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 space-y-3">
             <div v-for="photo in albumPhotos" :key="photo.id" 

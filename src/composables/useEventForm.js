@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import eventTypesData from '../data/eventTypes.json'
+import { useAppSettings } from './useAppSettings'
 
 export function useEventForm(members = { value: [] }) {
   const memberCount = computed(() => members.value?.length || 0)
@@ -15,7 +15,8 @@ export function useEventForm(members = { value: [] }) {
     icon: 'Calendar'
   })
 
-  const eventTypes = eventTypesData
+  const { categories } = useAppSettings()
+  const eventTypes = computed(() => categories.value.eventTypes)
 
   const resetEventForm = () => {
     newEventDate.value = ''

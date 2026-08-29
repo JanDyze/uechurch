@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { X, Search, Check, Trash2 } from 'lucide-vue-next'
 import { useMembers } from '../../composables/useMembers'
 import { useMediaQuery } from '../../composables/useMediaQuery'
+import { useAppSettings } from '../../composables/useAppSettings'
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
 
@@ -148,7 +149,9 @@ const handleCancel = () => {
 const presentCount = computed(() => formData.value.attendees?.length || 0)
 const totalCount = computed(() => members.value?.length || 0)
 
-const eventTypes = ['worship', 'bible study', 'prayer meeting', 'fellowship', 'outreach', 'meeting', 'other']
+// Was a third, divergent hardcoded list; now the same vocabulary as Events.
+const { categories: appCategories } = useAppSettings()
+const eventTypes = computed(() => appCategories.value.eventTypes)
 </script>
 
 <template>

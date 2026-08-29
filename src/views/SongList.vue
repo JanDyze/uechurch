@@ -15,14 +15,30 @@ import {
   AlertTriangle,
   Loader2,
   ListFilter,
-  ArrowRight
+  ArrowRight,
+  FileText
 } from 'lucide-vue-next'
 import { subscribeToSongs, addSong, updateSong, deleteSong } from '../api/songsService'
 import { useMediaQuery } from '../composables/useMediaQuery'
 import { useFocusTrap } from '../composables/useFocusTrap'
 import { useMembers } from '../composables/useMembers'
+import { useToast } from '../composables/useToast'
 import { getFullName } from '../utils/memberUtils'
+import { copyText } from '../utils/clipboard'
+import {
+  getYoutubeId,
+  getYoutubeThumbnail,
+  hasLyrics,
+  songLyricsText
+} from '../utils/songUtils'
 import SearchBar from '../components/common/SearchBar.vue'
+import SongPlayer from '../components/songs/SongPlayer.vue'
+import { usePermissions } from '../composables/usePermissions'
+import { useAppSettings } from '../composables/useAppSettings'
+import { withAllOption } from '../data/appDefaults'
+
+const { canManage } = usePermissions()
+const toast = useToast()
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
 
@@ -45,7 +61,8 @@ const songToDelete = ref(null)
 const showForm = ref(false)
 const isEditing = ref(false)
 const isSubmitting = ref(false)
-const copySuccess = ref(null) // ID of song that was just copied
+const copySuccess = ref(null) // ID of song whose link was just copied
+const lyricsCopySuccess = ref(null) // ID of song whose lyrics were just copied
 const thumbnailErrors = ref({}) // { [songId]: true } when a thumbnail image fails to load
 const showSongDetails = ref(false)
 const selectedSongDetails = ref(null)
@@ -63,6 +80,9 @@ const initialForm = {
   title: '',
   youtubeUrl: '',
   category: 'Praise',
+  // Kept verbatim, line breaks and all: the tech team copies this straight
+  // into the projector slides, where a line break is a slide break.
+  lyrics: '',
   notes: ''
 }
 const form = ref({ ...initialForm })
@@ -80,7 +100,8 @@ const buildLeaderKeys = (existing = {}) => {
 }
 
 // Categories
-const categories = ['All', 'Praise', 'Worship', 'Hymnal']
+const { categories: appCategories } = useAppSettings()
+const categories = computed(() => withAllOption(appCategories.value.songs))
 
 // Subscription
 let unsubscribeSongs = null
@@ -111,21 +132,16 @@ const filteredSongs = computed(() => {
     const q = searchQuery.value.toLowerCase()
     const matchesSearch = song.title.toLowerCase().includes(q) ||
                           song.notes?.toLowerCase().includes(q) ||
+                          song.lyrics?.toLowerCase().includes(q) ||
                           Object.values(song.leaderKeys || {}).some((key) => key?.toLowerCase().includes(q))
     return matchesCategory && matchesSearch
   })
 })
 
-const getYoutubeId = (url) => {
-  if (!url) return null
-  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-  return match ? match[1] : null
-}
+const getThumbnail = (url) => getYoutubeThumbnail(url)
 
-const getThumbnail = (url) => {
-  const id = getYoutubeId(url)
-  return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null
-}
+const detailsVideoId = computed(() => getYoutubeId(selectedSongDetails.value?.youtubeUrl))
+const detailsLyrics = computed(() => songLyricsText(selectedSongDetails.value))
 
 const handleThumbnailError = (songId) => {
   thumbnailErrors.value = { ...thumbnailErrors.value, [songId]: true }
@@ -193,6 +209,7 @@ const handleSubmit = async () => {
         youtubeUrl: form.value.youtubeUrl,
         category: form.value.category,
         leaderKeys: form.value.leaderKeys,
+        lyrics: form.value.lyrics || '',
         notes: form.value.notes
       })
     } else {
@@ -218,11 +235,29 @@ const confirmDelete = async () => {
 }
 
 const copyToClipboard = async (song) => {
-  try {
-    await navigator.clipboard.writeText(song.youtubeUrl)
-    copySuccess.value = song.id
-    setTimeout(() => { copySuccess.value = null }, 2000)
-  } catch (err) { alert("Copy failed.") }
+  if (!(await copyText(song.youtubeUrl))) {
+    toast.error('Could not copy the link.')
+    return
+  }
+  copySuccess.value = song.id
+  setTimeout(() => { copySuccess.value = null }, 2000)
+}
+
+/** The lyrics alone, exactly as stored — nothing to trim out before it goes
+ *  into the projector software. */
+const copyLyrics = async (song) => {
+  const lyrics = songLyricsText(song)
+  if (!lyrics) {
+    toast.warning('No lyrics saved for this song yet.')
+    return
+  }
+  if (!(await copyText(lyrics))) {
+    toast.error('Could not copy the lyrics.')
+    return
+  }
+  lyricsCopySuccess.value = song.id
+  setTimeout(() => { lyricsCopySuccess.value = null }, 2000)
+  toast.success(`Lyrics copied — ${song.title}`)
 }
 
 const openLink = (url) => { window.open(url, '_blank') }
@@ -257,7 +292,7 @@ const openSongContext = (song, e) => {
               </div>
             </Transition>
           </div>
-          <button @click="handleAdd" class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"><Plus class="h-5 w-5 shrink-0" /> <span class="hidden sm:inline whitespace-nowrap">Add</span></button>
+          <button v-if="canManage('songs')" @click="handleAdd" class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0"><Plus class="h-5 w-5 shrink-0" /> <span class="hidden sm:inline whitespace-nowrap">Add</span></button>
         </div>
       </div>
     </div>
@@ -315,6 +350,11 @@ const openSongContext = (song, e) => {
             <div class="flex-1 min-w-0 ml-3 sm:ml-4">
                <h3 class="font-bold text-gray-900 dark:text-white text-[14px] leading-tight flex items-center gap-2">
                  <span class="truncate">{{ song.title }}</span>
+                 <FileText
+                   v-if="hasLyrics(song)"
+                   class="h-3 w-3 shrink-0 text-emerald-500"
+                   title="Lyrics saved"
+                 />
                  <span v-if="getLeaderKeySummary(song)" class="shrink-0 truncate max-w-45 text-[10px] font-bold text-gray-400 dark:text-gray-500">{{ getLeaderKeySummary(song) }}</span>
                  <ExternalLink class="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-40 transition-opacity hidden sm:block" />
                </h3>
@@ -347,7 +387,10 @@ const openSongContext = (song, e) => {
                </button>
 
                <!-- Simple Popover -->
-               <div v-if="showActions === song.id" class="absolute right-6 top-full mt-1 w-40 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl shadow-2xl py-1 z-50 overflow-hidden" @click.stop>
+               <div v-if="showActions === song.id" class="absolute right-6 top-full mt-1 w-44 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl shadow-2xl py-1 z-50 overflow-hidden" @click.stop>
+                  <button v-if="hasLyrics(song)" @click="copyLyrics(song); showActions = null" class="w-full px-4 py-2 flex items-center gap-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-bold text-gray-700 dark:text-white transition-colors">
+                    <FileText class="h-3.5 w-3.5 text-emerald-500" /> Copy Lyrics
+                  </button>
                   <button @click="handleEdit(song); showActions = null" class="w-full px-4 py-2 flex items-center gap-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-bold text-gray-700 dark:text-white transition-colors">
                     <Edit3 class="h-3.5 w-3.5 text-blue-500" /> Edit
                   </button>
@@ -450,9 +493,25 @@ const openSongContext = (song, e) => {
               </div>
             </section>
 
+            <section class="space-y-2">
+              <div class="ml-1 flex items-center justify-between gap-2">
+                <h4 class="text-xs font-bold text-gray-400 flex items-center gap-2">
+                  <FileText class="h-3.5 w-3.5" /> Lyrics
+                </h4>
+                <span class="text-[10px] font-bold uppercase tracking-widest text-gray-300 dark:text-gray-600">For tech</span>
+              </div>
+              <textarea
+                v-model="form.lyrics"
+                rows="12"
+                spellcheck="false"
+                class="w-full bg-gray-50 dark:bg-gray-700/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 text-sm font-medium leading-relaxed text-gray-600 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary/20 whitespace-pre-wrap"
+                placeholder="Paste the lyrics here.&#10;&#10;Leave a blank line between stanzas — the tech team copies this straight into the slides, so the line breaks you type are the line breaks they get."
+              ></textarea>
+            </section>
+
             <section class="space-y-4">
               <h4 class="text-xs font-bold text-gray-400 flex items-center gap-2 ml-1">Notes</h4>
-              <textarea v-model="form.notes" rows="5" class="w-full bg-gray-50 dark:bg-gray-700/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 text-sm font-medium text-gray-600 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary/20" placeholder="Lead singer, arrangement notes, lyrics link..."></textarea>
+              <textarea v-model="form.notes" rows="5" class="w-full bg-gray-50 dark:bg-gray-700/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 text-sm font-medium text-gray-600 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary/20" placeholder="Lead singer, arrangement notes, transitions..."></textarea>
             </section>
           </div>
 
@@ -508,18 +567,15 @@ const openSongContext = (song, e) => {
 
           <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6 custom-scrollbar">
             <section class="space-y-4">
-              <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-5 space-y-4 border border-gray-100 dark:border-gray-800">
-                <div class="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                  <img
-                    v-if="getThumbnail(selectedSongDetails.youtubeUrl) && !thumbnailErrors[selectedSongDetails.id]"
-                    :src="getThumbnail(selectedSongDetails.youtubeUrl)"
-                    :alt="selectedSongDetails.title"
-                    class="w-full h-full object-cover"
-                    @error="handleThumbnailError(selectedSongDetails.id)"
-                  />
-                  <div v-else class="w-full h-full flex items-center justify-center">
-                    <Youtube class="h-10 w-10 text-red-500" />
-                  </div>
+              <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-3 sm:p-5 space-y-4 border border-gray-100 dark:border-gray-800">
+                <SongPlayer
+                  v-if="detailsVideoId"
+                  :video-id="detailsVideoId"
+                  :title="selectedSongDetails.title"
+                />
+                <div v-else class="w-full aspect-video rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center gap-2 text-center px-4">
+                  <Youtube class="h-8 w-8 text-red-500" />
+                  <p class="text-xs font-bold text-gray-400">This link isn't a YouTube video, so it can't play here.</p>
                 </div>
                 <div class="space-y-1.5">
                   <label class="text-xs font-bold text-gray-400">YouTube Link</label>
@@ -544,6 +600,41 @@ const openSongContext = (song, e) => {
                     <span class="text-sm font-black text-primary dark:text-primary-light shrink-0">{{ entry.key }}</span>
                   </div>
                 </div>
+              </div>
+            </section>
+
+            <!-- Lyrics: the tech team's copy-and-paste source for the slides -->
+            <section class="space-y-2">
+              <div class="ml-1 flex items-center justify-between gap-2">
+                <h4 class="text-xs font-bold text-gray-400 flex items-center gap-2">
+                  <FileText class="h-3.5 w-3.5" /> Lyrics
+                </h4>
+                <button
+                  v-if="detailsLyrics"
+                  @click="copyLyrics(selectedSongDetails)"
+                  class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-500 hover:bg-gray-100 hover:text-primary dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-primary-light transition-colors"
+                >
+                  <Check v-if="lyricsCopySuccess === selectedSongDetails.id" class="h-3.5 w-3.5 text-green-500" />
+                  <Copy v-else class="h-3.5 w-3.5" />
+                  {{ lyricsCopySuccess === selectedSongDetails.id ? 'Copied' : 'Copy' }}
+                </button>
+              </div>
+
+              <pre
+                v-if="detailsLyrics"
+                class="w-full max-h-96 overflow-y-auto custom-scrollbar bg-gray-50 dark:bg-gray-700/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 text-sm font-sans font-medium leading-relaxed text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words select-text"
+              >{{ detailsLyrics }}</pre>
+
+              <div v-else class="w-full bg-gray-50 dark:bg-gray-700/30 rounded-2xl p-4 border border-dashed border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-400">
+                No lyrics saved yet.
+                <button
+                  v-if="canManage('songs')"
+                  @click="handleEdit(selectedSongDetails)"
+                  class="font-bold text-primary dark:text-primary-light hover:underline"
+                >
+                  Add them
+                </button>
+                <span v-else>Ask a worship lead to add them.</span>
               </div>
             </section>
 
@@ -583,6 +674,9 @@ const openSongContext = (song, e) => {
         </button>
         <button @click="copyToClipboard(contextMenu.song); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-primary/10 text-sm font-bold text-gray-700 dark:text-white transition-colors">
           <Copy class="h-4 w-4" /> Copy Link
+        </button>
+        <button v-if="hasLyrics(contextMenu.song)" @click="copyLyrics(contextMenu.song); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-primary/10 text-sm font-bold text-gray-700 dark:text-white transition-colors">
+          <FileText class="h-4 w-4 text-emerald-500" /> Copy Lyrics
         </button>
         <div class="h-px bg-gray-100 dark:bg-gray-800 my-1"></div>
         <button @click="handleEdit(contextMenu.song); closeMenus()" class="w-full px-5 py-3 flex items-center gap-3 hover:bg-primary/10 text-sm font-bold text-primary transition-colors">

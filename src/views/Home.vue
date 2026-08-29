@@ -24,6 +24,25 @@ import { subscribeToPrayerConcerns } from '../api/prayerConcernsService'
 import { subscribeToLinks } from '../api/linksService'
 import { subscribeToAlbums } from '../api/galleryService'
 import { subscribeToNotifications } from '../api/notifyService'
+import { useRoute, useRouter } from 'vue-router'
+import { useToast } from '../composables/useToast'
+import { useAllLineups } from '../composables/useLineups'
+import { usePermissions } from '../composables/usePermissions'
+import { getAvatarUrl, getFullName } from '../utils/memberUtils'
+import { memberKey } from '../utils/sgUtils'
+import { formatServiceDate } from '../utils/lineupUtils'
+
+// The router bounces anyone without the capability for a page back to here.
+// Say so, rather than leaving them wondering why the tap did nothing.
+const route = useRoute()
+const router = useRouter()
+const toast = useToast()
+
+onMounted(() => {
+  if (!route.query.denied) return
+  toast.warning(`You do not have access to ${route.query.denied}. Ask an administrator for the right ministry tag.`, 5000)
+  router.replace({ query: {} })
+})
 
 const members = ref([])
 const transactions = ref([])
@@ -48,6 +67,34 @@ onMounted(() => {
   unsubs.push(subscribeToNotifications((d) => (notifications.value = d)))
 })
 onUnmounted(() => unsubs.forEach((u) => u && u()))
+
+// ---- Worship lineup ----
+// The one thing the team checks on a Saturday night: who is leading tomorrow
+// and what is being sung. Planners see draft months too; everyone else waits
+// for the lineup to be published.
+const { can, canManage, myMember } = usePermissions()
+const { nextService } = useAllLineups()
+const canSeeLineups = computed(() => can('lineups.view'))
+const upcomingService = computed(() => nextService(canManage('lineups')))
+const serviceLeader = computed(() => {
+  const id = upcomingService.value?.leaderId
+  if (!id) return null
+  return (
+    members.value.find((m) => memberKey(m) === String(id) || String(m.firestoreId) === String(id)) ||
+    null
+  )
+})
+
+// Whether the signed-in member is rostered for that service — the reason a
+// song leader opens the app on a Saturday night.
+const isMyService = computed(() => {
+  const service = upcomingService.value
+  if (!service || !myMember.value) return false
+  const me = memberKey(myMember.value)
+  return (
+    String(service.leaderId) === me || (service.teamIds || []).some((id) => String(id) === me)
+  )
+})
 
 // ---- Finance summaries ----
 // Bank transfers move money between the church's own accounts, so they are
@@ -215,6 +262,80 @@ const collections = computed(() => [
             {{ prayerConcerns.length ? 'concerns listed' : 'none yet' }}
           </div>
         </router-link>
+      </div>
+
+      <!-- Up next in worship -->
+      <div
+        v-if="canSeeLineups"
+        class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5"
+      >
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-bold text-primary">Up next in worship</h3>
+          <router-link
+            :to="upcomingService ? `/lineups/${upcomingService.month}` : '/lineups'"
+            class="text-xs font-bold text-gray-400 hover:text-primary transition-colors"
+          >
+            View lineup
+          </router-link>
+        </div>
+
+        <template v-if="upcomingService">
+          <div class="flex items-center gap-3">
+            <img
+              v-if="serviceLeader"
+              :src="getAvatarUrl(serviceLeader)"
+              alt=""
+              class="h-10 w-10 rounded-full object-cover shrink-0"
+            />
+            <div class="min-w-0">
+              <p class="text-sm font-black text-gray-900 dark:text-white truncate">
+                {{ serviceLeader ? getFullName(serviceLeader) : 'No leader assigned' }}
+              </p>
+              <p class="text-[11px] font-bold text-gray-400 truncate">
+                {{ formatServiceDate(upcomingService.date)
+                }}{{ upcomingService.theme ? ' · ' + upcomingService.theme : '' }}
+              </p>
+            </div>
+            <span
+              v-if="isMyService"
+              class="ml-auto shrink-0 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-primary/10 text-primary dark:bg-primary-light/10 dark:text-primary-light"
+            >
+              You&rsquo;re on
+            </span>
+            <span
+              v-else-if="upcomingService.status !== 'published'"
+              class="ml-auto shrink-0 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
+            >
+              Draft
+            </span>
+          </div>
+
+          <ol v-if="upcomingService.songs.length" class="mt-3 flex flex-col">
+            <li
+              v-for="(song, i) in upcomingService.songs"
+              :key="`${song.songId}-${i}`"
+              class="flex items-baseline gap-2 py-1.5 border-b border-gray-100 dark:border-gray-700/60 last:border-b-0"
+            >
+              <span class="shrink-0 w-4 text-[11px] font-black text-gray-300 dark:text-gray-600 tabular-nums">
+                {{ i + 1 }}
+              </span>
+              <span class="min-w-0 flex-1 text-sm font-bold text-gray-700 dark:text-gray-200 truncate">
+                {{ song.title }}
+              </span>
+              <span
+                v-if="song.key"
+                class="shrink-0 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-[11px] font-black text-gray-700 dark:text-gray-200"
+              >
+                {{ song.key }}
+              </span>
+            </li>
+          </ol>
+          <p v-else class="mt-3 text-sm font-semibold text-gray-400">Songs not chosen yet</p>
+        </template>
+
+        <p v-else class="py-6 text-center text-sm font-semibold text-gray-400">
+          No worship lineup published yet
+        </p>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">

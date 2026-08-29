@@ -1,5 +1,7 @@
 import { computed, markRaw, ref, triggerRef } from 'vue'
 import * as authService from '../api/authService'
+import { recordSignIn } from '../api/userAccountsService'
+import { getAccountAvatarUrl } from '../utils/memberUtils'
 
 // Global auth state (shared across components)
 const user = ref(null)
@@ -24,6 +26,16 @@ export const initAuth = () => {
     // shouldn't be wrapped in a reactive proxy. Mutations are published with
     // triggerRef instead (see updateDisplayName).
     user.value = firebaseUser ? markRaw(firebaseUser) : null
+
+    // Mirror the account into Firestore so the Accounts page has something to
+    // list — the client SDK cannot enumerate Firebase users. Deliberately not
+    // awaited: a slow or blocked write must never hold up the router guard.
+    if (firebaseUser) {
+      recordSignIn(firebaseUser).catch((error) =>
+        console.error('Error recording sign-in:', error)
+      )
+    }
+
     if (!isReady.value) {
       isReady.value = true
       resolveReady()
@@ -43,11 +55,9 @@ export function useAuth() {
 
   const email = computed(() => user.value?.email || '')
 
-  // Avatar seed keeps the same face for the same account across devices
-  const avatarUrl = computed(() => {
-    const seed = encodeURIComponent(user.value?.uid || 'UEC')
-    return `https://api.dicebear.com/9.x/dylan/svg?seed=${seed}`
-  })
+  // Google supplies a real profile photo; everyone else gets a generated face
+  // seeded by uid, which keeps it the same across devices.
+  const avatarUrl = computed(() => getAccountAvatarUrl(user.value))
 
   // updateProfile mutates the existing User object without firing
   // onAuthStateChanged, so nothing would re-render on its own — publish the
@@ -68,6 +78,8 @@ export function useAuth() {
     initAuth,
     updateDisplayName,
     login: authService.login,
+    loginWithGoogle: authService.loginWithGoogle,
+    consumePendingGoogleSignIn: authService.consumePendingGoogleSignIn,
     register: authService.register,
     logout: authService.logout,
     resetPassword: authService.resetPassword,

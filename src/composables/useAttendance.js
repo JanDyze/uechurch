@@ -8,6 +8,12 @@ export function useAttendance() {
   const attendance = ref([])
   const loading = ref(true)
   let unsubscribe = null
+  let clock = null
+
+  // Recurring occurrences appear once their schedule's lead time opens, so the
+  // list has to re-evaluate as the clock moves - otherwise someone who opened
+  // the app at 8:20 would still see nothing at 8:30 without a refresh.
+  const now = ref(Date.now())
 
   const { events } = useEvents()
   const { minutes } = useMinutes()
@@ -19,11 +25,17 @@ export function useAttendance() {
       attendance.value = data
       loading.value = false
     })
+    clock = setInterval(() => {
+      now.value = Date.now()
+    }, 60 * 1000)
   })
 
   onUnmounted(() => {
     if (unsubscribe) {
       unsubscribe()
+    }
+    if (clock) {
+      clearInterval(clock)
     }
   })
 
@@ -40,7 +52,7 @@ export function useAttendance() {
   // Aggregate attendance from events and minutes
   const aggregatedAttendance = computed(() => {
     const records = []
-    const today = new Date()
+    const today = new Date(now.value)
     today.setHours(0, 0, 0, 0)
 
     // Create a map of attendance records by eventId to check for duplicates
@@ -131,19 +143,21 @@ export function useAttendance() {
       }
     })
 
-    // Add recurring services from Settings. Deliberately narrow: only the
-    // current month, and only occurrences that have already happened, so a
-    // weekly service does not flood the list with a year of future dates.
-    const currentYear = today.getFullYear()
-    const currentMonthIndex = today.getMonth()
+    // Add recurring services from Settings. Nothing older than the current
+    // month, so a weekly service does not flood the list with a year of past
+    // dates, and nothing before its lead time opens - a schedule set to "1 hour
+    // before" puts the 9:00 service in this list from 8:00, so whoever arrives
+    // early records against it instead of creating a duplicate one-off event.
+    // The lead time is per schedule: Settings > Schedule > Show in attendance.
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
 
     recurringEvents.value.forEach(event => {
-      const eventDate = new Date(event.date)
-      const inCurrentMonth =
-        eventDate.getFullYear() === currentYear &&
-        eventDate.getMonth() === currentMonthIndex
+      // Local parse: `new Date('2026-08-30')` is UTC midnight, a day off west
+      // of Greenwich.
+      const eventDate = new Date(`${event.date}T00:00:00`)
+      if (Number.isNaN(eventDate.getTime()) || eventDate < monthStart) return
 
-      if (!inCurrentMonth || !isPastOrToday(event.date)) return
+      if (!event.visibleFrom || now.value < event.visibleFrom.getTime()) return
       // Already recorded, or replaced by a saved event for that date
       if (attendanceByEventId.has(event.id)) return
 

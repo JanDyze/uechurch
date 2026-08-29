@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
-import { Bell, Sun, Moon, X, Users, LogOut } from "lucide-vue-next";
+import { Bell, Sun, Moon, X, Users, LogOut, UserCheck, UserPlus, Clock3, ChevronRight } from "lucide-vue-next";
 import { useRouter } from "vue-router";
 import { useTheme } from "../composables/useTheme";
 import { useNotifications } from "../composables/useNotifications";
@@ -9,12 +9,17 @@ import { subscribeToNotifications } from "../api/notifyService";
 import { useFocusTrap } from "../composables/useFocusTrap";
 import { useAuth } from "../composables/useAuth";
 import { useToast } from "../composables/useToast";
-import logo from "../assets/uec-logo.png";
+import { useMembers } from "../composables/useMembers";
+import { useMyMember } from "../composables/useMyMember";
+import { useMemberClaims } from "../composables/useMemberClaims";
+import { usePresence } from "../composables/usePresence";
+import { getFullName } from "../utils/memberUtils";
+import ClaimMemberSheet from "./auth/ClaimMemberSheet.vue";
 
 const route = useRoute();
 const router = useRouter();
 const { isDark, toggleTheme } = useTheme();
-const { displayName, email: userEmail, avatarUrl, logout, updateDisplayName } = useAuth();
+const { displayName, email: userEmail, avatarUrl, logout } = useAuth();
 const toast = useToast();
 const { isEnabled: notificationsEnabled, enabling, enable } = useNotifications();
 
@@ -80,67 +85,12 @@ const pageTitle = computed(() => {
   return routeNames[route.name] || route.name || 'Dashboard';
 });
 
-// Live presence — identity is the signed-in account, not a random persona
-const visitors = ref([])
-const mySessionId = ref('')
-
-import { onMounted, onUnmounted } from 'vue'
-import { updatePresence, subscribeToPresence, removePresence } from '../api/presenceService'
-
-onMounted(async () => {
-  // PERSISTENCE: Check if we have a session in this browser already
-  let sid = localStorage.getItem('uec_visitor_session_id')
-
-  if (!sid) {
-    sid = `session-${Math.random().toString(36).substring(2, 11)}`
-    localStorage.setItem('uec_visitor_session_id', sid)
-  }
-
-  // Leftover from the old random-persona presence
-  localStorage.removeItem('uec_visitor_animal')
-
-  mySessionId.value = sid
-
-  // Initial heartbeat
-  await updatePresence(mySessionId.value, { name: displayName.value })
-
-  // Start periodic heartbeat every 30 seconds
-  const heartbeatInterval = setInterval(() => {
-    updatePresence(mySessionId.value, { name: displayName.value })
-  }, 30000)
-
-  // Cleanup on Tab Close
-  const handleUnload = () => {
-    removePresence(mySessionId.value)
-  }
-  window.addEventListener('beforeunload', handleUnload)
-
-  // Subscribe to all live visitors
-  const unsubscribePresence = subscribeToPresence((data) => {
-    // Filter out our own session so we only see 'others'
-    visitors.value = data.filter(v => v.id !== mySessionId.value)
-  })
-
-  onUnmounted(async () => {
-    clearInterval(heartbeatInterval)
-    unsubscribePresence()
-    window.removeEventListener('beforeunload', handleUnload)
-    await removePresence(mySessionId.value)
-  })
-})
-
-const isModalOpen = ref(false)
-const isRenaming = ref(false)
-const newName = ref('')
+// Live presence now belongs to the people rail; the Topbar only carries the
+// button that opens it on screens too narrow for the permanent column.
+const { onlineCount, showPeoplePanel, togglePeoplePanel } = usePresence()
 
 const notifPanelRef = ref(null)
 useFocusTrap(notifPanelRef, isNotifOpen, () => { isNotifOpen.value = false }, { trap: false })
-
-const visitorsModalRef = ref(null)
-useFocusTrap(visitorsModalRef, isModalOpen, () => { isModalOpen.value = false })
-
-const renamePopoverRef = ref(null)
-useFocusTrap(renamePopoverRef, isRenaming, () => { isRenaming.value = false }, { trap: false })
 
 // User account menu
 const isUserMenuOpen = ref(false)
@@ -162,43 +112,52 @@ const handleLogout = async () => {
   }
 }
 
-const savingName = ref(false)
+/* --------------------------------------------------- linked member record */
+const { members } = useMembers()
+const { myMember, isLinked } = useMyMember()
+const { myClaim, myPendingClaim, submitClaim, withdraw } = useMemberClaims()
 
-const startRename = () => {
-  newName.value = displayName.value
-  isRenaming.value = true
+const showClaimSheet = ref(false)
+const submittingClaim = ref(false)
+
+const openClaimSheet = () => {
+  isUserMenuOpen.value = false
+  showClaimSheet.value = true
 }
 
-const toggleRename = () => {
-  if (isRenaming.value) {
-    isRenaming.value = false
-  } else {
-    startRename()
-  }
-}
-
-const saveName = async () => {
-  const name = newName.value.trim()
-  if (!name || name === displayName.value) { isRenaming.value = false; return }
-
-  // The account name is the single source of truth: rename it, then push the
-  // new name onto this session's presence record so other visitors see it too.
-  savingName.value = true
+const handleClaimSubmit = async (member) => {
+  submittingClaim.value = true
   try {
-    await updateDisplayName(name)
-    await updatePresence(mySessionId.value, { name })
-    isRenaming.value = false
-    toast.success('Name updated')
-  } catch {
-    toast.error('Could not update your name. Please try again.')
+    await submitClaim(member)
+    showClaimSheet.value = false
+    toast.success(`Request sent. An administrator will review it.`)
+  } catch (e) {
+    console.error('Error requesting member link:', e)
+    toast.error('Could not send the request. Please try again.')
   } finally {
-    savingName.value = false
+    submittingClaim.value = false
   }
 }
+
+const handleWithdrawClaim = async () => {
+  try {
+    await withdraw(myPendingClaim.value)
+    toast.success('Request withdrawn')
+  } catch (e) {
+    console.error('Error withdrawing member claim:', e)
+    toast.error('Could not withdraw the request.')
+  }
+}
+
+const openMyProfile = () => {
+  isUserMenuOpen.value = false
+  router.push(`/members/${myMember.value.id || myMember.value.firestoreId}`)
+}
+
 </script>
 
 <template>
-  <header class="bg-white dark:bg-gray-800 sticky top-0 z-70">
+  <header class="bg-white dark:bg-gray-800 sticky top-0 z-70 no-print">
     <div class="px-4 sm:px-6 lg:px-4">
       <div class="flex items-center justify-between h-16">
         <div class="flex items-center gap-3">
@@ -210,72 +169,23 @@ const saveName = async () => {
         </div>
         <!-- Right: User menu and notifications -->
         <div class="flex items-center gap-2">
-          <!-- Anonymous Visitors Stack -->
-          <div v-if="visitors.length || mySessionId" class="flex items-center -space-x-1.5 mr-3 animate-in fade-in slide-in-from-right-4 duration-700 delay-300">
-            <!-- Current User (YOU) with Rename Popup -->
-            <div v-if="mySessionId" class="relative group">
-              <div @click.stop="toggleRename"
-                class="w-7.5 h-7.5 rounded-full border-2 border-primary dark:border-primary-light flex items-center justify-center cursor-pointer relative z-40 shadow-xl hover:scale-110 hover:rotate-12 active:scale-95 transition-all bg-white dark:bg-gray-800"
-              >
-                  <div class="w-full h-full overflow-hidden rounded-full">
-                    <img :src="`https://api.dicebear.com/9.x/open-peeps/svg?seed=${mySessionId}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`" class="w-full h-full object-cover" />
-                  </div>
-                  <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-primary text-white text-[9px] px-2 py-1.5 rounded-lg whitespace-nowrap shadow-2xl z-50 uppercase tracking-widest font-black pointer-events-none">
-                      {{ displayName }} (YOU)
-                  </div>
-              </div>
-
-              <!-- Rename Popover -->
-              <Transition name="fade">
-                <div
-                  v-if="isRenaming"
-                  ref="renamePopoverRef"
-                  role="dialog"
-                  aria-labelledby="rename-popover-title"
-                  tabindex="-1"
-                  class="absolute top-full right-0 mt-3 w-56 bg-white dark:bg-gray-900 border-2 border-primary/20 dark:border-primary-light/20 rounded-2xl shadow-2xl p-4 z-100"
-                  @click.stop
-                >
-                  <div class="flex items-center justify-between mb-3">
-                    <p id="rename-popover-title" class="text-[9px] font-black uppercase tracking-widest text-primary">Your Name</p>
-                    <button @click="isRenaming = false" aria-label="Close" class="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors">
-                      <X class="w-3 h-3" />
-                    </button>
-                  </div>
-                  <div class="flex flex-col gap-2.5">
-                    <input v-model="newName" class="w-full bg-transparent border-b-2 border-gray-100 dark:border-gray-800 py-1.5 text-[11px] font-black text-gray-900 dark:text-white outline-none focus:border-primary transition-colors" @keyup.enter="saveName" placeholder="Enter your full name..." autofocus />
-                    <p class="text-[9px] font-bold text-gray-400 leading-relaxed">
-                      This renames your account and is what everyone else sees here.
-                    </p>
-                    <div class="flex gap-2">
-                       <button @click="isRenaming = false" class="flex-1 py-2.5 border-2 border-gray-100 dark:border-gray-800 text-gray-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">Cancel</button>
-                       <button @click="saveName" :disabled="savingName" class="flex-[1.5] py-2.5 bg-primary text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 active:scale-95 disabled:opacity-50 disabled:active:scale-100">{{ savingName ? 'Saving...' : 'Update' }}</button>
-                    </div>
-                  </div>
-                </div>
-              </Transition>
-            </div>
-
-            <!-- Other Active Sessions (Max 5 shown) -->
-            <div v-for="v in visitors.slice(0, 5)" :key="v.id" 
-              class="w-7 h-7 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center cursor-help relative group shadow-sm hover:z-20 hover:-translate-y-0.5 transition-all opacity-80 hover:opacity-100 bg-white dark:bg-gray-800"
+          <!-- Who is online. The permanent rail replaces this from xl up. -->
+          <button
+            @click="togglePeoplePanel"
+            class="xl:hidden relative p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title="Who is online"
+            aria-label="Who is online"
+            aria-haspopup="dialog"
+            :aria-expanded="showPeoplePanel"
+          >
+            <Users class="w-6 h-6" />
+            <span
+              v-if="onlineCount"
+              class="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 flex items-center justify-center rounded-full bg-emerald-500 text-white text-[9px] font-black"
             >
-               <div class="w-full h-full overflow-hidden rounded-full font-black">
-                 <img :src="`https://api.dicebear.com/9.x/open-peeps/svg?seed=${v.id}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`" class="w-full h-full object-cover" />
-               </div>
-               <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-gray-900 text-white text-[9px] px-2 py-1.5 rounded-lg whitespace-nowrap shadow-2xl z-50 uppercase tracking-widest font-black pointer-events-none">
-                  {{ v.name }}
-               </div>
-            </div>
-
-            <!-- Overflow indicator -->
-            <div v-if="visitors.length > 5" 
-              @click="isModalOpen = true"
-              class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-gray-700 flex items-center justify-center text-[9px] font-black text-gray-600 dark:text-gray-400 cursor-pointer hover:bg-gray-200 transition-all relative z-10"
-            >
-              +{{ visitors.length - 5 }}
-            </div>
-          </div>
+              {{ onlineCount }}
+            </span>
+          </button>
 
           <!-- Theme Toggle -->
           <button
@@ -439,6 +349,64 @@ const saveName = async () => {
                   </div>
                 </div>
 
+                <!-- Which member record this account is, if any -->
+                <div class="px-3 pb-3 border-t-2 border-gray-50 dark:border-gray-800 pt-3">
+                  <button
+                    v-if="isLinked"
+                    @click="openMyProfile"
+                    class="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-primary/5 dark:bg-primary/10 text-left hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors"
+                  >
+                    <UserCheck class="w-4 h-4 shrink-0 text-primary dark:text-primary-light" />
+                    <span class="flex-1 min-w-0">
+                      <span class="block text-[9px] font-black uppercase tracking-widest text-primary dark:text-primary-light">
+                        My profile
+                      </span>
+                      <span class="block text-[11px] font-bold text-gray-900 dark:text-white truncate">
+                        {{ getFullName(myMember) }}
+                      </span>
+                    </span>
+                    <ChevronRight class="w-4 h-4 shrink-0 text-gray-300 dark:text-gray-600" />
+                  </button>
+
+                  <div
+                    v-else-if="myPendingClaim"
+                    class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-500/10"
+                  >
+                    <p class="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                      <Clock3 class="w-3.5 h-3.5" />
+                      Awaiting approval
+                    </p>
+                    <p class="mt-1 text-[11px] font-bold text-gray-900 dark:text-white truncate">
+                      {{ myPendingClaim.memberName }}
+                    </p>
+                    <button
+                      @click="handleWithdrawClaim"
+                      class="mt-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      Withdraw request
+                    </button>
+                  </div>
+
+                  <button
+                    v-else
+                    @click="openClaimSheet"
+                    class="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-dashed border-gray-100 dark:border-gray-800 text-left hover:border-primary/40 transition-colors"
+                  >
+                    <UserPlus class="w-4 h-4 shrink-0 text-gray-400" />
+                    <span class="flex-1 min-w-0">
+                      <span class="block text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                        Link my member record
+                      </span>
+                      <span
+                        v-if="myClaim && myClaim.status === 'rejected'"
+                        class="block text-[10px] text-red-500 truncate"
+                      >
+                        Last request was declined
+                      </span>
+                    </span>
+                  </button>
+                </div>
+
                 <div class="px-3 pb-3 border-t-2 border-gray-50 dark:border-gray-800 pt-3">
                   <button
                     @click="handleLogout"
@@ -457,64 +425,13 @@ const saveName = async () => {
       </div>
     </div>
 
-    <!-- Active Visitors Modal -->
-    <Transition name="fade">
-      <div v-if="isModalOpen" class="fixed inset-0 z-110 flex items-center justify-center bg-gray-900/40 backdrop-blur-md" @click="isModalOpen = false">
-        <div
-          ref="visitorsModalRef"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="visitors-modal-title"
-          tabindex="-1"
-          class="w-full max-w-sm bg-white dark:bg-gray-900 rounded-4xl shadow-2xl border-4 border-white dark:border-gray-800 p-8 m-4 max-h-[80vh] flex flex-col"
-          @click.stop
-        >
-          <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center gap-3">
-              <div class="p-2.5 bg-primary/10 rounded-2xl">
-                <Users class="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h3 id="visitors-modal-title" class="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tighter">Live Presence</h3>
-                <p class="text-[10px] font-black uppercase tracking-widest text-primary">Currently Online</p>
-              </div>
-            </div>
-            <button @click="isModalOpen = false" aria-label="Close" class="p-2 rounded-xl border-2 border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
-              <X class="w-4 h-4 text-gray-400" />
-            </button>
-          </div>
+    <ClaimMemberSheet
+      v-model:show="showClaimSheet"
+      :members="members"
+      :submitting="submittingClaim"
+      @submit="handleClaimSubmit"
+    />
 
-          <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            <div class="space-y-3">
-              <!-- You -->
-              <div class="flex items-center justify-between p-3.5 bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 border-primary/10">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-full border-2 border-primary bg-white dark:bg-gray-800 overflow-hidden">
-                    <img :src="`https://api.dicebear.com/9.x/open-peeps/svg?seed=${mySessionId}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`" class="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <p class="text-[11px] font-black text-gray-900 dark:text-white">{{ displayName }}</p>
-                    <p class="text-[9px] font-black uppercase tracking-widest text-primary">Your Account</p>
-                  </div>
-                </div>
-                <button @click="isModalOpen = false; startRename()" class="px-3 py-1.5 bg-primary text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Rename</button>
-              </div>
-
-              <!-- Others -->
-              <div v-for="v in visitors" :key="v.id" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-transparent hover:border-gray-100 dark:hover:border-gray-700 transition-all">
-                <div class="w-10 h-10 rounded-full border-2 border-white dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-                  <img :src="`https://api.dicebear.com/9.x/open-peeps/svg?seed=${v.id}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`" class="w-full h-full object-cover" />
-                </div>
-                <div>
-                  <p class="text-[11px] font-black text-gray-900 dark:text-white">{{ v.name }}</p>
-                  <p class="text-[9px] font-black uppercase tracking-widest text-gray-400">Live Visitor</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
   </header>
 </template>
 

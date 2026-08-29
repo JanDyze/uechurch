@@ -1,4 +1,5 @@
 import XLSX from 'xlsx-js-style';
+import { getChurchIdentity } from '../composables/useAppSettings';
 
 // Available fields for export
 const availableFields = [
@@ -229,7 +230,7 @@ export const exportToExcel = (members, config) => {
   const wsData = [];
   
   // Title row
-  wsData.push([`UEC Canubing II - Members Directory`]);
+  wsData.push([`${getChurchIdentity().shortName} - Members Directory`]);
   
   // Subtitle row
   const exportDate = new Date().toLocaleDateString('en-US', { 
@@ -343,7 +344,8 @@ export const exportToExcel = (members, config) => {
   XLSX.utils.book_append_sheet(wb, ws, 'Members');
 
   // Generate filename
-  const filename = `UEC_Members_${new Date().toISOString().split("T")[0]}.xlsx`;
+  const prefix = (getChurchIdentity().shortName || "Church").replace(/[^\w-]+/g, "_");
+  const filename = `${prefix}_Members_${new Date().toISOString().split("T")[0]}.xlsx`;
 
   // Download
   XLSX.writeFile(wb, filename);

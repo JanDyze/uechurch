@@ -5,8 +5,15 @@ import PrayerConcernsToolbar from '../components/prayerConcerns/PrayerConcernsTo
 import PrayerConcernListItem from '../components/prayerConcerns/PrayerConcernListItem.vue'
 import PrayerConcernDrawer from '../components/prayerConcerns/PrayerConcernDrawer.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
+import { useMyMember } from '../composables/useMyMember'
+import { getFullName } from '../utils/memberUtils'
+import { memberKey } from '../utils/sgUtils'
 
 const { prayerConcerns, loading, addPrayerConcernToFirestore, updatePrayerConcernInFirestore, removePrayerConcern } = usePrayerConcerns()
+
+// Most concerns are raised by whoever is filling the form, so a new one starts
+// pointed at their own member record when their account has been linked.
+const { myMember } = useMyMember()
 
 const searchQuery = ref('')
 const showAddConcern = ref(false)
@@ -96,8 +103,8 @@ const handleNewConcern = () => {
   } else {
     newConcernData.value = {
       title: '',
-      memberId: '',
-      memberName: '',
+      memberId: myMember.value ? memberKey(myMember.value) : '',
+      memberName: myMember.value ? getFullName(myMember.value) : '',
       description: '',
       status: 'active',
       priority: 'normal',

@@ -1,8 +1,16 @@
 import XLSX from 'xlsx-js-style'
 import { categoryLabel, accountLabel } from '../data/financeChart'
+import { getChurchIdentity } from '../composables/useAppSettings'
 
-const CHURCH_NAME = 'United Evangelical Church Philippines Inc. Canubing Outreach'
 const MONEY = '#,##0.00'
+
+const filePrefix = () =>
+  (getChurchIdentity().shortName || 'Church').replace(/[^\w-]+/g, '_').slice(0, 40)
+
+const churchName = () => {
+  const { fullName, branch } = getChurchIdentity()
+  return [fullName, branch].filter(Boolean).join(' ')
+}
 
 const styles = {
   churchName: {
@@ -47,7 +55,7 @@ const buildStatementSheet = (statement) => {
     meta.push(styleMap)
   }
 
-  push([CHURCH_NAME], { 0: styles.churchName })
+  push([churchName()], { 0: styles.churchName })
   push(['Statement of Income and Expenses'], { 0: styles.title })
   push([statement.label], { 0: styles.period })
   push([])
@@ -205,7 +213,7 @@ const buildTransactionsSheet = (transactions) => {
 
 const buildMonthlySheet = (statements, year) => {
   const rows = [
-    [CHURCH_NAME],
+    [churchName()],
     [`Month by Month — ${year}`],
     [],
     [
@@ -259,7 +267,7 @@ export const exportStatement = (statement) => {
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, buildStatementSheet(statement), 'Statement')
   XLSX.utils.book_append_sheet(wb, buildTransactionsSheet(statement.transactions), 'Transactions')
-  XLSX.writeFile(wb, `UEC_Statement_${statement.key}.xlsx`)
+  XLSX.writeFile(wb, `${filePrefix()}_Statement_${statement.key}.xlsx`)
 }
 
 /** Year view: the annual statement, the month-by-month table, and every row. */
@@ -268,5 +276,5 @@ export const exportYear = (yearStatement, monthlyStatements, year) => {
   XLSX.utils.book_append_sheet(wb, buildStatementSheet(yearStatement), `${year} Summary`)
   XLSX.utils.book_append_sheet(wb, buildMonthlySheet(monthlyStatements, year), 'By Month')
   XLSX.utils.book_append_sheet(wb, buildTransactionsSheet(yearStatement.transactions), 'Transactions')
-  XLSX.writeFile(wb, `UEC_Statement_${year}.xlsx`)
+  XLSX.writeFile(wb, `${filePrefix()}_Statement_${year}.xlsx`)
 }

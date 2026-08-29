@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, formatBirthDate } from "../../utils/memberUtils";
+import YouBadge from "./YouBadge.vue";
 import { useLongPress } from "../../composables/useLongPress";
 
 const props = defineProps({
@@ -72,9 +73,12 @@ const handleClick = () => {
         class="h-12 w-12 rounded-full"
       />
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
-          {{ getFullName(member) }}
-        </p>
+        <div class="flex items-center gap-1.5 min-w-0">
+          <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+            {{ getFullName(member) }}
+          </p>
+          <YouBadge :member="member" />
+        </div>
         <p
           v-if="member.nickname"
           class="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate"
@@ -96,6 +100,7 @@ const handleClick = () => {
           <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
             {{ getFullName(member) }}
           </p>
+          <YouBadge :member="member" />
           <span
             :class="['text-base font-semibold', getSexIconColor(member.sex)]"
             :title="member.sex"

@@ -3,7 +3,7 @@ import { Clock, MapPin, Users, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, 
 import * as LucideIcons from 'lucide-vue-next'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { computed, ref } from 'vue'
-import eventTypesData from '../../data/eventTypes.json'
+import { useAppSettings } from '../../composables/useAppSettings'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const props = defineProps({
@@ -41,7 +41,8 @@ const props = defineProps({
   }
 })
 
-const eventTypes = eventTypesData
+const { categories } = useAppSettings()
+const eventTypes = computed(() => categories.value.eventTypes)
 
 const emit = defineEmits([
   'update:show',
@@ -118,7 +119,7 @@ const clearTypeFilters = () => {
 }
 
 const selectAllTypes = () => {
-  emit('update:eventTypeFilter', [...eventTypes])
+  emit('update:eventTypeFilter', [...eventTypes.value])
 }
 
 const filterButtonLabel = computed(() => {

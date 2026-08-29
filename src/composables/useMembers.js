@@ -1,6 +1,5 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { subscribeToMembers, addMember, updateMember, deleteMember as deleteMemberDoc } from "../api/membersService";
-import membersData from "../assets/members.json";
 
 export function useMembers() {
   const members = ref([]);
@@ -69,13 +68,11 @@ export function useMembers() {
 
   // Initialize: Set up real-time listener
   onMounted(() => {
-    try {
-      setupRealtimeListener();
-    } catch (error) {
-      console.error("Error setting up Firestore listener:", error);
-      // Fallback to local data if Firestore fails
-      members.value = membersData;
-    }
+    // No local fallback: onSnapshot reports network failures through its error
+    // callback (which already yields an empty list), never as a synchronous
+    // throw, so a catch here could only ever mask a programming error — and the
+    // sample roster it used to fall back to shipped in the public JS bundle.
+    setupRealtimeListener();
   });
 
   // Cleanup: Unsubscribe when component unmounts

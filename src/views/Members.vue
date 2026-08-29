@@ -18,8 +18,8 @@ import MemberListItem from "../components/members/MemberListItem.vue";
 import MemberCardSkeleton from "../components/members/MemberCardSkeleton.vue";
 import ConfirmationModal from "../components/common/ConfirmationModal.vue";
 import { exportToExcel } from "../utils/exportUtils";
-import { getFullName, mergeWithPresetTags } from "../utils/memberUtils";
-import { subscribeToCustomTags, addCustomTag } from "../api/tagsService";
+import { getFullName, mergeTagSources } from "../utils/memberUtils";
+import { subscribeToCustomTags } from "../api/tagsService";
 
 const toast = useToast();
 
@@ -55,23 +55,7 @@ onUnmounted(() => {
 // been tagged with them. Filtering/exporting deliberately keep using the
 // plain `allTags` above, since offering a filter for a tag nobody has yet
 // would just be dead weight.
-const assignableTags = computed(() => mergeWithPresetTags(allTags.value, customTags.value));
-
-const handleAddTag = async (name) => {
-  const trimmed = (name || '').trim();
-  if (!trimmed) return;
-  const exists = assignableTags.value.some((t) => t.toLowerCase() === trimmed.toLowerCase());
-  if (exists) {
-    toast.info('That tag already exists');
-    return;
-  }
-  try {
-    await addCustomTag(trimmed);
-    toast.success(`"${trimmed}" tag added`);
-  } catch (err) {
-    toast.error('Failed to add tag. Please try again.');
-  }
-};
+const assignableTags = computed(() => mergeTagSources(allTags.value, customTags.value));
 
 // Sorting
 const { sortBy, sortOrder, sortMembers } = useMemberSorting();
@@ -435,7 +419,6 @@ const isDrawerOpen = computed(() => {
       :totalCount="members.length"
       @export="showExport = true"
       @switchLayout="handleSwitchLayout"
-      @addTag="handleAddTag"
       @removeFilter="handleRemoveFilter"
       @clearFilters="handleClearFilters"
     />

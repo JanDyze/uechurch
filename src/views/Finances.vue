@@ -30,6 +30,9 @@ import LedgerList from '../components/finances/LedgerList.vue'
 import TransactionSheet from '../components/finances/TransactionSheet.vue'
 import OpeningBalanceSheet from '../components/finances/OpeningBalanceSheet.vue'
 import { categoryLabel } from '../data/financeChart'
+import { usePermissions } from '../composables/usePermissions'
+
+const { canManage } = usePermissions()
 
 const toast = useToast()
 const {
@@ -280,6 +283,7 @@ const openOpeningSheet = () => {
         </div>
 
         <button
+          v-if="canManage('finances')"
           @click="openAdd"
           class="flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-white shadow-sm transition-transform active:scale-95"
         >
@@ -467,13 +471,6 @@ const openOpeningSheet = () => {
 </template>
 
 <style scoped>
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
 
 .fade-enter-active,
 .fade-leave-active {

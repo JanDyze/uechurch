@@ -8,9 +8,12 @@ import MinuteListItem from '../components/minutes/MinuteListItem.vue'
 import MinuteEditorDrawer from '../components/minutes/MinuteEditorDrawer.vue'
 import MinuteDetailsDrawer from '../components/minutes/MinuteDetailsDrawer.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
+import { useMyMember } from '../composables/useMyMember'
+import { getFullName } from '../utils/memberUtils'
 
 const router = useRouter()
 const { minutes, loading, addMinuteToFirestore, updateMinuteInFirestore, removeMinute } = useMinutes()
+const { myMember } = useMyMember()
 
 const searchQuery = ref('')
 const showAddMinute = ref(false)
@@ -177,7 +180,10 @@ const handleSaveMinute = async () => {
       }
       const minuteId = await addMinuteToFirestore({
         ...minuteDataWithoutAgenda,
-        structure
+        structure,
+        // Recorded against the linked member when there is one, so the name on
+        // the minutes matches the member list rather than a Google display name.
+        createdBy: myMember.value ? getFullName(myMember.value) : ''
       })
       showAddMinute.value = false
       // Redirect to details page with the new minute ID

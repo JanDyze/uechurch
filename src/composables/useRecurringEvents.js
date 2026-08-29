@@ -1,5 +1,6 @@
 import { computed } from 'vue';
 import { useRecurringSchedules } from './useRecurringSchedules';
+import { getVisibleFrom } from '../api/recurringSchedulesService';
 
 // Which occurrence of its weekday this date is within the month (1st, 2nd, ...)
 function getWeekdayOccurrence(date) {
@@ -75,6 +76,11 @@ export function useRecurringEvents(firestoreEvents = { value: [] }, members = { 
                 isVirtual: true,
                 recurringType: 'weekly',
                 scheduleId: schedule.id,
+                // Lead time from the schedule: when this occurrence starts
+                // being offered for attendance. The calendar ignores it and
+                // always shows the occurrence on its date.
+                showBefore: schedule.showBefore,
+                visibleFrom: getVisibleFrom(dateString, schedule.time, schedule.showBefore),
               });
             }
           }

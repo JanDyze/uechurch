@@ -3,8 +3,9 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Trash2, Calendar, MapPin, Phone, Briefcase, Users, Tag, User, Image as ImageIcon } from 'lucide-vue-next'
 import { useMembers } from '../composables/useMembers'
-import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate, mergeWithPresetTags } from '../utils/memberUtils'
+import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate, mergeTagSources, CIVIL_STATUS_OPTIONS as civilStatusOptions } from '../utils/memberUtils'
 import { subscribeToCustomTags } from '../api/tagsService'
+import YouBadge from '../components/members/YouBadge.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import ImageCropper from '../components/members/ImageCropper.vue'
 import InlineEditField from '../components/common/InlineEditField.vue'
@@ -53,7 +54,7 @@ const allTags = computed(() => {
   members.value.forEach(m => {
     if (m.tags) m.tags.forEach(t => tags.add(t))
   })
-  return mergeWithPresetTags(Array.from(tags), customTags.value)
+  return mergeTagSources(Array.from(tags), customTags.value)
 })
 
 // Confirmation modal
@@ -133,12 +134,6 @@ const sexOptions = [
   { value: 'Female', label: 'Female' },
 ]
 
-const civilStatusOptions = [
-  { value: 'Single', label: 'Single' },
-  { value: 'Married', label: 'Married' },
-  { value: 'Widowed', label: 'Widowed' },
-  { value: 'Separated', label: 'Separated' },
-]
 
 </script>
 
@@ -216,6 +211,7 @@ const civilStatusOptions = [
                 <span :class="['text-3xl', getSexIconColor(localMember.sex)]">
                   {{ getSexIcon(localMember.sex) }}
                 </span>
+                <YouBadge :member="localMember" />
               </div>
               <p v-if="localMember.nickname" class="text-lg text-gray-500 dark:text-gray-400 mb-3">
                 "{{ localMember.nickname }}"

@@ -15,6 +15,15 @@ export const getAvatarUrl = (member) => {
   )}`;
 };
 
+// Avatar for a signed-in account rather than a member record: Google hands us
+// a real photo, everyone else gets the same generated face they see in the
+// topbar, seeded by uid so it follows them across devices.
+export const getAccountAvatarUrl = (account) => {
+  if (account?.photoURL) return account.photoURL;
+  const seed = account?.uid || account?.id || "UEC";
+  return `https://api.dicebear.com/9.x/dylan/svg?seed=${encodeURIComponent(seed)}`;
+};
+
 export const getSexIcon = (sex) => {
   return sex === "Male" ? "♂" : "♀";
 };
@@ -52,10 +61,20 @@ export const getFamilyRoleLabel = (role) => {
   return labels[role] || role;
 };
 
-// Common ministry roles offered as ready-to-pick tags, even before anyone
-// has been tagged with them yet (allTags is otherwise only ever derived
-// from tags already present on existing members).
-export const PRESET_MINISTRY_TAGS = [
+// Seed content ONLY: written into the memberTags collection once, the first
+// time an administrator opens the tags page on an empty database. After that
+// the collection is the sole source of truth, so a church can rename or delete
+// any of these. Nothing in the app re-adds them.
+// The four options every member form offers. Universal enough to live in code,
+// but it was copy-pasted into three components before this.
+export const CIVIL_STATUS_OPTIONS = [
+  { value: 'Single', label: 'Single' },
+  { value: 'Married', label: 'Married' },
+  { value: 'Widowed', label: 'Widowed' },
+  { value: 'Separated', label: 'Separated' },
+];
+
+export const DEFAULT_MINISTRY_TAGS = [
   "Song Leader",
   "Usher",
   "Instrumentalist",
@@ -63,10 +82,15 @@ export const PRESET_MINISTRY_TAGS = [
   "SG Leader",
 ];
 
-export const mergeWithPresetTags = (existingTags = [], extraTags = []) => {
-  const merged = [...PRESET_MINISTRY_TAGS];
-  const lowerSet = new Set(merged.map((t) => t.toLowerCase()));
-  [...extraTags, ...existingTags].forEach((tag) => {
+/**
+ * The tags offered when assigning to a member: the ones registered in Settings,
+ * plus any string already typed onto an existing member (which is still legal —
+ * tags are a free-text array on the member document).
+ */
+export const mergeTagSources = (existingTags = [], registeredTags = []) => {
+  const merged = [];
+  const lowerSet = new Set();
+  [...registeredTags, ...existingTags].forEach((tag) => {
     if (tag && !lowerSet.has(tag.toLowerCase())) {
       merged.push(tag);
       lowerSet.add(tag.toLowerCase());

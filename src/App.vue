@@ -1,10 +1,27 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useTheme } from './composables/useTheme'
 import { useNotifications } from './composables/useNotifications'
+import { useAppSettings } from './composables/useAppSettings'
 import ToastContainer from './components/common/ToastContainer.vue'
 
 const { isTransitioning, isDark, transitionOrigin } = useTheme()
+
+// The browser tab follows the uploaded logo too, so a rebranded install is not
+// still flying the old mark in the one place nobody thinks to look.
+const { logoUrl } = useAppSettings()
+watch(
+  logoUrl,
+  (url) => {
+    const link = document.querySelector("link[rel='icon']")
+    if (!url || !link) return
+    link.href = url
+    // The tag is declared image/png; an uploaded logo is a webp data URL.
+    const mime = url.startsWith('data:') ? url.slice(5, url.indexOf(';')) : ''
+    if (mime) link.type = mime
+  },
+  { immediate: true }
+)
 
 // Re-attach push handlers/token if notifications were already allowed
 const { init: initNotifications } = useNotifications()
