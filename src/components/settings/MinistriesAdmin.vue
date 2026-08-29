@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { HandHeart, Plus, Pencil, Trash2, Loader2, Check, X, ShieldCheck } from 'lucide-vue-next'
+import { HandHeart, Plus, Pencil, Trash2, Loader2, Check, X, ShieldCheck } from '../../icons'
 import { usePermissions } from '../../composables/usePermissions'
 import { useMinistries } from '../../composables/useMinistries'
 import { useToast } from '../../composables/useToast'

@@ -1,5 +1,5 @@
 <script setup>
-import { Users } from 'lucide-vue-next'
+import { Users } from '../../icons'
 
 const props = defineProps({
   record: {

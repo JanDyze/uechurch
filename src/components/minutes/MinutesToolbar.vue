@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { Plus, FileText } from 'lucide-vue-next'
+import { Plus, FileText } from '../../icons'
 import SearchBar from '../common/SearchBar.vue'
 import { usePermissions } from '../../composables/usePermissions'
 

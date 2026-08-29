@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from "vue";
-import { X, ArrowUp, ArrowDown, Filter, RotateCcw } from "lucide-vue-next";
+import { X, ArrowUp, ArrowDown, Filter, RotateCcw } from '../../icons';
 import { useMediaQuery } from "../../composables/useMediaQuery";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 

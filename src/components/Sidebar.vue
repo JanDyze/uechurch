@@ -17,7 +17,7 @@ import {
   Mic2,
   Settings,
   UserCog
-} from 'lucide-vue-next'
+} from '../icons'
 import { computed, ref } from 'vue'
 import { usePermissions } from '../composables/usePermissions'
 import { useAppSettings } from '../composables/useAppSettings'

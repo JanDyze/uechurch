@@ -13,7 +13,7 @@ import {
   UserRound,
   Users,
   X,
-} from 'lucide-vue-next'
+} from '../icons'
 import { useAuth } from '../composables/useAuth'
 import { useUserAccounts } from '../composables/useUserAccounts'
 import { useToast } from '../composables/useToast'

@@ -1,5 +1,5 @@
 <script setup>
-import { Clock, MapPin, Users, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Check, Filter } from 'lucide-vue-next'
+import { Clock, MapPin, Users, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Check, Filter } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { computed, ref } from 'vue'

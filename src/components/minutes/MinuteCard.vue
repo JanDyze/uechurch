@@ -1,5 +1,5 @@
 <script setup>
-import { Clock, MapPin, Users, Calendar } from 'lucide-vue-next'
+import { Clock, MapPin, Users, Calendar } from '../../icons'
 
 defineProps({
   minute: {

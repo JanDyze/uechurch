@@ -1,6 +1,6 @@
 <script setup>
 import { ref, nextTick } from 'vue'
-import { Search, X } from 'lucide-vue-next'
+import { Search, X } from '../../icons'
 
 const props = defineProps({
   modelValue: {

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { X } from 'lucide-vue-next'
+import { X } from '../../icons'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import { useSgLanguage } from '../../composables/useSgLanguage'

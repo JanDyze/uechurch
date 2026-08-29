@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Users, X } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Users, X } from '../icons'
 import { usePresence } from '../composables/usePresence'
 import { useAuth } from '../composables/useAuth'
 import { useFocusTrap } from '../composables/useFocusTrap'
@@ -101,7 +101,11 @@ watch(railIsVisible, (visible) => {
         :key="visitor.id"
         @click="toggleRail"
         class="w-full flex justify-center py-1.5"
-        :title="visitor.name || 'Someone'"
+        :title="
+          visitor.sessionCount > 1
+            ? `${visitor.name || 'Someone'} · ${visitor.sessionCount} devices`
+            : visitor.name || 'Someone'
+        "
         :aria-label="`${visitor.name || 'Someone'} is active now. Show people`"
       >
         <span class="relative">

@@ -17,7 +17,7 @@ import {
   ListFilter,
   ArrowRight,
   FileText
-} from 'lucide-vue-next'
+} from '../icons'
 import { subscribeToSongs, addSong, updateSong, deleteSong } from '../api/songsService'
 import { useMediaQuery } from '../composables/useMediaQuery'
 import { useFocusTrap } from '../composables/useFocusTrap'

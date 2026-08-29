@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { Search, X } from 'lucide-vue-next'
+import { Search, X } from '../../icons'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import {
   EVENT_ICON_NAMES,

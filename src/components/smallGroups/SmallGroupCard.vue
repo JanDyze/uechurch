@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { UsersRound, MapPin, CalendarDays, NotebookPen } from 'lucide-vue-next'
+import { UsersRound, MapPin, CalendarDays, NotebookPen } from '../../icons'
 import { useSgLanguage } from '../../composables/useSgLanguage'
 import { getFullName, getAvatarUrl } from '../../utils/memberUtils'
 import { findMemberById, formatTimeRange } from '../../utils/sgUtils'

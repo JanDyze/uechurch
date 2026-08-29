@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { X, Trash2, ArrowDownLeft, ArrowUpRight, ArrowLeftRight } from 'lucide-vue-next'
+import { X, Trash2, ArrowDownLeft, ArrowUpRight, ArrowLeftRight } from '../../icons'
 import {
   INFLOW_GROUPS,
   OUTFLOW_GROUPS,

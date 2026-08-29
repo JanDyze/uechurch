@@ -1,5 +1,5 @@
 <script setup>
-import { Heart, User, Calendar, AlertCircle, CheckCircle2, Clock, ArrowUpCircle, Trash2 } from 'lucide-vue-next'
+import { Heart, User, Calendar, AlertCircle, CheckCircle2, Clock, ArrowUpCircle, Trash2 } from '../../icons'
 
 const props = defineProps({
   concern: {

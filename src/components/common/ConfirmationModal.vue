@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { X } from 'lucide-vue-next'
+import { X } from '../../icons'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const props = defineProps({

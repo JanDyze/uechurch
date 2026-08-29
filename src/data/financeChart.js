@@ -16,7 +16,7 @@ import {
   Wallet,
   PiggyBank,
   ArrowLeftRight,
-} from 'lucide-vue-next'
+} from '../icons'
 
 /**
  * The chart of accounts behind the church's monthly Statement of Income and

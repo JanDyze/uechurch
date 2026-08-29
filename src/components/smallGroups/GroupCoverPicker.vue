@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { ImagePlus, Loader2, Pencil, Trash2 } from 'lucide-vue-next'
+import { ImagePlus, Loader2, Pencil, Trash2 } from '../../icons'
 import {
   readImageFile,
   cropImageToBase64,

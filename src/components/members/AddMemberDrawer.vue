@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
-import { X, Image as ImageIcon, ChevronDown, User, Phone, Church } from "lucide-vue-next";
+import { X, Image as ImageIcon, ChevronDown, User, Phone, Church } from '../../icons';
 import ImageCropper from "./ImageCropper.vue";
 import FloatingInput from "../common/FloatingInput.vue";
 import { calculateAgeFromDate, CIVIL_STATUS_OPTIONS as civilStatusOptions } from "../../utils/memberUtils";

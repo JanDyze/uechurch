@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { Plus, Heart } from 'lucide-vue-next'
+import { Plus, Heart } from '../../icons'
 import SearchBar from '../common/SearchBar.vue'
 import { usePermissions } from '../../composables/usePermissions'
 

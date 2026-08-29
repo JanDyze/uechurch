@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { KeyRound } from 'lucide-vue-next'
+import { KeyRound } from '../../icons'
 import { providerLabel, providerShortLabel } from '../../api/userAccountsService'
 
 // How an account was created: tapped "Continue with Google", or typed an email

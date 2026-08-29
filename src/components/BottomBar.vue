@@ -21,7 +21,7 @@ import {
   Mic2,
   Settings,
   UserCog,
-} from 'lucide-vue-next'
+} from '../icons'
 
 const route = useRoute()
 const router = useRouter()

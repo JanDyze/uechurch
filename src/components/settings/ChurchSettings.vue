@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Building2, Plus, X, Loader2, Info } from 'lucide-vue-next'
+import { Building2, Plus, X, Loader2, Info } from '../../icons'
 import { usePermissions } from '../../composables/usePermissions'
 import { useAppSettings } from '../../composables/useAppSettings'
 import { useToast } from '../../composables/useToast'

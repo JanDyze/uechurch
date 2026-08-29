@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-vue-next';
+import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from '../../icons';
 
 const props = defineProps({
   id: [String, Number],

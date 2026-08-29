@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { Loader2 } from 'lucide-vue-next'
+import { Loader2 } from '../../icons'
 import { useAuth } from '../../composables/useAuth'
 
 const props = defineProps({

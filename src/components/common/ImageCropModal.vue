@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { X, ZoomIn, ZoomOut, Move } from 'lucide-vue-next'
+import { X, ZoomIn, ZoomOut, Move } from '../../icons'
 
 const props = defineProps({
   show: { type: Boolean, default: false },

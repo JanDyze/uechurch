@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Repeat, Plus, Pencil, Trash2, X, CalendarClock } from 'lucide-vue-next'
+import { Repeat, Plus, Pencil, Trash2, X, CalendarClock } from '../icons'
 import {
   useRecurringSchedules,
   WEEKDAYS,

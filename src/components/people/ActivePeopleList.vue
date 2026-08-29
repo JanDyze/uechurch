@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronRight, UserRound } from 'lucide-vue-next'
+import { ChevronRight, UserRound } from '../../icons'
 import { useAuth } from '../../composables/useAuth'
 import { usePresence } from '../../composables/usePresence'
 import { usePermissions } from '../../composables/usePermissions'
@@ -27,6 +27,13 @@ const recent = computed(() => recentlyActive.value.slice(0, RECENT_LIMIT))
 // a stable — if not account-matched — face.
 const visitorAvatar = (visitor) =>
   getAccountAvatarUrl({ photoURL: visitor.photoURL, uid: visitor.uid || visitor.id })
+
+// One row per person, so someone signed in on a phone and a laptop is counted
+// once. The device tally only earns a tooltip — the list is about who is here.
+const visitorTitle = (visitor) => {
+  const name = visitor.name || 'Someone'
+  return visitor.sessionCount > 1 ? `${name} · ${visitor.sessionCount} devices` : name
+}
 
 const goTo = (path) => {
   emit('navigate')
@@ -89,6 +96,7 @@ const goTo = (path) => {
           <li
             v-for="visitor in visitors"
             :key="visitor.id"
+            :title="visitorTitle(visitor)"
             class="flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
           >
             <div class="relative shrink-0">

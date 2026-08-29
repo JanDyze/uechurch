@@ -7,7 +7,7 @@ import {
   TrendingUp,
   TrendingDown,
   Wallet,
-} from 'lucide-vue-next'
+} from '../icons'
 import {
   useFinances,
   buildYearStatement,

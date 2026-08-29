@@ -9,7 +9,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock3,
-} from 'lucide-vue-next'
+} from '../../icons'
 import { useAuth } from '../../composables/useAuth'
 import { useAdmins } from '../../composables/useAdmins'
 import { useToast } from '../../composables/useToast'

@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { X, Calendar, Users, Filter } from 'lucide-vue-next'
+import { X, Calendar, Users, Filter } from '../../icons'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 

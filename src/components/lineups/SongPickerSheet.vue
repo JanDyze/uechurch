@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Check, ListMusic, Search, X } from 'lucide-vue-next'
+import { Check, ListMusic, Search, X } from '../../icons'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import { useAppSettings } from '../../composables/useAppSettings'
 import { withAllOption } from '../../data/appDefaults'

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { KeyRound, Check, Loader2, Info } from 'lucide-vue-next'
+import { KeyRound, Check, Loader2, Info } from '../../icons'
 import { usePermissions } from '../../composables/usePermissions'
 import { useAuth } from '../../composables/useAuth'
 import { useToast } from '../../composables/useToast'

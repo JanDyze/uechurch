@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { X, Wallet, Landmark } from 'lucide-vue-next'
+import { X, Wallet, Landmark } from '../../icons'
 import { formatPeso } from '../../composables/useFinances'
 
 const props = defineProps({

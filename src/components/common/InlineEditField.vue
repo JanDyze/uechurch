@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, nextTick, computed, onMounted } from 'vue';
-import { Check, X, Pencil } from 'lucide-vue-next';
+import { Check, X, Pencil } from '../../icons';
 import { useInlineEdit } from '../../composables/useInlineEdit';
 
 const props = defineProps({

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Calendar, Clock, MapPin, Users, X, ChevronRight, Trash2, Plus, Edit2 } from 'lucide-vue-next'
+import { Calendar, Clock, MapPin, Users, X, ChevronRight, Trash2, Plus, Edit2 } from '../icons'
 import { getEventIcon as getIconComponent } from '../utils/eventIcons'
 import { useEvents } from '../composables/useEvents'
 import { useMembers } from '../composables/useMembers'

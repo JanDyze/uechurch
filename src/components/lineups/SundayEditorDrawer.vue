@@ -8,7 +8,7 @@ import {
   Search,
   Trash2,
   X,
-} from 'lucide-vue-next'
+} from '../../icons'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import { getAvatarUrl, getFullName } from '../../utils/memberUtils'

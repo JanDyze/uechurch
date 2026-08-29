@@ -1,5 +1,5 @@
 <script setup>
-import { Moon, Sun } from 'lucide-vue-next'
+import { Moon, Sun } from '../icons'
 import { useTheme } from '../composables/useTheme'
 import church from '../assets/church.jpg'
 import { useAppSettings } from '../composables/useAppSettings'

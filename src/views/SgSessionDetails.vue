@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Pencil, Printer, FileSpreadsheet } from 'lucide-vue-next'
+import { ArrowLeft, Pencil, Printer, FileSpreadsheet } from '../icons'
 import { useSmallGroups } from '../composables/useSmallGroups'
 import { useSgSessions, useSessionPhotos } from '../composables/useSgSessions'
 import { useMembers } from '../composables/useMembers'

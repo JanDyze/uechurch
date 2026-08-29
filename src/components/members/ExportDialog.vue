@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
-import { X, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown, Check, Filter, Columns, Users, Tag } from "lucide-vue-next";
+import { X, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown, Check, Filter, Columns, Users, Tag } from '../../icons';
 import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const props = defineProps({

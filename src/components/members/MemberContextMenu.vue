@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from "vue";
-import { ExternalLink, Edit2, Trash2, Phone, Mail, Copy } from "lucide-vue-next";
+import { ExternalLink, Edit2, Trash2, Phone, Mail, Copy } from '../../icons';
 
 const props = defineProps({
   show: Boolean,

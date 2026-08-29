@@ -10,7 +10,7 @@
     "build": "npm run build:icons && vite build",
     "preview": "vite preview",
     "deploy": "node scripts/deploy.mjs",
-    "build:icons": "node scripts/build-event-icons.mjs"
+    "build:icons": "node scripts/build-ui-icons.mjs && node scripts/build-event-icons.mjs"
   },
   "dependencies": {
     "@heroicons/vue": "^2.2.0",
@@ -19,7 +19,6 @@
     "express": "^4.22.1",
     "firebase": "^12.15.0",
     "firebase-admin": "^14.2.0",
-    "lucide-vue-next": "^0.552.0",
     "nodemailer": "^9.0.6",
     "tailwindcss": "^4.1.16",
     "vue": "^3.5.22",

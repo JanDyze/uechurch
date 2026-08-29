@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Search, UsersRound, Printer, X } from 'lucide-vue-next'
+import { Plus, Search, UsersRound, Printer, X } from '../icons'
 import { useSmallGroups } from '../composables/useSmallGroups'
 import { useMembers } from '../composables/useMembers'
 import { useSgLanguage } from '../composables/useSgLanguage'

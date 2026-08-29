@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Eye, EyeOff, Loader2 } from 'lucide-vue-next'
+import { Eye, EyeOff, Loader2 } from '../icons'
 import AuthLayout from '../layouts/AuthLayout.vue'
 import GoogleSignInButton from '../components/auth/GoogleSignInButton.vue'
 import { useAuth } from '../composables/useAuth'

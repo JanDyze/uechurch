@@ -9,7 +9,7 @@ import {
   EyeOff,
   Mic2,
   Music4,
-} from 'lucide-vue-next'
+} from '../icons'
 import { useLineup, isSundayPlanned } from '../composables/useLineups'
 import { useMembers } from '../composables/useMembers'
 import { usePermissions } from '../composables/usePermissions'

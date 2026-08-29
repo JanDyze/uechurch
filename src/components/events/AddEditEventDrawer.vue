@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { X } from 'lucide-vue-next'
+import { X } from '../../icons'
 import IconSelector from './IconSelector.vue'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'

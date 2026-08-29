@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { X, Clock, MapPin, Users, Calendar, Edit2, Trash2, Download, FileText, ExternalLink } from 'lucide-vue-next'
+import { X, Clock, MapPin, Users, Calendar, Edit2, Trash2, Download, FileText, ExternalLink } from '../../icons'
 import { useMembers } from '../../composables/useMembers'
 import { markdownToHtml } from '../../utils/markdownUtils'
 import { useMediaQuery } from '../../composables/useMediaQuery'

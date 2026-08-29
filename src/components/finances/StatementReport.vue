@@ -8,7 +8,7 @@ import {
   ArrowUpRight,
   ArrowLeftRight,
   Pencil,
-} from 'lucide-vue-next'
+} from '../../icons'
 import { formatAmount } from '../../composables/useFinances'
 
 const props = defineProps({

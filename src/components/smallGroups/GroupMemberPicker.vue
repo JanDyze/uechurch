@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Search, Check } from 'lucide-vue-next'
+import { Search, Check } from '../../icons'
 import { getFullName, getAvatarUrl } from '../../utils/memberUtils'
 import { memberKey } from '../../utils/sgUtils'
 

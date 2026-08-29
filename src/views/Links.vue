@@ -21,7 +21,7 @@ import {
   ListFilter,
   SearchX,
   AlertTriangle,
-} from 'lucide-vue-next'
+} from '../icons'
 import { subscribeToLinks, addLink, updateLink, deleteLink } from '../api/linksService'
 import { useMediaQuery } from '../composables/useMediaQuery'
 import { useFocusTrap } from '../composables/useFocusTrap'

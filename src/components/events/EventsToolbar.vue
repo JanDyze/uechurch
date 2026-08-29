@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { Plus, Calendar } from 'lucide-vue-next'
+import { Plus, Calendar } from '../../icons'
 import SearchBar from '../common/SearchBar.vue'
 import { usePermissions } from '../../composables/usePermissions'
 

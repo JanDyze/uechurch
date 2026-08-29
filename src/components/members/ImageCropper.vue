@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from "vue";
-import { X, Upload, Move, ZoomIn, ZoomOut, RotateCw, Check } from "lucide-vue-next";
+import { X, Upload, Move, ZoomIn, ZoomOut, RotateCw, Check } from '../../icons';
 import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const props = defineProps({

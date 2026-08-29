@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Globe, Plus, Trash2, Loader2, Info, ImagePlus, RotateCcw, ExternalLink } from 'lucide-vue-next'
+import { Globe, Plus, Trash2, Loader2, Info, ImagePlus, RotateCcw, ExternalLink } from '../../icons'
 import { usePermissions } from '../../composables/usePermissions'
 import { useAppSettings } from '../../composables/useAppSettings'
 import { useToast } from '../../composables/useToast'

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Trash2, Calendar, MapPin, Phone, Briefcase, Users, Tag, User, Image as ImageIcon } from 'lucide-vue-next'
+import { ArrowLeft, Trash2, Calendar, MapPin, Phone, Briefcase, Users, Tag, User, Image as ImageIcon } from '../icons'
 import { useMembers } from '../composables/useMembers'
 import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate, mergeTagSources, CIVIL_STATUS_OPTIONS as civilStatusOptions } from '../utils/memberUtils'
 import { subscribeToCustomTags } from '../api/tagsService'

@@ -113,11 +113,48 @@ export const stopPresence = async () => {
   if (id) await removePresence(id)
 }
 
-export function usePresence() {
-  // Everyone but this browser tab. One person with two devices open shows up
-  // twice, which is the honest answer — these are live sessions, not people.
-  const visitors = computed(() => everyone.value.filter((v) => v.id !== sessionId.value))
+// Presence is written per session, so one account with a phone, a laptop and a
+// tablet open publishes three records. The rail is a list of people, not of
+// tabs, so those collapse into one entry — the most recently seen record wins,
+// and it carries how many sessions it stands for. Records old enough to predate
+// the uid field fall back to their session id, which keeps them separate rather
+// than merging strangers under an empty key.
+const dedupeByAccount = (records) => {
+  const byAccount = new Map()
 
+  records.forEach((record) => {
+    const key = record.uid || `session:${record.id}`
+    const seen = byAccount.get(key)
+
+    if (!seen) {
+      byAccount.set(key, { ...record, sessionCount: 1 })
+      return
+    }
+
+    seen.sessionCount += 1
+    // Keep the freshest record's name and photo: an older device may still be
+    // beating with a name the account has since changed.
+    if (record.lastSeenMs > seen.lastSeenMs) {
+      byAccount.set(key, { ...record, sessionCount: seen.sessionCount })
+    }
+  })
+
+  return [...byAccount.values()]
+}
+
+export function usePresence() {
+  // Everyone but you — by account, not by tab. Your own other devices belong
+  // under "You", not in the list of other people online.
+  const visitors = computed(() => {
+    const { user } = useAuth()
+    const myUid = user.value?.uid || ''
+
+    return dedupeByAccount(everyone.value).filter((v) =>
+      myUid && v.uid ? v.uid !== myUid : v.id !== sessionId.value
+    )
+  })
+
+  /** Distinct people online besides you. */
   const onlineCount = computed(() => visitors.value.length)
 
   /** Accounts with at least one live session, for "online now" badges. */

@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { ImagePlus, Trash2, Loader2 } from 'lucide-vue-next'
+import { ImagePlus, Trash2, Loader2 } from '../../icons'
 import { compressImageToBase64 } from '../../utils/imageUtils'
 import { useSgLanguage } from '../../composables/useSgLanguage'
 

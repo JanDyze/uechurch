@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Image as ImageIcon, Plus, Maximize2, X, MapPin, Calendar, Clock, ChevronRight, ChevronLeft, ArrowLeft, Loader2, Upload, Download as DownloadIcon, ListFilter, Users, Info, Grid, Check, Trash2, Share2, AlertTriangle, MoreHorizontal, LogIn, ExternalLink } from 'lucide-vue-next'
+import { Image as ImageIcon, Plus, Maximize2, X, MapPin, Calendar, Clock, ChevronRight, ChevronLeft, ArrowLeft, Loader2, Upload, Download as DownloadIcon, ListFilter, Users, Info, Grid, Check, Trash2, Share2, AlertTriangle, MoreHorizontal, LogIn, ExternalLink } from '../icons'
 import { subscribeToAlbums, uploadPhotoToBase64, addAlbum, subscribeToAlbumPhotos, setAlbumCover, deletePhoto, deleteAlbum } from '../api/galleryService'
 import { subscribeToEvents } from '../api/eventsService'
 import churchCover from '../assets/church.jpg'

@@ -9,7 +9,7 @@ import {
   Check,
   X,
   Loader2,
-} from 'lucide-vue-next'
+} from '../../icons'
 import { useAdmins } from '../../composables/useAdmins'
 import { useMemberClaims } from '../../composables/useMemberClaims'
 import { useMembers } from '../../composables/useMembers'

@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Receipt } from 'lucide-vue-next'
+import { Receipt } from '../../icons'
 import { categoryIcon, categoryLabel, accountShort } from '../../data/financeChart'
 import { formatAmount } from '../../composables/useFinances'
 

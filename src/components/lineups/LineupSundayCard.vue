@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Check, FileText, Mic2, Pencil, StickyNote, Users } from 'lucide-vue-next'
+import { Check, FileText, Mic2, Pencil, StickyNote, Users } from '../../icons'
 import { getAvatarUrl, getFullName } from '../../utils/memberUtils'
 import { memberKey } from '../../utils/sgUtils'
 import { parseIso } from '../../utils/lineupUtils'

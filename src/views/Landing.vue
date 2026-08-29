@@ -1,7 +1,7 @@
 <script setup>
 import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Clock, MapPin, Phone, Mail, Facebook, ArrowRight, LogIn, Moon, Sun } from 'lucide-vue-next'
+import { Clock, MapPin, Phone, Mail, Facebook, ArrowRight, LogIn, Moon, Sun } from '../icons'
 import { useAppSettings } from '../composables/useAppSettings'
 import { useTheme } from '../composables/useTheme'
 import bundledHero from '../assets/church.jpg'

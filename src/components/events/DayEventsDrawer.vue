@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { Clock, MapPin, X, Plus, ArrowLeft, PartyPopper } from 'lucide-vue-next'
+import { Clock, MapPin, X, Plus, ArrowLeft, PartyPopper } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { useFocusTrap } from '../../composables/useFocusTrap'

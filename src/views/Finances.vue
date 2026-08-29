@@ -12,7 +12,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   BarChart3,
-} from 'lucide-vue-next'
+} from '../icons'
 import {
   useFinances,
   buildStatement,

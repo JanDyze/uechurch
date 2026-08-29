@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { X, Search, Check, UserCheck, Loader2 } from 'lucide-vue-next'
+import { X, Search, Check, UserCheck, Loader2 } from '../../icons'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import { useAuth } from '../../composables/useAuth'

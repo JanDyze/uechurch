@@ -14,7 +14,7 @@ import {
   UsersRound,
   BookOpen,
   History,
-} from 'lucide-vue-next'
+} from '../icons'
 import { useSmallGroups } from '../composables/useSmallGroups'
 import { useSgSessions, useSessionPhotos } from '../composables/useSgSessions'
 import { useMembers } from '../composables/useMembers'

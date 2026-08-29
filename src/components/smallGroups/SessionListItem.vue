@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { BookOpen, Users, ChevronRight } from 'lucide-vue-next'
+import { BookOpen, Users, ChevronRight } from '../../icons'
 import { useSgLanguage } from '../../composables/useSgLanguage'
 import { formatSessionDate, formatTimeRange, sessionTotals } from '../../utils/sgUtils'
 

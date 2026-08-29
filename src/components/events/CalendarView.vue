@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { ChevronLeft, ChevronRight, List, LayoutGrid } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, List, LayoutGrid } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import philippineHolidays from '../../data/philippineHolidays.json'
 import { useMediaQuery } from '../../composables/useMediaQuery'

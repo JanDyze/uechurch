@@ -14,7 +14,7 @@ import {
   X,
   ChevronRight,
   Settings2,
-} from "lucide-vue-next";
+} from '../../icons';
 import SearchBar from "../common/SearchBar.vue";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 import { usePermissions } from '../../composables/usePermissions'

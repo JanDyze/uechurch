@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { AlertTriangle, Loader2, Music2, Pause, Play, Video } from 'lucide-vue-next'
+import { AlertTriangle, Loader2, Music2, Pause, Play, Video } from '../../icons'
 import { thumbnailForId } from '../../utils/songUtils'
 
 const props = defineProps({

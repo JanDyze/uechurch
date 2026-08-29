@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { ArrowLeft, Calendar, Clock, MapPin, Users, Trash2, Edit2 } from 'lucide-vue-next'
+import { ArrowLeft, Calendar, Clock, MapPin, Users, Trash2, Edit2 } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'

@@ -1,5 +1,5 @@
 <script setup>
-import { Clock, MapPin } from 'lucide-vue-next'
+import { Clock, MapPin } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 

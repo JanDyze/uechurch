@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { X, Save, Heart, User, Search, ChevronDown } from 'lucide-vue-next'
+import { X, Save, Heart, User, Search, ChevronDown } from '../../icons'
 import { useMembers } from '../../composables/useMembers'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'

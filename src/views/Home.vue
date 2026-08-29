@@ -13,7 +13,7 @@ import {
   Image,
   Link2,
   Database,
-} from 'lucide-vue-next'
+} from '../icons'
 import { subscribeToMembers } from '../api/membersService'
 import { subscribeToTransactions } from '../api/financeService'
 import { groupLabelOf } from '../composables/useFinances'

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { X, Search, Check, Trash2 } from 'lucide-vue-next'
+import { X, Search, Check, Trash2 } from '../../icons'
 import { useMembers } from '../../composables/useMembers'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useAppSettings } from '../../composables/useAppSettings'

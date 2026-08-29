@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { ImagePlus, Loader2, RotateCcw } from 'lucide-vue-next'
+import { ImagePlus, Loader2, RotateCcw } from '../../icons'
 import { compressImageToBase64, LOGO_OPTIONS } from '../../utils/imageUtils'
 import { useAppSettings } from '../../composables/useAppSettings'
 import { useToast } from '../../composables/useToast'
