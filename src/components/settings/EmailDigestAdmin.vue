@@ -170,7 +170,7 @@ const kindLabel = (kind) =>
               Send me email digests
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Off by default. Nothing is emailed to you until you switch this on.
+              On by default. Turn this off to stop receiving them.
             </p>
           </div>
           <button

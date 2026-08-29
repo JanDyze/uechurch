@@ -36,15 +36,22 @@ export const DIGEST_KINDS = [
   },
 ]
 
-/** Off until switched on; once on, all three kinds arrive unless turned off. */
+/**
+ * On by default — digests are opt-out. Someone leaves the list only by
+ * turning the switch off, which writes `enabled: false` explicitly.
+ *
+ * The server applies the same rule in loadRecipients() (api/email.js); change
+ * one without the other and the toggle will disagree with what actually goes
+ * out.
+ */
 export const DEFAULT_DIGEST_PREFS = {
-  enabled: false,
+  enabled: true,
   monthly: true,
   today: true,
   happening: true,
 }
 
-/** An account saved before this feature existed reads as opted out. */
+/** An account saved before this feature existed reads as subscribed. */
 export const normalizeDigestPrefs = (data) => ({
   ...DEFAULT_DIGEST_PREFS,
   ...(data?.emailDigests || {}),

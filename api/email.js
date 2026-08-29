@@ -15,9 +15,10 @@
 //        preview: true                     -> build it, report what would go
 //                                             out, send nothing
 //
-// Digests go only to accounts that switched them on: `userAccounts` documents
-// with `emailDigests.enabled === true`. Nobody is mailed for having signed in
-// once.
+// Digests go to every active account with a usable address. They are on by
+// default, so an account leaves the list only by explicitly turning them off —
+// `emailDigests.enabled === false` on its `userAccounts` document. An account
+// that has never touched the switch is a recipient.
 import { FieldValue } from "firebase-admin/firestore";
 import { db, requireAdmin, isCronRequest } from "../lib/firebaseAdmin.js";
 import { isMailConfigured, sendBulk, sendTo, isValidEmail } from "../lib/mailer.js";
@@ -79,7 +80,13 @@ async function loadCalendar(firestore) {
 /**
  * Addresses to send `kind` to. Filtered in memory rather than with a `where`
  * on the nested field, so no composite index is needed and a document written
- * before this feature existed simply reads as opted out.
+ * before this feature existed still reads correctly.
+ *
+ * Opt-out, not opt-in: only an explicit `false` removes an account. A missing
+ * `emailDigests` map — which is every account that has never opened the
+ * switch — is a subscriber. Keep this in step with DEFAULT_DIGEST_PREFS in
+ * src/api/emailService.js, or the toggle will show one thing and the server
+ * will do another.
  */
 async function loadRecipients(firestore, kind) {
   const snap = await firestore
@@ -91,9 +98,8 @@ async function loadRecipients(firestore, kind) {
     .map((d) => ({ uid: d.id, ...d.data() }))
     .filter((account) => {
       const prefs = account.emailDigests;
-      if (!prefs || prefs.enabled !== true) return false;
-      // Each kind defaults to on once the master switch is on
-      if (prefs[kind] === false) return false;
+      if (prefs?.enabled === false) return false;
+      if (prefs?.[kind] === false) return false;
       if (account.disabled) return false;
       return isValidEmail(account.email);
     })
