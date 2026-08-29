@@ -7,12 +7,12 @@ importScripts("https://www.gstatic.com/firebasejs/12.4.0/firebase-app-compat.js"
 importScripts("https://www.gstatic.com/firebasejs/12.4.0/firebase-messaging-compat.js");
 
 firebase.initializeApp({
-  apiKey: "AIzaSyCAL8jSmjssZEKAvfRGM5CobDtDm-anT4E",
-  authDomain: "uec-app-6c283.firebaseapp.com",
-  projectId: "uec-app-6c283",
-  storageBucket: "uec-app-6c283.firebasestorage.app",
-  messagingSenderId: "392947220025",
-  appId: "1:392947220025:web:917495cc927fa1462897e8",
+  apiKey: "AIzaSyC-g_P5ljoqkkTZvKVfSNQOUuzyC5PEU4c",
+  authDomain: "church-c9b15.firebaseapp.com",
+  projectId: "church-c9b15",
+  storageBucket: "church-c9b15.firebasestorage.app",
+  messagingSenderId: "788380451786",
+  appId: "1:788380451786:web:9f6850165debb6f0658533",
 });
 
 const messaging = firebase.messaging();

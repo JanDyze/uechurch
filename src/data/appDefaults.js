@@ -13,6 +13,8 @@ export const DEFAULT_CHURCH = {
   // Base64 webp uploaded from Settings. Empty means "use the bundled logo",
   // which is what a fresh install and every fallback path renders.
   logo: '',
+  // Optional dark-mode version. When empty, the main logo is reused.
+  logoDark: '',
 }
 
 export const DEFAULT_CATEGORIES = {
