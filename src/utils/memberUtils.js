@@ -74,7 +74,12 @@ export const CIVIL_STATUS_OPTIONS = [
   { value: 'Separated', label: 'Separated' },
 ];
 
-export const DEFAULT_MINISTRY_TAGS = [
+/**
+ * Starter ministries — what someone does in the church. These are the only
+ * things that grant access, so the list is a controlled vocabulary managed in
+ * Settings, not free text (see src/api/ministriesService.js).
+ */
+export const DEFAULT_MINISTRIES = [
   "Song Leader",
   "Usher",
   "Instrumentalist",
@@ -83,9 +88,17 @@ export const DEFAULT_MINISTRY_TAGS = [
 ];
 
 /**
+ * Retained under its old name for the one-off migration in
+ * scripts/migrate-ministries.mjs, which needs to recognise which of a
+ * member's existing `tags` were really ministries. Nothing else should use it.
+ */
+export const LEGACY_MINISTRY_TAGS = DEFAULT_MINISTRIES;
+
+/**
  * The tags offered when assigning to a member: the ones registered in Settings,
  * plus any string already typed onto an existing member (which is still legal —
- * tags are a free-text array on the member document).
+ * tags are a free-text array on the member document, and deliberately grant
+ * nothing; ministries are the thing that carries permissions).
  */
 export const mergeTagSources = (existingTags = [], registeredTags = []) => {
   const merged = [];

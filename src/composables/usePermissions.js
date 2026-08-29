@@ -65,12 +65,17 @@ export function usePermissions() {
     return members.value.find((m) => m.uid === user.value.uid) || null
   })
 
-  const myTags = computed(() => myMember.value?.tags || [])
+  /**
+   * The ministries this account serves in. Access is derived from these and
+   * never from `tags`: tags are free text anyone with member-edit rights can
+   * type, so honouring them here would let a label spell its way into a role.
+   */
+  const myMinistries = computed(() => myMember.value?.ministries || [])
 
   const capabilities = computed(() => {
     const granted = new Set(BASELINE_CAPABILITIES)
-    myTags.value.forEach((tag) => {
-      ;(roleMap.value[tag] || []).forEach((cap) => granted.add(cap))
+    myMinistries.value.forEach((ministry) => {
+      ;(roleMap.value[ministry] || []).forEach((cap) => granted.add(cap))
     })
     // Managing an area implies being able to see it, so roles only ever need
     // the manage capability ticked.
@@ -94,7 +99,7 @@ export function usePermissions() {
     isAdmin,
     hasNoAdmins,
     myMember,
-    myTags,
+    myMinistries,
     roleMap,
     admins,
     members,

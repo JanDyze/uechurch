@@ -48,9 +48,10 @@ export const addPrayerConcern = async (concernData) => {
 
     // Push to all registered devices (fire-and-forget)
     sendPushNotification({
-      title: '🙏 New Prayer Concern',
+      title: 'New prayer concern',
       body: [concernData.title, concernData.memberName].filter(Boolean).join(' — '),
       url: '/prayer-concerns',
+      event: { type: 'prayer' },
     })
 
     return docRef.id

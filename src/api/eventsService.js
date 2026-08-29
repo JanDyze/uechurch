@@ -70,9 +70,10 @@ export const addEvent = async (eventData) => {
       .filter(Boolean)
       .join(" · ");
     sendPushNotification({
-      title: `📅 New Event: ${eventData.title || "Untitled"}`,
+      title: `New event: ${eventData.title || "Untitled"}`,
       body: details,
       url: "/events",
+      event: { type: eventData.type, icon: eventData.icon },
     });
 
     return docRef.id;

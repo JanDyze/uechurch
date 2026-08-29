@@ -6,6 +6,7 @@ import FloatingInput from "../common/FloatingInput.vue";
 import { calculateAgeFromDate, CIVIL_STATUS_OPTIONS as civilStatusOptions } from "../../utils/memberUtils";
 import { useMediaQuery } from "../../composables/useMediaQuery";
 import { useFocusTrap } from "../../composables/useFocusTrap";
+import { useMinistries } from '../../composables/useMinistries'
 
 const props = defineProps({
   showAddMember: {
@@ -70,11 +71,23 @@ const updateField = (field, value) => {
   emit('update:newMember', { ...props.newMember, [field]: value });
 };
 
+const { ministryNames } = useMinistries();
+
 const toggleTag = (tag) => {
   const tags = props.newMember.tags.includes(tag)
     ? props.newMember.tags.filter(t => t !== tag)
     : [...props.newMember.tags, tag];
   updateField('tags', tags);
+};
+
+// Ministries are the field that grants access, so only names from the
+// controlled list in Settings can be toggled here — never free text.
+const toggleMinistry = (ministry) => {
+  const current = props.newMember.ministries || [];
+  const next = current.includes(ministry)
+    ? current.filter(m => m !== ministry)
+    : [...current, ministry];
+  updateField('ministries', next);
 };
 
 // Options for select fields
@@ -349,8 +362,41 @@ const sexOptions = [
                       </button>
                     </div>
 
+                    <!-- Ministries grant access, so this list is the controlled
+                         vocabulary from Settings and nothing else. -->
                     <div>
-                      <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags</p>
+                      <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Ministries
+                      </p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        What this person serves in. This is what grants access to the app.
+                      </p>
+                      <div v-if="ministryNames.length > 0" class="flex flex-wrap gap-2">
+                        <button
+                          v-for="ministry in ministryNames"
+                          :key="ministry"
+                          type="button"
+                          @click="toggleMinistry(ministry)"
+                          :class="[
+                            'px-3 py-1.5 text-xs font-medium rounded-full transition-all',
+                            (newMember.ministries || []).includes(ministry)
+                              ? 'bg-primary dark:bg-primary-light text-white shadow-sm'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
+                          ]"
+                        >
+                          {{ ministry }}
+                        </button>
+                      </div>
+                      <p v-else class="text-xs text-gray-400 dark:text-gray-500 italic">
+                        No ministries yet &mdash; add them in Settings &rsaquo; Ministries.
+                      </p>
+                    </div>
+
+                    <div>
+                      <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        Labels for finding people. They grant nothing.
+                      </p>
                       <div v-if="allTags.length > 0" class="flex flex-wrap gap-2">
                         <button
                           v-for="tag in allTags"

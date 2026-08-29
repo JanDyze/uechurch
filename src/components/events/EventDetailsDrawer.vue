@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { ArrowLeft, Calendar, Clock, MapPin, Users, Trash2, Edit2 } from 'lucide-vue-next'
-import * as LucideIcons from 'lucide-vue-next'
+import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 
@@ -41,9 +41,6 @@ const getEventTypeColor = (type) => {
   return colors[type] || 'bg-gray-500 text-white'
 }
 
-const getIconComponent = (iconName) => {
-  return LucideIcons[iconName] || LucideIcons.Calendar
-}
 
 const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleDateString('en-US', {

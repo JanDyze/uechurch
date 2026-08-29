@@ -3,10 +3,8 @@ import {
   collection,
   doc,
   addDoc,
-  setDoc,
   updateDoc,
   deleteDoc,
-  getDoc,
   getDocs,
   query,
   where,
@@ -15,16 +13,20 @@ import {
   serverTimestamp
 } from 'firebase/firestore'
 
-import { DEFAULT_MINISTRY_TAGS } from '../utils/memberUtils'
+// Tags are free-text labels for describing and filtering members — "New
+// Convert", "Needs Visit", "Choir 2024". They deliberately grant nothing.
+//
+// What someone *does* in the church, and what that lets them see, is a
+// ministry (src/api/ministriesService.js). The two used to share this field,
+// which meant typing a label that happened to match a role handed out that
+// role's access. Nothing in this file may touch rolePermissions.
 
 const TAGS_COLLECTION = 'memberTags'
 const MEMBERS_COLLECTION = 'members'
-const ROLES_COLLECTION = 'rolePermissions'
 
 /**
- * Subscribe to custom ministry tags created from Settings (not the preset
- * tags, which are hardcoded, and not tags that only exist because they were
- * typed onto a specific member).
+ * Subscribe to tags registered from Settings (not tags that only exist
+ * because they were typed onto a specific member).
  */
 export const subscribeToCustomTags = (callback) => {
   const q = query(collection(db, TAGS_COLLECTION), orderBy('createdAt', 'desc'))
@@ -49,18 +51,6 @@ export const addCustomTag = async (name) => {
 }
 
 /**
- * Writes the starter tags once, and only into a genuinely empty collection —
- * so a fresh church gets sensible options, but a church that has deliberately
- * deleted them never sees them come back.
- */
-export const seedDefaultTagsIfEmpty = async () => {
-  const snapshot = await getDocs(collection(db, TAGS_COLLECTION))
-  if (!snapshot.empty) return 0
-  await Promise.all(DEFAULT_MINISTRY_TAGS.map((name) => addCustomTag(name)))
-  return DEFAULT_MINISTRY_TAGS.length
-}
-
-/**
  * Every member currently carrying a tag. Tags are a plain string array on the
  * member document, so this is an array-contains query.
  */
@@ -72,12 +62,8 @@ const membersWithTag = async (tag) => {
 }
 
 /**
- * Renames a tag everywhere it is referenced: on every member holding it, on
- * its rolePermissions document (tags are the document id there, so the grant
- * has to be moved rather than edited), and on the custom-tag record itself.
- *
- * A tag is not just a label any more — it drives the permission system — so a
- * rename that missed any of the three would silently revoke someone's access.
+ * Renames a tag on every member holding it and on the tag record itself.
+ * Nothing else references a tag, because a tag grants nothing.
  */
 export const renameTag = async (oldName, newName, customTagId = null) => {
   const docs = await membersWithTag(oldName)
@@ -88,12 +74,6 @@ export const renameTag = async (oldName, newName, customTagId = null) => {
     })
   )
 
-  const roleDoc = await getDoc(doc(db, ROLES_COLLECTION, oldName))
-  if (roleDoc.exists()) {
-    await setDoc(doc(db, ROLES_COLLECTION, newName), roleDoc.data())
-    await deleteDoc(doc(db, ROLES_COLLECTION, oldName))
-  }
-
   if (customTagId) {
     await updateDoc(doc(db, TAGS_COLLECTION, customTagId), { name: newName })
   }
@@ -102,9 +82,9 @@ export const renameTag = async (oldName, newName, customTagId = null) => {
 }
 
 /**
- * Removes a tag from every member, drops the permissions it granted, and
- * deletes the custom-tag record. Anyone who held it loses whatever access it
- * carried, which is why the UI confirms with the affected member count first.
+ * Removes a tag from every member and deletes the tag record. Nobody loses
+ * access — a tag never granted any — but the UI still confirms with the
+ * affected member count so a label is not wiped off 40 people by accident.
  */
 export const deleteTag = async (name, customTagId = null) => {
   const docs = await membersWithTag(name)
@@ -114,10 +94,6 @@ export const deleteTag = async (name, customTagId = null) => {
       return updateDoc(d.ref, { tags })
     })
   )
-
-  await deleteDoc(doc(db, ROLES_COLLECTION, name)).catch(() => {
-    // No grants were ever configured for this tag; nothing to remove.
-  })
 
   if (customTagId) {
     await deleteDoc(doc(db, TAGS_COLLECTION, customTagId))

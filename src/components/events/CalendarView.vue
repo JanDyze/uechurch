@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { ChevronLeft, ChevronRight, List, LayoutGrid } from 'lucide-vue-next'
-import * as LucideIcons from 'lucide-vue-next'
+import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import philippineHolidays from '../../data/philippineHolidays.json'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
@@ -130,9 +130,6 @@ const getEventTypeColor = (type) => {
   return colors[type] || 'bg-gray-500 text-white'
 }
 
-const getIconComponent = (iconName) => {
-  return LucideIcons[iconName] || LucideIcons.Calendar
-}
 
 // Days in the current month that have a holiday or an event, in date order, for the agenda view
 const agendaDays = computed(() => {

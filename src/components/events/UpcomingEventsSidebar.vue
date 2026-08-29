@@ -1,6 +1,6 @@
 <script setup>
 import { Clock, MapPin } from 'lucide-vue-next'
-import * as LucideIcons from 'lucide-vue-next'
+import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 
 const props = defineProps({
@@ -42,9 +42,6 @@ const getEventTypeColor = (type) => {
   return colors[type] || 'bg-gray-500 text-white'
 }
 
-const getIconComponent = (iconName) => {
-  return LucideIcons[iconName] || LucideIcons.Calendar
-}
 </script>
 
 <template>

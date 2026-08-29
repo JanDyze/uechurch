@@ -1,6 +1,6 @@
 <script setup>
 import { Clock, MapPin, Users, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Check, Filter } from 'lucide-vue-next'
-import * as LucideIcons from 'lucide-vue-next'
+import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { computed, ref } from 'vue'
 import { useAppSettings } from '../../composables/useAppSettings'
@@ -193,9 +193,6 @@ const getEventTypeColor = (type, isPast = false) => {
   return colors[type] || 'bg-gray-500 text-white'
 }
 
-const getIconComponent = (iconName) => {
-  return LucideIcons[iconName] || LucideIcons.Calendar
-}
 
 // Date helpers
 const today = new Date()

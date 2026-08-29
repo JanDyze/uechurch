@@ -17,6 +17,7 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
     address: '',
     contactNumber: '',
     occupation: '',
+    ministries: [],
     tags: [],
     isMember: false,
     image: null, // Add image field
@@ -73,6 +74,7 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
       contactNumber: newMember.value.contactNumber.trim() || undefined,
       occupation: newMember.value.occupation.trim() || undefined,
       relatives: {},
+      ministries: Array.isArray(newMember.value.ministries) ? newMember.value.ministries : [],
       tags: Array.isArray(newMember.value.tags) ? newMember.value.tags : [],
       isMember: newMember.value.isMember !== undefined ? newMember.value.isMember : true,
       image: newMember.value.image || undefined, // Include image field
@@ -108,6 +110,7 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
         address: '',
         contactNumber: '',
         occupation: '',
+        ministries: [],
         tags: [],
         isMember: false,
         image: null, // Reset image field

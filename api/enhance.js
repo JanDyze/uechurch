@@ -48,15 +48,15 @@ This is an OVERALL MEETING SUMMARY that combines multiple agenda items. Your tas
 ${rawNotes}
 
 ### ARCHITECTURE FOR OVERALL SUMMARY
-1. **🙏 Opening**: Any opening prayer or devotion mentioned (if in notes)
-2. **📌 Meeting Vitals**: Overall meeting sentiment, productivity level, and key theme (1-2 sentences)
-3. **🎯 Strategic Outcomes**: Top 3-5 high-level outcomes that span across agenda items
-4. **💰 Stewardship & Finances**: Consolidated view of all approved expenses and budget impacts across agenda items
-5. **✅ Key Decisions Summary**: Consolidated view of major decisions made across all agenda items
-6. **📋 Ministry Action Items**: All action items from all agenda items in one table
+1. **Opening**: Any opening prayer or devotion mentioned (if in notes)
+2. **Meeting Vitals**: Overall meeting sentiment, productivity level, and key theme (1-2 sentences)
+3. **Strategic Outcomes**: Top 3-5 high-level outcomes that span across agenda items
+4. **Stewardship & Finances**: Consolidated view of all approved expenses and budget impacts across agenda items
+5. **Key Decisions Summary**: Consolidated view of major decisions made across all agenda items
+6. **Ministry Action Items**: All action items from all agenda items in one table
    - Task | Servant (Owner) | Timeline | Related Agenda Item
-7. **🙏 Prayer & Follow-up**: List any specific people or concerns mentioned for prayer
-8. **🔄 Next Meeting Priorities**: What should be prioritized in the next meeting based on this one
+7. **Prayer & Follow-up**: List any specific people or concerns mentioned for prayer
+8. **Next Meeting Priorities**: What should be prioritized in the next meeting based on this one
 
 ### FORMATTING RULES
 - Use Markdown tables for the Ministry Action Items
@@ -65,7 +65,6 @@ ${rawNotes}
 - Use "third-person" when appropriate
 - Be CONCISE - this is a ministry summary, not detailed notes
 - If a section is empty, write "None mentioned" (church-friendly)
-- Use emojis: 🙏 for opening/prayer, 📌 for vitals, 🎯 for outcomes, 💰 for stewardship, ✅ for decisions, 📋 for actions, 🔄 for next priorities, ⛪ for church context
 - CRITICAL: ONLY include information explicitly mentioned in the raw notes. DO NOT add, infer, or create information that is not present.
 - DO NOT use placeholders like "[Insert Date]", "[Name]", or "[Insert Date]" - if information is missing, write "Not specified" or omit that field entirely
 - DO NOT add items to Prayer & Follow-up or Next Steps that were not mentioned in the raw notes
@@ -74,21 +73,21 @@ ${rawNotes}
 - If expenses/purchases are mentioned, use the EXACT amounts and items from the notes
 
 ### OUTPUT FORMAT
-## 🙏 Opening
+## Opening
 
 [Opening prayer or devotion if mentioned in notes, otherwise "None mentioned"]
 
-## 📌 Meeting Vitals
+## Meeting Vitals
 
 [1-2 sentences: overall sentiment, productivity, key theme]
 
-## 🎯 Strategic Outcomes
+## Strategic Outcomes
 
 - Outcome 1 (may span multiple agenda items)
 - Outcome 2
 - Outcome 3
 
-## 💰 Stewardship & Finances
+## Stewardship & Finances
 
 - **Total Approved Expenses**: [Total amount if mentioned]
 - **Items Purchased/Approved**:
@@ -98,13 +97,13 @@ ${rawNotes}
 
 If no finances mentioned: "None mentioned"
 
-## ✅ Key Decisions Summary
+## Key Decisions Summary
 
 - **Decision**: [High-level decision from raw notes]
   - **Ministry Impact**: [How this serves the church/ministry - from raw notes]
   - **Affects**: [Which agenda items this affects]
 
-## 📋 Ministry Action Items
+## Ministry Action Items
 
 | Task | Servant | Timeline | Related Agenda |
 |------|---------|----------|----------------|
@@ -112,14 +111,14 @@ If no finances mentioned: "None mentioned"
 
 IMPORTANT: Only include action items explicitly mentioned in the raw notes. If no action items are mentioned, write "None identified" instead of creating placeholder tasks. DO NOT use "[Insert Date]" or "[Name]" - use "Not specified" if information is missing.
 
-## 🙏 Prayer & Follow-up
+## Prayer & Follow-up
 
 - Prayer request 1 (from raw notes)
 - Prayer request 2 (from raw notes)
 
 If none mentioned: "None mentioned"
 
-## 🔄 Next Meeting Priorities
+## Next Meeting Priorities
 
 - Priority 1 (from raw notes)
 - Priority 2 (from raw notes)
@@ -133,18 +132,18 @@ Output ONLY the markdown-formatted summary, nothing else.`
 This is a PER-AGENDA ITEM summary. Focus ONLY on content related to this specific agenda item (e.g., if the agenda is about "Outreach", all content should be related to outreach). Do NOT include opening prayers or devotions - those belong in the overall meeting summary.
 
 ### CHURCH MINUTES STRUCTURE
-1. **📖 Ministry Purpose**: A brief (2-sentence) summary of this agenda item's goal for the church. Include dates/timeframes if mentioned (e.g., "ANNIVERSARY (9-12)").
-2. **💰 Stewardship & Finances**: 
+1. **Ministry Purpose**: A brief (2-sentence) summary of this agenda item's goal for the church. Include dates/timeframes if mentioned (e.g., "ANNIVERSARY (9-12)").
+2. **Stewardship & Finances**: 
    - Clearly list ALL approved expenses related to this agenda item only.
    - Calculate multipliers correctly (e.g., "2x2000" = ₱4,000).
    - Calculate and state the total by adding ALL expenses.
-3. **✅ Key Decisions**: What was agreed upon by the team/committee regarding this specific agenda item.
-4. **📋 Ministry Action Items**:
+3. **Key Decisions**: What was agreed upon by the team/committee regarding this specific agenda item.
+4. **Ministry Action Items**:
    - Task | Servant (extract from parentheses or after task) | Timeline | Status/Notes (preserve uncertainty/status)
    - Only include action items related to this specific agenda item.
    - Preserve status/uncertainty (e.g., "di pa sure" = "Pending confirmation").
-5. **🙏 Prayer & Follow-up**: List any specific people or concerns mentioned for prayer related to this agenda item.
-6. **🔄 Alternatives/Options**: If alternatives or options are mentioned, list them here.
+5. **Prayer & Follow-up**: List any specific people or concerns mentioned for prayer related to this agenda item.
+6. **Alternatives/Options**: If alternatives or options are mentioned, list them here.
 
 ### RAW NOTES
 ${rawNotes}
@@ -163,7 +162,6 @@ ${rawNotes}
 - Use bold text for names and dates.
 - Keep the tone objective and "third-person" (e.g., "The team agreed" instead of "We agreed").
 - If a section is empty, omit it or write "None identified."
-- Use emojis consistently: 📌 for vitals, 🎯 for outcomes, ✅ for decisions, 📋 for actions, ⚠️ for risks, 🚗 for parking lot
 - ALWAYS use ## for section headings
 - Use - for bullet points, 2 spaces for indentation
 - Be BRIEF and CONCISE - focus on what matters most
@@ -177,11 +175,11 @@ ${rawNotes}
 ### OUTPUT
 Generate the structured minutes using this exact format:
 
-## 📖 Ministry Purpose
+## Ministry Purpose
 
 [Brief 2-sentence summary of this agenda item's goal for the church, based on raw notes. Focus ONLY on this specific agenda item.]
 
-## 💰 Stewardship & Finances
+## Stewardship & Finances
 
 - **Approved Expenses** (related to this agenda item only):
   - Item 1: [Amount] - [Description from notes, including multiplier if mentioned, e.g., "Manggugupit: 2x2000 = ₱4,000"]
@@ -193,12 +191,12 @@ Generate the structured minutes using this exact format:
 
 If no finances mentioned: "None mentioned"
 
-## ✅ Key Decisions
+## Key Decisions
 
 - **Decision**: [Decision statement from raw notes related to this agenda item]
   - **Ministry Impact**: [How this decision serves the church/ministry - from raw notes]
 
-## 📋 Ministry Action Items
+## Ministry Action Items
 
 | Task | Servant | Timeline | Status/Notes |
 |------|---------|----------|--------------|
@@ -206,9 +204,9 @@ If no finances mentioned: "None mentioned"
 
 OR if only one action item:
 - **Task**: [Description from raw notes - related to this agenda item only, preserve uncertainty/status if mentioned]
-  - 👤 **Servant**: [Name if mentioned in parentheses or after task, e.g., "(joyce)" = "Joyce", "(youth)" = "Youth", otherwise "Not specified"]
-  - 📅 **Timeline**: [Date/timeline if mentioned, otherwise "Not specified"]
-  - 📝 **Status**: [Preserve status/uncertainty if mentioned, e.g., "di pa sure" = "Pending confirmation", otherwise omit]
+  - **Servant**: [Name if mentioned in parentheses or after task, e.g., "(joyce)" = "Joyce", "(youth)" = "Youth", otherwise "Not specified"]
+  - **Timeline**: [Date/timeline if mentioned, otherwise "Not specified"]
+  - **Status**: [Preserve status/uncertainty if mentioned, e.g., "di pa sure" = "Pending confirmation", otherwise omit]
 
 IMPORTANT: 
 - Extract ALL action items mentioned, even if they contain uncertainty (e.g., "di pa sure" = include as "Pending confirmation")
@@ -216,14 +214,14 @@ IMPORTANT:
 - Preserve the original meaning and status of tasks
 - If no action items are mentioned, write "None identified" instead of creating placeholder tasks
 
-## 🙏 Prayer & Follow-up
+## Prayer & Follow-up
 
 - Prayer request 1 (from raw notes - related to this agenda item)
 - Prayer request 2 (from raw notes - related to this agenda item)
 
 If none mentioned: "None mentioned"
 
-## 🔄 Alternatives/Options
+## Alternatives/Options
 
 - Option 1 (from raw notes if mentioned)
 - Option 2 (from raw notes if mentioned)

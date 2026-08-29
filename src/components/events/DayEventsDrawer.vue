@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import { Clock, MapPin, X, Plus, ArrowLeft } from 'lucide-vue-next'
-import * as LucideIcons from 'lucide-vue-next'
+import { Clock, MapPin, X, Plus, ArrowLeft, PartyPopper } from 'lucide-vue-next'
+import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 
@@ -51,9 +51,6 @@ const getEventTypeColor = (type) => {
   return colors[type] || 'bg-gray-500 text-white'
 }
 
-const getIconComponent = (iconName) => {
-  return LucideIcons[iconName] || LucideIcons.Calendar
-}
 </script>
 
 <template>
@@ -101,8 +98,8 @@ const getIconComponent = (iconName) => {
           v-if="holiday"
           class="flex items-center gap-3 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50"
         >
-          <div class="w-9 h-9 rounded-lg bg-yellow-500 flex items-center justify-center shrink-0 text-white text-xs font-bold">
-            🎉
+          <div class="w-9 h-9 rounded-lg bg-yellow-500 flex items-center justify-center shrink-0 text-white">
+            <PartyPopper class="h-5 w-5" />
           </div>
           <div class="min-w-0">
             <p class="text-xs font-semibold text-yellow-700 dark:text-yellow-400 uppercase tracking-wide">Holiday</p>

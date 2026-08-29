@@ -18,12 +18,14 @@ export const subscribeToNotifications = (callback, max = 30) => {
 // Best-effort: failures are logged, never thrown, so a push problem can
 // never break the save flow that triggered it. Note: /api/notify only runs
 // on Vercel deployments — during `npm run dev` this quietly no-ops.
-export const sendPushNotification = async ({ title, body = "", url = "/" }) => {
+export const sendPushNotification = async ({ title, body = "", url = "/", event = null }) => {
   try {
     const res = await fetch("/api/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, body, url }),
+      // `event` is optional: { type, icon }. When present the server picks a
+      // matching icon for the notification tray instead of the app logo.
+      body: JSON.stringify({ title, body, url, event }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();

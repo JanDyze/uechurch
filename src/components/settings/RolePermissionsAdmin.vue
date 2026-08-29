@@ -1,41 +1,30 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { KeyRound, Check, Loader2, Info } from 'lucide-vue-next'
 import { usePermissions } from '../../composables/usePermissions'
 import { useAuth } from '../../composables/useAuth'
 import { useToast } from '../../composables/useToast'
 import { setRolePermissions } from '../../api/rolePermissionsService'
-import { subscribeToCustomTags } from '../../api/tagsService'
-import { mergeTagSources } from '../../utils/memberUtils'
+import { useMinistries } from '../../composables/useMinistries'
 import { AREAS, viewCap, manageCap, BASELINE_CAPABILITIES } from '../../data/capabilities'
 
 const toast = useToast()
 const { user } = useAuth()
 const { isAdmin, roleMap, members } = usePermissions()
+const { ministryNames } = useMinistries()
 
-const customTags = ref([])
-let unsubscribe = null
-
-onMounted(() => {
-  unsubscribe = subscribeToCustomTags((tags) => {
-    customTags.value = tags.map((t) => t.name).filter(Boolean)
-  })
-})
-onUnmounted(() => unsubscribe?.())
-
-// Every tag that could be granted something: the presets, any tag someone
-// created from the toolbar, and any tag already sitting on a member.
-const tags = computed(() => {
-  const onMembers = members.value.flatMap((m) => m.tags || [])
-  return mergeTagSources(onMembers, customTags.value)
-})
+// Only ministries can be granted anything. This deliberately does not merge in
+// values found on member documents the way it used to with tags: back then a
+// free-text label typed onto a member became grantable, so a label that
+// happened to match a role handed out that role's access.
+const tags = computed(() => [...ministryNames.value].sort((a, b) => a.localeCompare(b)))
 
 const savingTag = ref(null)
 
 const holds = (tag, capability) => (roleMap.value[tag] || []).includes(capability)
 
 const memberCount = (tag) =>
-  members.value.filter((m) => (m.tags || []).includes(tag)).length
+  members.value.filter((m) => (m.ministries || []).includes(tag)).length
 
 const toggle = async (tag, capability) => {
   const current = new Set(roleMap.value[tag] || [])
@@ -91,8 +80,9 @@ const isBaseline = (capability) => BASELINE_CAPABILITIES.includes(capability)
       >
         <Info class="h-4 w-4 shrink-0 text-gray-400 mt-0.5" />
         <p>
-          Tags come from member records, so a role only applies once that person's
-          account has been linked and approved. Administrators bypass all of this.
+          Ministries come from member records, so a role only applies once that
+          person's account has been linked and approved. Administrators bypass all
+          of this. Tags are separate and never grant anything.
           Rows marked <span class="font-semibold">baseline</span> are granted to every
           signed-in account already.
         </p>
@@ -117,7 +107,7 @@ const isBaseline = (capability) => BASELINE_CAPABILITIES.includes(capability)
                   {{ tag }}
                 </span>
                 <span class="block text-[9px] text-gray-400">
-                  {{ memberCount(tag) }} tagged
+                  {{ memberCount(tag) }} serving
                 </span>
               </th>
             </tr>

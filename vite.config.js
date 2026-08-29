@@ -29,7 +29,10 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
         // FCM registers its own service worker — keep it out of the precache
-        globIgnores: ['**/firebase-messaging-sw.js'],
+        // The event PNGs exist for digest email and the notification tray,
+        // never for the app itself, which draws Phosphor SVG components.
+        // Precaching 44 images nothing in the app requests is pure payload.
+        globIgnores: ['**/firebase-messaging-sw.js', 'icons/events/**'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,

@@ -1,14 +1,18 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { Search, X } from 'lucide-vue-next'
-import iconsData from '../../data/lucideIcons.json'
-import * as LucideIcons from 'lucide-vue-next'
 import { useFocusTrap } from '../../composables/useFocusTrap'
+import {
+  EVENT_ICON_NAMES,
+  DEFAULT_EVENT_ICON,
+  getEventIcon as getIconComponent,
+  loadAllIconPaths,
+} from '../../utils/eventIcons'
 
 const props = defineProps({
   modelValue: {
     type: String,
-    default: 'Calendar'
+    default: DEFAULT_EVENT_ICON
   },
   searchPlaceholder: {
     type: String,
@@ -20,25 +24,28 @@ const emit = defineEmits(['update:modelValue'])
 
 const searchQuery = ref('')
 const showModal = ref(false)
+// Bumping this after the path data arrives re-runs the grid's render so the
+// icons that were falling back are drawn properly.
+const iconsReady = ref(false)
 
-const filteredIcons = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return iconsData.icons
-  }
-  const query = searchQuery.value.toLowerCase()
-  return iconsData.icons.filter(icon => 
-    icon.toLowerCase().includes(query)
-  )
+// 1500 icons is far more than a grid should mount at once, so an unfiltered
+// list is capped and search is how you reach the rest.
+const BROWSE_LIMIT = 300
+
+const matchingIcons = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) return EVENT_ICON_NAMES
+  return EVENT_ICON_NAMES.filter((icon) => icon.toLowerCase().includes(query))
 })
+
+const filteredIcons = computed(() => matchingIcons.value.slice(0, BROWSE_LIMIT))
+
+const hiddenCount = computed(() => matchingIcons.value.length - filteredIcons.value.length)
 
 const selectedIcon = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
 })
-
-const getIconComponent = (iconName) => {
-  return LucideIcons[iconName] || LucideIcons.Calendar
-}
 
 const selectIcon = (iconName) => {
   selectedIcon.value = iconName
@@ -46,8 +53,24 @@ const selectIcon = (iconName) => {
   searchQuery.value = ''
 }
 
-const openModal = () => {
+// The full icon set is 644 KB of path data, so it is fetched the first time
+// the picker is opened rather than shipped to everyone who never opens it.
+// Until it lands the grid draws the common set and falls back for the rest,
+// which is why this is not awaited before showing the modal.
+const loadingIcons = ref(false)
+
+const openModal = async () => {
   showModal.value = true
+  if (iconsReady.value) return
+  loadingIcons.value = true
+  try {
+    await loadAllIconPaths()
+    iconsReady.value = true
+  } catch (e) {
+    console.error('Could not load the icon set:', e)
+  } finally {
+    loadingIcons.value = false
+  }
 }
 
 const closeModal = () => {
@@ -132,12 +155,25 @@ useFocusTrap(dialogRef, showModal, closeModal)
                 :aria-label="iconName"
                 :aria-pressed="selectedIcon === iconName"
               >
-                <component :is="getIconComponent(iconName)" class="h-4 w-4 text-gray-700 dark:text-gray-300 shrink-0" />
+                <component
+                  :is="getIconComponent(iconName)"
+                  :key="`${iconName}-${iconsReady}`"
+                  class="h-4 w-4 text-gray-700 dark:text-gray-300 shrink-0"
+                />
               </button>
             </div>
-            <div v-if="filteredIcons.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div v-if="loadingIcons" class="text-center py-8 text-gray-500 dark:text-gray-400">
+              Loading icons...
+            </div>
+            <div v-else-if="filteredIcons.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
               No icons found
             </div>
+            <p
+              v-else-if="hiddenCount > 0"
+              class="py-4 text-center text-xs text-gray-400 dark:text-gray-500"
+            >
+              {{ hiddenCount }} more &mdash; keep typing to narrow the search
+            </p>
           </div>
         </div>
       </div>

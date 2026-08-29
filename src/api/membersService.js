@@ -29,6 +29,10 @@ const normalizeMember = (data, docId) => {
     contactNumber: data.contactNumber || '',
     occupation: data.occupation || '',
     relatives: data.relatives || {},
+    // What this member does in the church. The only field that grants access
+    // (see rolePermissions), and a controlled vocabulary — Settings > Ministries.
+    ministries: Array.isArray(data.ministries) ? data.ministries : [],
+    // Free-text labels for describing and filtering. Grant nothing.
     tags: Array.isArray(data.tags) ? data.tags : [],
     isMember: data.isMember !== undefined ? data.isMember : true,
     image: data.image || null,

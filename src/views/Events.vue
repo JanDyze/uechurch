@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { Calendar, Clock, MapPin, Users, X, ChevronRight, Trash2, Plus, Edit2 } from 'lucide-vue-next'
-import * as LucideIcons from 'lucide-vue-next'
+import { getEventIcon as getIconComponent } from '../utils/eventIcons'
 import { useEvents } from '../composables/useEvents'
 import { useMembers } from '../composables/useMembers'
 import { useBirthdayEvents } from '../composables/useBirthdayEvents'
@@ -160,9 +160,6 @@ const getEventTypeColor = (type) => {
 }
 
 // Get icon component by name
-const getIconComponent = (iconName) => {
-  return LucideIcons[iconName] || LucideIcons.Calendar
-}
 
 // Event handlers
 const openEventDetails = (event) => {

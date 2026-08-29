@@ -8,31 +8,22 @@ import {
   addCustomTag,
   renameTag,
   deleteTag,
-  seedDefaultTagsIfEmpty,
 } from '../../api/tagsService'
 import ConfirmationModal from '../common/ConfirmationModal.vue'
 
 const toast = useToast()
-const { isAdmin, members, roleMap } = usePermissions()
+const { isAdmin, members } = usePermissions()
 
 const customTags = ref([])
 let unsubscribe = null
 
-onMounted(async () => {
+// No starter set: the useful labels for one congregation mean nothing to the
+// next, and the names that used to be seeded here were ministries, which now
+// have their own list.
+onMounted(() => {
   unsubscribe = subscribeToCustomTags((tags) => {
     customTags.value = tags
   })
-  // First run on an empty database gets a starter set. Deleting them all is a
-  // valid end state, so this only ever fires when the collection is empty AND
-  // no member is carrying a tag — otherwise a church that cleared the list
-  // would find it repopulated on the next visit.
-  if (!isAdmin.value) return
-  try {
-    const anyTagsOnMembers = members.value.some((m) => (m.tags || []).length > 0)
-    if (!anyTagsOnMembers) await seedDefaultTagsIfEmpty()
-  } catch (e) {
-    console.error('Error seeding default tags:', e)
-  }
 })
 onUnmounted(() => unsubscribe?.())
 
@@ -59,7 +50,6 @@ const tags = computed(() => {
     .map((t) => ({
       ...t,
       memberCount: members.value.filter((m) => (m.tags || []).includes(t.name)).length,
-      grantCount: (roleMap.value[t.name] || []).length,
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 })
@@ -136,9 +126,6 @@ const confirmMessage = computed(() => {
       `It will be removed from ${tag.memberCount} member${tag.memberCount === 1 ? '' : 's'}.`
     )
   }
-  if (tag.grantCount > 0) {
-    parts.push('The permissions it grants will be revoked from everyone who held it.')
-  }
   return parts.join(' ')
 })
 
@@ -173,15 +160,15 @@ const handleDelete = async () => {
         <Tag class="h-5 w-5 text-primary dark:text-primary-light" />
       </div>
       <div class="min-w-0">
-        <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Ministry tags</h2>
+        <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Tags</h2>
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          The tags you put on members, and what each one unlocks under Roles
+          Descriptive labels for finding and grouping members. They grant no access
         </p>
       </div>
     </div>
 
     <p v-if="!isAdmin" class="px-4 py-6 text-sm text-center text-gray-500 dark:text-gray-400">
-      Only administrators can manage ministry tags.
+      Only administrators can manage tags.
     </p>
 
     <template v-else>
@@ -242,10 +229,6 @@ const handleDelete = async () => {
               </p>
               <p class="text-xs text-gray-500 dark:text-gray-400">
                 {{ tag.memberCount }} member{{ tag.memberCount === 1 ? '' : 's' }}
-                <template v-if="tag.grantCount">
-                  · {{ tag.grantCount }} permission{{ tag.grantCount === 1 ? '' : 's' }}
-                </template>
-                <template v-else> · no permissions yet</template>
               </p>
             </div>
 

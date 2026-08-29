@@ -7,6 +7,7 @@ import { useMediaQuery } from "../../composables/useMediaQuery";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 import ImageCropper from "./ImageCropper.vue";
 import InlineEditField from "../common/InlineEditField.vue";
+import { useMinistries } from "../../composables/useMinistries";
 
 const router = useRouter();
 const isMobile = useMediaQuery("(max-width: 1023px)");
@@ -32,6 +33,9 @@ const props = defineProps({
     default: false,
   },
 });
+
+const { ministryNames } = useMinistries()
+
 
 const emit = defineEmits(["update:showDetails", "update", "delete"]);
 
@@ -65,7 +69,7 @@ const handleFieldSave = (field, value) => {
   const cleanedMember = { ...localMember.value };
   Object.keys(cleanedMember).forEach(key => {
     if (cleanedMember[key] === undefined || cleanedMember[key] === '') {
-      if (!['id', 'firestoreId', 'tags', 'isMember', 'image'].includes(key)) {
+      if (!['id', 'firestoreId', 'ministries', 'tags', 'isMember', 'image'].includes(key)) {
         delete cleanedMember[key];
       }
     }
@@ -351,9 +355,20 @@ const sexOptions = [
                 :forceEdit="isEditMode"
                 @save="handleFieldSave('occupation', $event)"
               />
+              <!-- Ministries grant access, so the options are the controlled
+                   list from Settings; tags below are free text and grant nothing. -->
+              <InlineEditField
+                v-model="localMember.ministries"
+                label="Ministries"
+                type="tags"
+                emptyText="Not serving in any ministry"
+                :allTags="ministryNames"
+                :forceEdit="isEditMode"
+                @save="handleFieldSave('ministries', $event)"
+              />
               <InlineEditField
                 v-model="localMember.tags"
-                label="Ministry Tags"
+                label="Tags"
                 type="tags"
                 emptyText="No tags assigned"
                 :allTags="allTags"

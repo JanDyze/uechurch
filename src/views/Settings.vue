@@ -15,7 +15,8 @@ import { useMediaQuery } from '../composables/useMediaQuery'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import MemberLinkAdmin from '../components/settings/MemberLinkAdmin.vue'
 import RolePermissionsAdmin from '../components/settings/RolePermissionsAdmin.vue'
-import MinistryTagsAdmin from '../components/settings/MinistryTagsAdmin.vue'
+import MinistriesAdmin from '../components/settings/MinistriesAdmin.vue'
+import MemberTagsAdmin from '../components/settings/MemberTagsAdmin.vue'
 import ChurchSettings from '../components/settings/ChurchSettings.vue'
 import EmailDigestAdmin from '../components/settings/EmailDigestAdmin.vue'
 import LandingPageAdmin from '../components/settings/LandingPageAdmin.vue'
@@ -34,6 +35,7 @@ const TABS = [
   { key: 'church', label: 'Church' },
   { key: 'landing', label: 'Public page' },
   { key: 'schedule', label: 'Schedule' },
+  { key: 'ministries', label: 'Ministries' },
   { key: 'tags', label: 'Tags' },
   { key: 'roles', label: 'Roles' },
   { key: 'accounts', label: 'Accounts' },
@@ -397,8 +399,11 @@ const formatTime = (time) => {
     <!-- The visitors' page at "/" -->
     <LandingPageAdmin v-show="activeTab === 'landing'" class="mb-4" />
 
-    <!-- Ministry tags -->
-    <MinistryTagsAdmin v-show="activeTab === 'tags'" class="mb-4" />
+    <!-- What people do, and what it lets them do -->
+    <MinistriesAdmin v-show="activeTab === 'ministries'" class="mb-4" />
+
+    <!-- Descriptive labels that grant nothing -->
+    <MemberTagsAdmin v-show="activeTab === 'tags'" class="mb-4" />
 
     <!-- Tag-based roles -->
     <RolePermissionsAdmin v-show="activeTab === 'roles'" class="mb-4" />

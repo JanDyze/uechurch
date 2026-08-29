@@ -875,7 +875,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
           <!-- Overall Meeting Summary -->
           <div v-if="showSummary && minute.structure" id="agenda-content">
             <div class="flex items-center justify-between mb-4 gap-2">
-              <h1 class="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white">📋 Overall Meeting Summary</h1>
+              <h1 class="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white">Overall Meeting Summary</h1>
               <button
                 @click="enhanceOverallSummary"
                 :disabled="isEnhancingOverall"

@@ -5,6 +5,7 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
+import { eventIconPngPath } from "../lib/eventIcons.js";
 
 function initAdmin() {
   if (getApps().length) return;
@@ -26,7 +27,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { title, body, url } = req.body || {};
+    const { title, body, url, event } = req.body || {};
     if (!title || !title.trim()) {
       return res.status(400).json({ error: "title is required" });
     }
@@ -57,7 +58,11 @@ export default async function handler(req, res) {
           headers: { Urgency: "high" },
           fcmOptions: { link },
           notification: {
-            icon: "/icons/pwa-192x192.png",
+            // An event-specific mark when the caller named one, so a birthday
+            // and a prayer meeting are told apart in the tray at a glance.
+            // Phosphor ships SVG and Android will not render it here, so this
+            // points at the PNGs from `npm run build:icons`.
+            icon: event ? eventIconPngPath(event) : "/icons/pwa-192x192.png",
             badge: "/icons/badge-96x96.png",
             vibrate: [200, 100, 200],
           },

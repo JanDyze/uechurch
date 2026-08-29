@@ -7,9 +7,10 @@
     "dev": "vite",
     "dev:server": "node server.js",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
-    "build": "vite build",
+    "build": "npm run build:icons && vite build",
     "preview": "vite preview",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "build:icons": "node scripts/build-event-icons.mjs"
   },
   "dependencies": {
     "@heroicons/vue": "^2.2.0",
@@ -27,6 +28,7 @@
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
+    "@phosphor-icons/core": "^2.1.1",
     "@vitejs/plugin-vue": "^6.0.1",
     "sharp": "^0.35.3",
     "vite": "^7.1.7",
