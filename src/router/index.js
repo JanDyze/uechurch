@@ -121,6 +121,17 @@ const routes = [
         component: () => import('../views/Attendance.vue')
       },
       {
+        // Recording is its own screen: a swipe deck and a hundred names need
+        // more room than a drawer. ?key= a gathering, ?id= an existing record,
+        // neither = a one-off.
+        path: 'attendance/record',
+        name: 'RecordAttendance',
+        // focus: no top or bottom bar. Taking attendance is a task with its
+        // own back arrow, and the swipe deck wants every pixel.
+        meta: { capability: 'attendance.manage', focus: true },
+        component: () => import('../views/RecordAttendance.vue')
+      },
+      {
         path: 'prayer-concerns',
         name: 'PrayerConcerns',
         meta: { capability: 'prayer.view' },

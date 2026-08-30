@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { UsersRound, MapPin, CalendarDays, NotebookPen } from '../../icons'
 import { useSgLanguage } from '../../composables/useSgLanguage'
-import { getFullName, getAvatarUrl } from '../../utils/memberUtils'
+import { getFullName } from '../../utils/memberUtils'
+import MemberAvatar from '../members/MemberAvatar.vue'
 import { findMemberById, formatTimeRange } from '../../utils/sgUtils'
 
 const props = defineProps({
@@ -63,11 +64,7 @@ const schedule = computed(() => {
 
     <div class="p-3 sm:p-4 space-y-3">
       <div v-if="leader" class="flex items-center gap-2 min-w-0">
-        <img
-          :src="getAvatarUrl(leader)"
-          alt=""
-          class="h-8 w-8 shrink-0 rounded-full object-cover bg-gray-100 dark:bg-gray-700"
-        />
+        <MemberAvatar :member="leader" alt="" size="h-8 w-8" />
         <div class="min-w-0">
           <p class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
             {{ t('leader') }}

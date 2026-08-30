@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from "vue";
-import { X, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown, Check, Filter, Columns, Users, Tag } from '../../icons';
+import { ref, computed, watch } from "vue";
+import { X, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown, Check, Filter, Columns, Users } from '../../icons';
 import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const props = defineProps({
@@ -12,10 +12,6 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
-  allTags: {
-    type: Array,
-    default: () => [],
-  },
   currentSortBy: {
     type: String,
     default: "name",
@@ -24,14 +20,9 @@ const props = defineProps({
     type: String,
     default: "asc",
   },
-  currentFilters: {
-    type: Object,
-    default: () => ({
-      tags: [],
-      isMember: null,
-      sex: null,
-      civilStatus: null,
-    }),
+  visibleCount: {
+    type: Number,
+    default: 0,
   },
 });
 
@@ -41,13 +32,7 @@ const emit = defineEmits(["update:showExport", "export"]);
 const exportConfig = ref({
   sortBy: props.currentSortBy,
   sortOrder: props.currentSortOrder,
-  useCurrentFilters: true,
-  filters: {
-    tags: [...props.currentFilters.tags],
-    isMember: props.currentFilters.isMember,
-    sex: props.currentFilters.sex,
-    civilStatus: props.currentFilters.civilStatus,
-  },
+  onlyVisible: false,
   fields: {
     id: false,
     firstName: true,
@@ -109,13 +94,19 @@ const selectedFieldCount = computed(() => {
   return Object.values(exportConfig.value.fields).filter(Boolean).length;
 });
 
-// Estimated row count
-const estimatedRows = computed(() => {
-  if (exportConfig.value.useCurrentFilters) {
-    // Rough estimate based on current filters
-    return props.members.length;
-  }
-  return props.members.length;
+const isSearchNarrowing = computed(() => props.visibleCount < props.members.length);
+
+const estimatedRows = computed(() =>
+  exportConfig.value.onlyVisible ? props.visibleCount : props.members.length
+);
+
+// The dialog stays mounted, so pick up the page's current search and sort
+// each time it opens rather than freezing whatever they were at startup.
+watch(() => props.showExport, (isOpen) => {
+  if (!isOpen) return;
+  exportConfig.value.sortBy = props.currentSortBy;
+  exportConfig.value.sortOrder = props.currentSortOrder;
+  exportConfig.value.onlyVisible = isSearchNarrowing.value;
 });
 
 const toggleField = (fieldKey) => {
@@ -132,15 +123,6 @@ const deselectAllFields = () => {
   Object.keys(exportConfig.value.fields).forEach(key => {
     exportConfig.value.fields[key] = false;
   });
-};
-
-const toggleTag = (tag) => {
-  const index = exportConfig.value.filters.tags.indexOf(tag);
-  if (index > -1) {
-    exportConfig.value.filters.tags.splice(index, 1);
-  } else {
-    exportConfig.value.filters.tags.push(tag);
-  }
 };
 
 const handleExport = () => {
@@ -239,35 +221,40 @@ useFocusTrap(dialogRef, () => props.showExport, () => emit("update:showExport", 
               </button>
             </div>
 
-            <!-- Filter Toggle -->
+            <!-- Row Scope -->
             <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl space-y-3">
               <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <Filter class="h-4 w-4 text-emerald-500" />
-                Filters
+                Rows
               </h3>
               <button
-                @click="exportConfig.useCurrentFilters = !exportConfig.useCurrentFilters"
+                @click="exportConfig.onlyVisible = !exportConfig.onlyVisible"
+                :disabled="!isSearchNarrowing"
                 :class="[
                   'w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-all',
-                  exportConfig.useCurrentFilters
+                  !isSearchNarrowing
+                    ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 opacity-50 cursor-not-allowed'
+                    : exportConfig.onlyVisible
                     ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
                     : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                 ]"
               >
-                <span :class="exportConfig.useCurrentFilters ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'" class="text-sm font-medium">
-                  Use current filters
+                <span :class="exportConfig.onlyVisible ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'" class="text-sm font-medium">
+                  Only my search results
                 </span>
                 <div
                   :class="[
                     'w-5 h-5 rounded-full flex items-center justify-center transition-colors',
-                    exportConfig.useCurrentFilters ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-gray-600'
+                    exportConfig.onlyVisible ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-gray-600'
                   ]"
                 >
-                  <Check v-if="exportConfig.useCurrentFilters" class="h-3 w-3" />
+                  <Check v-if="exportConfig.onlyVisible" class="h-3 w-3" />
                 </div>
               </button>
               <p class="text-xs text-gray-500 dark:text-gray-400">
-                {{ exportConfig.useCurrentFilters ? 'Will use your current member filters' : 'Export all members without filters' }}
+                <template v-if="!isSearchNarrowing">Search the members list first to export just part of it</template>
+                <template v-else-if="exportConfig.onlyVisible">Exporting the {{ visibleCount }} members your search is showing</template>
+                <template v-else>Exporting all {{ members.length }} members</template>
               </p>
             </div>
           </div>

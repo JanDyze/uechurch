@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { Search, Check } from '../../icons'
-import { getFullName, getAvatarUrl } from '../../utils/memberUtils'
+import { getFullName } from '../../utils/memberUtils'
+import MemberAvatar from '../members/MemberAvatar.vue'
 import { memberKey } from '../../utils/sgUtils'
 
 const props = defineProps({
@@ -105,11 +106,7 @@ const clearShown = () => {
         @click="toggle(memberKey(member))"
         class="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
       >
-        <img
-          :src="getAvatarUrl(member)"
-          :alt="getFullName(member)"
-          class="h-9 w-9 rounded-full object-cover bg-gray-100 dark:bg-gray-700 shrink-0"
-        />
+        <MemberAvatar :member="member" size="h-9 w-9" />
         <span class="flex-1 min-w-0">
           <span class="block text-sm font-medium text-gray-900 dark:text-white truncate">
             {{ getFullName(member) }}

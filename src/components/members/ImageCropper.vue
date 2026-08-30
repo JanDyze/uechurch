@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, watch } from "vue";
-import { X, Upload, Move, ZoomIn, ZoomOut, RotateCw, Check } from '../../icons';
+import { ref, computed, nextTick, onBeforeUnmount, watch } from "vue";
+import { X, Upload, Camera, Move, ZoomIn, ZoomOut, RotateCw, Check } from '../../icons';
 import { useFocusTrap } from "../../composables/useFocusTrap";
 
 const props = defineProps({
@@ -17,6 +17,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "update:show"]);
 
 const fileInput = ref(null);
+const cameraInput = ref(null);
 const originalImageSrc = ref(null); // Store original uploaded image
 const previewImageSrc = ref(null); // For preview display
 const canvas = ref(null);
@@ -106,6 +107,94 @@ const handleFileSelect = (event) => {
     reader.readAsDataURL(file);
   }
 };
+
+/* ------------------------------------------------------------------ camera */
+// A photo taken on the spot is the usual case for a church directory: most
+// people have no picture of themselves to hand, and asking them to find one
+// is what leaves the record blank for a year.
+
+const videoRef = ref(null);
+const cameraOn = ref(false);
+const cameraError = ref('');
+let stream = null;
+
+// Tracks must be stopped explicitly or the camera light stays on after the
+// modal closes, which reads as the app still watching.
+const stopCamera = () => {
+  if (stream) {
+    stream.getTracks().forEach((track) => track.stop());
+    stream = null;
+  }
+  cameraOn.value = false;
+};
+
+const startCamera = async () => {
+  cameraError.value = '';
+
+  // No getUserMedia at all (an old in-app browser, or plain http): hand the
+  // job to the operating system's own camera through a file input instead.
+  if (!navigator.mediaDevices?.getUserMedia) {
+    cameraInput.value?.click();
+    return;
+  }
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } },
+      audio: false,
+    });
+    cameraOn.value = true;
+    await nextTick();
+    if (videoRef.value) {
+      videoRef.value.srcObject = stream;
+      await videoRef.value.play();
+    }
+  } catch (error) {
+    stopCamera();
+    cameraError.value =
+      error?.name === 'NotAllowedError' || error?.name === 'SecurityError'
+        ? 'Camera access was refused. You can still choose a photo from this device.'
+        : 'No camera available here. Choose a photo from this device instead.';
+  }
+};
+
+const takePhoto = () => {
+  const video = videoRef.value;
+  if (!video?.videoWidth) return;
+
+  // A square out of the middle of the frame. The crop that follows is
+  // circular, and starting from the full 4:3 leaves the face small in it.
+  const side = Math.min(video.videoWidth, video.videoHeight);
+  const shot = document.createElement('canvas');
+  shot.width = side;
+  shot.height = side;
+
+  const ctx = shot.getContext('2d');
+  // Flipped to match the preview, which is itself mirrored so people can
+  // position themselves. Saving the unflipped frame would hand back a face
+  // that is not the one they were just looking at.
+  ctx.translate(side, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(
+    video,
+    (video.videoWidth - side) / 2,
+    (video.videoHeight - side) / 2,
+    side,
+    side,
+    0,
+    0,
+    side,
+    side
+  );
+
+  const dataUrl = shot.toDataURL('image/png');
+  stopCamera();
+  originalImageSrc.value = dataUrl;
+  previewImageSrc.value = dataUrl;
+  loadImage(dataUrl);
+};
+
+onBeforeUnmount(stopCamera);
 
 // Mouse/Touch handlers
 const startDrag = (e) => {
@@ -227,6 +316,8 @@ const cropImage = () => {
 
 // Reset
 const reset = () => {
+  stopCamera();
+  cameraError.value = '';
   originalImageSrc.value = null;
   previewImageSrc.value = null;
   imageLoaded.value = false;
@@ -234,6 +325,9 @@ const reset = () => {
   position.value = { x: 0, y: 0 };
   if (fileInput.value) {
     fileInput.value.value = '';
+  }
+  if (cameraInput.value) {
+    cameraInput.value.value = '';
   }
 };
 
@@ -247,196 +341,248 @@ useFocusTrap(dialogRef, () => props.show, close);
 </script>
 
 <template>
-  <Transition name="modal">
-    <div
-      v-if="show"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      @click.self="close"
-    >
+  <!-- Teleported and above the z-80 mobile drawers, for the same reason
+       ConfirmationModal is: this opens FROM the member drawer, so rendered in
+       place it landed underneath the sheet that asked for it. z-90 matches
+       ImageCropModal, its opposite number, and stays below a confirmation. -->
+  <Teleport to="body">
+    <Transition name="modal">
       <div
-        ref="dialogRef"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="image-cropper-title"
-        tabindex="-1"
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+        v-if="show"
+        class="fixed inset-0 z-90 flex items-center justify-center bg-black/50 p-4"
+        @click.self="close"
       >
-        <!-- Header -->
-        <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h3 id="image-cropper-title" class="text-lg font-semibold text-gray-900 dark:text-white">Upload & Crop Image</h3>
-          <button
-            @click="close"
-            aria-label="Close"
-            class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            <X class="h-5 w-5" />
-          </button>
-        </div>
+        <div
+          ref="dialogRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="image-cropper-title"
+          tabindex="-1"
+          class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+        >
+          <!-- Header -->
+          <div class="shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h3 id="image-cropper-title" class="text-lg font-semibold text-gray-900 dark:text-white">Profile photo</h3>
+            <button
+              @click="close"
+              aria-label="Close"
+              class="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <X class="h-5 w-5" />
+            </button>
+          </div>
 
-        <!-- Content -->
-        <div class="flex-1 overflow-y-auto p-6">
-          <div class="space-y-4">
-            <!-- File Input -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select Image
-              </label>
-              <input
-                ref="fileInput"
-                type="file"
-                accept="image/*"
-                @change="handleFileSelect"
-                class="hidden"
-              />
-              <button
-                @click="fileInput?.click()"
-                class="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary dark:hover:border-primary transition-colors flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400"
-              >
-                <Upload class="h-5 w-5" />
-                <span>Choose Image</span>
-              </button>
-            </div>
-
-            <!-- Crop Area -->
-            <div v-if="imageLoaded" class="space-y-4">
-              <div class="text-sm text-gray-600 dark:text-gray-400">
-                Drag to move, use controls to zoom and rotate
-              </div>
-              
-              <div
-                ref="container"
-                class="relative mx-auto"
-                :style="{ 
-                  width: containerSize.width + 'px', 
-                  height: containerSize.width + 'px',
-                  maxWidth: '100%',
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  backgroundColor: '#f3f4f6'
-                }"
-                @mousedown="startDrag"
-                @mousemove="drag"
-                @mouseup="endDrag"
-                @mouseleave="endDrag"
-                @touchstart="startDrag"
-                @touchmove="drag"
-                @touchend="endDrag"
-              >
-                <img
-                  v-if="previewImageSrc"
-                  :src="previewImageSrc"
-                  :style="{
-                    ...imageStyle,
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transformOrigin: 'center center',
-                    maxWidth: 'none',
-                  }"
-                  class="select-none pointer-events-none"
-                  draggable="false"
+          <!-- Content -->
+          <div class="flex-1 overflow-y-auto p-6">
+            <div class="space-y-4">
+              <!-- Where the picture comes from -->
+              <div v-if="!cameraOn">
+                <input
+                  ref="fileInput"
+                  type="file"
+                  accept="image/*"
+                  @change="handleFileSelect"
+                  class="hidden"
                 />
-                
-                <!-- Circular Crop overlay -->
-                <div class="absolute inset-0 pointer-events-none">
-                  <!-- Dark overlay outside circle using SVG -->
-                  <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                    <defs>
-                      <mask id="circleMask">
-                        <rect width="100" height="100" fill="white"/>
-                        <circle cx="50" cy="50" r="50" fill="black"/>
-                      </mask>
-                    </defs>
-                    <rect width="100" height="100" fill="rgba(0,0,0,0.6)" mask="url(#circleMask)"/>
-                  </svg>
-                  <!-- Perfect circle border -->
-                  <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                    <circle 
-                      cx="50" 
-                      cy="50" 
-                      r="50" 
-                      fill="none" 
-                      stroke="#01779b" 
-                      stroke-width="0.8"
-                      vector-effect="non-scaling-stroke"
-                    />
-                    <circle 
-                      cx="50" 
-                      cy="50" 
-                      r="49.2" 
-                      fill="none" 
-                      stroke="rgba(255,255,255,0.9)" 
-                      stroke-width="0.4"
-                      vector-effect="non-scaling-stroke"
-                    />
-                  </svg>
+                <!-- The fallback for when getUserMedia is unavailable:
+                     `capture` hands the shot to the phone's own camera app. -->
+                <input
+                  ref="cameraInput"
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  @change="handleFileSelect"
+                  class="hidden"
+                />
+                <div class="grid grid-cols-2 gap-2">
+                  <button
+                    @click="fileInput?.click()"
+                    class="px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary dark:hover:border-primary transition-colors flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400"
+                  >
+                    <Upload class="h-5 w-5 shrink-0" />
+                    <span class="text-sm">Choose file</span>
+                  </button>
+                  <button
+                    @click="startCamera"
+                    class="px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary dark:hover:border-primary transition-colors flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400"
+                  >
+                    <Camera class="h-5 w-5 shrink-0" />
+                    <span class="text-sm">Take photo</span>
+                  </button>
+                </div>
+                <p v-if="cameraError" class="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  {{ cameraError }}
+                </p>
+              </div>
+
+              <!-- Live camera. Mirrored, so moving left moves left on screen. -->
+              <div v-if="cameraOn" class="space-y-4">
+                <video
+                  ref="videoRef"
+                  autoplay
+                  playsinline
+                  muted
+                  class="mx-auto aspect-square w-full max-w-[300px] rounded-full bg-black object-cover -scale-x-100"
+                ></video>
+                <div class="flex items-center justify-center gap-2">
+                  <button
+                    @click="stopCamera"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    @click="takePhoto"
+                    class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary-hover transition-colors flex items-center gap-2"
+                  >
+                    <Camera class="h-4 w-4" />
+                    Capture
+                  </button>
                 </div>
               </div>
 
-              <!-- Controls -->
-              <div class="flex items-center justify-center gap-2 flex-wrap">
-                <button
-                  @click="zoom(-0.1)"
-                  class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  title="Zoom Out"
+              <!-- Crop Area -->
+              <div v-if="imageLoaded && !cameraOn" class="space-y-4">
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                  Drag to move, use controls to zoom and rotate
+                </div>
+              
+                <div
+                  ref="container"
+                  class="relative mx-auto"
+                  :style="{ 
+                    width: containerSize.width + 'px', 
+                    height: containerSize.width + 'px',
+                    maxWidth: '100%',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    backgroundColor: '#f3f4f6'
+                  }"
+                  @mousedown="startDrag"
+                  @mousemove="drag"
+                  @mouseup="endDrag"
+                  @mouseleave="endDrag"
+                  @touchstart="startDrag"
+                  @touchmove="drag"
+                  @touchend="endDrag"
                 >
-                  <ZoomOut class="h-5 w-5" />
-                </button>
-                <button
-                  @click="zoom(0.1)"
-                  class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  title="Zoom In"
-                >
-                  <ZoomIn class="h-5 w-5" />
-                </button>
-                <button
-                  @click="rotate"
-                  class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  title="Rotate 90°"
-                >
-                  <RotateCw class="h-5 w-5" />
-                </button>
-                <button
-                  @click="centerImage"
-                  class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  title="Reset Position"
-                >
-                  <Move class="h-5 w-5" />
-                </button>
-              </div>
-            </div>
+                  <img
+                    v-if="previewImageSrc"
+                    :src="previewImageSrc"
+                    :style="{
+                      ...imageStyle,
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transformOrigin: 'center center',
+                      maxWidth: 'none',
+                    }"
+                    class="select-none pointer-events-none"
+                    draggable="false"
+                  />
+                
+                  <!-- Circular Crop overlay -->
+                  <div class="absolute inset-0 pointer-events-none">
+                    <!-- Dark overlay outside circle using SVG -->
+                    <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      <defs>
+                        <mask id="circleMask">
+                          <rect width="100" height="100" fill="white"/>
+                          <circle cx="50" cy="50" r="50" fill="black"/>
+                        </mask>
+                      </defs>
+                      <rect width="100" height="100" fill="rgba(0,0,0,0.6)" mask="url(#circleMask)"/>
+                    </svg>
+                    <!-- Perfect circle border -->
+                    <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      <circle 
+                        cx="50" 
+                        cy="50" 
+                        r="50" 
+                        fill="none" 
+                        stroke="#01779b" 
+                        stroke-width="0.8"
+                        vector-effect="non-scaling-stroke"
+                      />
+                      <circle 
+                        cx="50" 
+                        cy="50" 
+                        r="49.2" 
+                        fill="none" 
+                        stroke="rgba(255,255,255,0.9)" 
+                        stroke-width="0.4"
+                        vector-effect="non-scaling-stroke"
+                      />
+                    </svg>
+                  </div>
+                </div>
 
-            <!-- Preview -->
-            <div v-if="imageLoaded" class="flex items-center justify-center">
-              <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                Preview (circular crop)
+                <!-- Controls -->
+                <div class="flex items-center justify-center gap-2 flex-wrap">
+                  <button
+                    @click="zoom(-0.1)"
+                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut class="h-5 w-5" />
+                  </button>
+                  <button
+                    @click="zoom(0.1)"
+                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn class="h-5 w-5" />
+                  </button>
+                  <button
+                    @click="rotate"
+                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    title="Rotate 90°"
+                  >
+                    <RotateCw class="h-5 w-5" />
+                  </button>
+                  <button
+                    @click="centerImage"
+                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    title="Reset Position"
+                  >
+                    <Move class="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- Preview -->
+              <div v-if="imageLoaded && !cameraOn" class="flex items-center justify-center">
+                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  Preview (circular crop)
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Footer -->
-        <div class="shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-          <button
-            @click="close"
-            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            v-if="imageLoaded"
-            @click="cropImage"
-            class="px-4 py-2 text-sm font-medium text-white bg-primary dark:bg-primary rounded-lg hover:bg-primary-hover dark:hover:bg-primary-hover transition-colors flex items-center gap-2"
-          >
-            <Check class="h-4 w-4" />
-            Apply Crop
-          </button>
+          <!-- Footer -->
+          <div class="shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+            <button
+              @click="close"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              v-if="imageLoaded && !cameraOn"
+              @click="cropImage"
+              class="px-4 py-2 text-sm font-medium text-white bg-primary dark:bg-primary rounded-lg hover:bg-primary-hover dark:hover:bg-primary-hover transition-colors flex items-center gap-2"
+            >
+              <Check class="h-4 w-4" />
+              Apply Crop
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  </Transition>
-  
-  <!-- Hidden canvas for cropping -->
+    </Transition>
+  </Teleport>
+
+  <!-- Hidden canvas for cropping. Deliberately left behind rather than
+       teleported: it is never displayed, only drawn into via its ref. -->
   <canvas ref="canvas" class="hidden"></canvas>
 </template>
 

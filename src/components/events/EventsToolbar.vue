@@ -1,71 +1,91 @@
 <script setup>
-import { ref } from 'vue'
-import { Plus, Calendar } from '../../icons'
+import { computed } from 'vue'
+import { Search, X } from '../../icons'
 import SearchBar from '../common/SearchBar.vue'
-import { usePermissions } from '../../composables/usePermissions'
 
-const { canManage } = usePermissions()
-
-defineProps({
+const props = defineProps({
   searchQuery: {
     type: String,
-    default: ''
+    default: '',
   },
-  showMonthEvents: {
-    type: Boolean,
-    default: false
+  resultCount: {
+    type: Number,
+    default: 0,
   },
-  showAddEvent: {
-    type: Boolean,
-    default: false
-  }
+  totalCount: {
+    type: Number,
+    default: 0,
+  },
 })
 
-const emit = defineEmits(['update:searchQuery', 'addEvent', 'toggleMonthEvents'])
+const emit = defineEmits(['update:searchQuery'])
 
-const mobileSearchOpen = ref(false)
+// Adding, switching views and jumping to today all moved to the floating
+// button, so the bar holds the one control that narrows what is on screen.
+// Details live in the search now, and the placeholder has to teach that:
+// people only try typing a month or a type if something tells them they can.
+const searchPlaceholder = 'Search event, type, place, month...'
+
+// The count strip only earns its vertical space while a search is narrowing
+const showSummary = computed(() => !!props.searchQuery)
 </script>
 
 <template>
-  <div class="sticky top-0 z-40 mb-4 shrink-0 rounded-xl border border-gray-200/80 bg-white/95 px-2 py-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:px-3">
-    <div class="flex items-center justify-between gap-2 w-full flex-nowrap">
+  <div
+    class="sticky top-0 z-40 mb-3 shrink-0 rounded-xl border border-gray-200/80 bg-white/95 px-2 py-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:px-3 lg:mb-4"
+  >
+    <!-- ==================== Mobile ==================== -->
+    <!-- Always-visible search: it is the only way the calendar is narrowed -->
+    <div class="relative lg:hidden">
+      <Search
+        class="pointer-events-none absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-gray-400"
+      />
+      <input
+        :value="searchQuery"
+        @input="emit('update:searchQuery', $event.target.value)"
+        type="text"
+        inputmode="search"
+        enterkeyhint="search"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        aria-label="Search events"
+        :placeholder="searchPlaceholder"
+        class="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9.5 pr-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-transparent focus:bg-white focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:focus:bg-gray-800"
+      />
+      <button
+        v-if="searchQuery"
+        @click="emit('update:searchQuery', '')"
+        class="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 active:bg-gray-100 dark:active:bg-gray-700"
+        aria-label="Clear search"
+      >
+        <X class="h-4 w-4" />
+      </button>
+    </div>
+
+    <!-- Result count (mobile) -->
+    <div v-if="showSummary" class="mt-2 flex items-center gap-2 lg:hidden">
+      <span
+        class="shrink-0 text-[11px] font-semibold tabular-nums text-gray-500 dark:text-gray-400"
+      >
+        {{ resultCount }} of {{ totalCount }}
+      </span>
+    </div>
+
+    <!-- ==================== Desktop ==================== -->
+    <div class="hidden w-full items-center justify-between gap-2 lg:flex">
       <SearchBar
         :model-value="searchQuery"
         @update:model-value="emit('update:searchQuery', $event)"
-        v-model:open="mobileSearchOpen"
-        placeholder="Search events..."
+        :placeholder="searchPlaceholder"
       />
 
-      <!-- Action Buttons -->
-      <div :class="['flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 ml-auto', mobileSearchOpen ? 'hidden lg:flex' : 'flex']">
-        <button
-          @click="emit('toggleMonthEvents')"
-          :class="[
-            'flex h-10 w-10 items-center justify-center rounded-lg transition-colors shrink-0',
-            showMonthEvents
-              ? 'bg-primary text-white shadow-sm'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-          ]"
-          title="Month Events"
-          aria-label="Month events"
-          :aria-pressed="showMonthEvents"
-        >
-          <Calendar class="h-5 w-5" />
-        </button>
-        <button
-          v-if="canManage('events')"
-          @click="emit('addEvent')"
-          class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1 sm:gap-1.5 shrink-0"
-          :class="{ 'bg-primary-hover dark:bg-primary-hover': showAddEvent }"
-          :title="showAddEvent ? 'Close add event drawer' : 'Add new event'"
-        >
-          <Plus
-            class="h-5 w-5 transition-transform duration-300 shrink-0"
-            :class="showAddEvent ? 'rotate-45' : 'rotate-0'"
-          />
-          <span class="whitespace-nowrap text-xs sm:text-sm">Add</span>
-        </button>
-      </div>
+      <span
+        v-if="showSummary"
+        class="shrink-0 text-xs font-semibold tabular-nums text-gray-500 dark:text-gray-400"
+      >
+        {{ resultCount }} of {{ totalCount }}
+      </span>
     </div>
   </div>
 </template>

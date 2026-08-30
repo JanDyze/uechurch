@@ -1,15 +1,16 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Calendar, Clock, MapPin, Users, X, ChevronRight, Trash2, Plus, Edit2 } from '../icons'
-import { getEventIcon as getIconComponent } from '../utils/eventIcons'
 import { useEvents } from '../composables/useEvents'
 import { useMembers } from '../composables/useMembers'
 import { useBirthdayEvents } from '../composables/useBirthdayEvents'
 import { useRecurringEvents } from '../composables/useRecurringEvents'
 import { useEventForm } from '../composables/useEventForm'
-import { useEventFilters } from '../composables/useEventFilters'
+import { useEventSearch } from '../composables/useEventSearch'
+import { useEventStats } from '../composables/useEventStats'
 import { useCalendar } from '../composables/useCalendar'
 import EventsToolbar from '../components/events/EventsToolbar.vue'
+import EventsSummary from '../components/events/EventsSummary.vue'
+import EventsFab from '../components/events/EventsFab.vue'
 import CalendarView from '../components/events/CalendarView.vue'
 import MonthEventsDrawer from '../components/events/MonthEventsDrawer.vue'
 import DayEventsDrawer from '../components/events/DayEventsDrawer.vue'
@@ -30,7 +31,7 @@ const {
 const { members } = useMembers()
 
 // Birthday events from members (pass firestoreEvents to check for overrides)
-const { birthdayEvents, todaysBirthdays } = useBirthdayEvents(members, firestoreEvents)
+const { birthdayEvents } = useBirthdayEvents(members, firestoreEvents)
 
 // Recurring events, expanded from the schedules configured in Settings.
 // firestoreEvents is passed so per-date overrides win; members sets attendee count.
@@ -73,12 +74,20 @@ const goToToday = () => {
   handleDayClick({ fullDate: new Date() })
 }
 
-// Event filters
-const {
-  eventTypeFilter,
-  filteredEvents,
-  allEventTypes
-} = useEventFilters(events, searchQuery)
+// Search is the only way the calendar is narrowed - it matches the type,
+// month, weekday and whether an event is a birthday or part of a weekly
+// series, not just the title.
+const { filteredEvents } = useEventSearch(events, searchQuery)
+
+// What the calendar and the month card are actually showing, which is what
+// the summary reports on: a search for "prayer" reports on the prayer
+// meetings rather than on the whole month.
+const visibleEvents = computed(() =>
+  searchQuery.value.trim() ? filteredEvents.value : events.value
+)
+
+// At-a-glance report, above whichever view is on screen.
+const { stats, typeMix } = useEventStats(visibleEvents, currentDate)
 
 // Event form
 const {
@@ -127,11 +136,6 @@ const handleConfirmation = () => {
   }
 }
 
-// Month events filter and sort
-const monthEventTypeFilter = ref([])
-const monthSortBy = ref('date')
-const monthSortOrder = ref('asc')
-
 // Selected event/day
 const selectedEvent = ref(null)
 const editingEvent = ref(null)
@@ -140,26 +144,8 @@ const selectedDay = ref(null)
 // Get events for a specific date
 const getEventsForDate = (date) => {
   const dateString = formatDateString(date)
-  const eventsList = searchQuery.value.trim() ? filteredEvents.value : events.value
-  return eventsList.filter((event) => event.date === dateString)
+  return visibleEvents.value.filter((event) => event.date === dateString)
 }
-
-// Get event type color
-const getEventTypeColor = (type) => {
-  const colors = {
-    worship: 'bg-blue-500 text-white',
-    prayer: 'bg-purple-500 text-white',
-    meeting: 'bg-slate-500 text-white',
-    fellowship: 'bg-teal-500 text-white',
-    outreach: 'bg-orange-500 text-white',
-    training: 'bg-green-500 text-white',
-    celebration: 'bg-pink-500 text-white',
-    special: 'bg-amber-500 text-white',
-  }
-  return colors[type] || 'bg-gray-500 text-white'
-}
-
-// Get icon component by name
 
 // Event handlers
 const openEventDetails = (event) => {
@@ -415,54 +401,64 @@ const handleToggleMonthEvents = () => {
   }
 }
 
-// Watch search results and navigate to first result's month
-watch([filteredEvents, searchQuery], ([newFilteredEvents, newSearchQuery]) => {
-  // Only navigate if there's an active search query
-  if (newSearchQuery && newSearchQuery.trim() && newFilteredEvents.length > 0) {
-    // Find the first event with a valid date
-    const firstEvent = newFilteredEvents.find(event => event.date)
-    if (firstEvent) {
-      const eventDate = new Date(firstEvent.date)
-      const eventYear = eventDate.getFullYear()
-      const eventMonth = eventDate.getMonth()
-      
-      // Check if we're already on that month
-      const currentYear = currentDate.value.getFullYear()
-      const currentMonthVal = currentDate.value.getMonth()
-      
-      if (currentYear !== eventYear || currentMonthVal !== eventMonth) {
-        // Navigate to the event's month
-        currentDate.value = new Date(eventYear, eventMonth, 1)
-      }
-    }
-  }
+// A search that matches nothing in the month on screen would otherwise look
+// like it matched nothing at all, so the calendar follows the first hit.
+//
+// The month is read off the 'YYYY-MM' prefix rather than a parsed Date -
+// `new Date('2026-09-01')` is UTC midnight, still August west of Greenwich,
+// and searching for a first-of-the-month event would land a month early.
+watch([filteredEvents, searchQuery], ([matches, query]) => {
+  if (!query || !query.trim() || matches.length === 0) return
+
+  const earliest = matches
+    .map((event) => String(event.date || ''))
+    .filter((date) => date.length >= 7)
+    .sort()[0]
+  if (!earliest) return
+
+  const [year, month] = earliest.split('-').map(Number)
+  if (currentDate.value.getFullYear() === year && currentDate.value.getMonth() === month - 1) return
+
+  currentDate.value = new Date(year, month - 1, 1)
 }, { immediate: false })
 
-// Get events for current month (without filtering/sorting - that's done in the drawer component)
-const monthEvents = computed(() => {
-  const year = currentDate.value.getFullYear()
-  const month = currentDate.value.getMonth()
-  
-  const eventsList = searchQuery.value.trim() ? filteredEvents.value : events.value
-  
-  return eventsList.filter((event) => {
-    if (!event.date) return false
-      const eventDate = new Date(event.date)
-    return eventDate.getFullYear() === year && eventDate.getMonth() === month
-  })
-})
+// Events in the month on screen. Matched on the raw 'YYYY-MM' prefix rather
+// than a parsed Date: `new Date('2026-08-01')` is UTC midnight, which is still
+// July anywhere west of Greenwich, and would file the first of the month under
+// the previous one - the same rule useEventStats follows, so the summary and
+// the list beneath it can never disagree.
+const monthKey = computed(
+  () => `${currentDate.value.getFullYear()}-${String(currentDate.value.getMonth() + 1).padStart(2, '0')}`
+)
+
+const monthEvents = computed(() =>
+  visibleEvents.value.filter((event) => String(event.date || '').slice(0, 7) === monthKey.value)
+)
+
+// A drawer or the details card would sit under the button, and each carries
+// its own actions anyway.
+const showFab = computed(
+  () => !showAddEvent.value && !showEditEvent.value && !showEventDetails.value && !showDayEvents.value
+)
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <!-- Toolbar -->
+  <div class="relative flex flex-col h-full">
+    <!-- Search - adding, switching views and jumping to today are on the
+         floating button -->
     <EventsToolbar
       :search-query="searchQuery"
-      :show-month-events="showMonthEvents"
-      :show-add-event="showAddEvent"
+      :result-count="filteredEvents.length"
+      :total-count="events.length"
       @update:search-query="searchQuery = $event"
-      @add-event="handleAddEvent"
-      @toggle-month-events="handleToggleMonthEvents"
+    />
+
+    <!-- What is next, how heavy the week is, and what kind of month this is -->
+    <EventsSummary
+      :stats="stats"
+      :type-mix="typeMix"
+      :loading="loading"
+      :searching="!!searchQuery.trim()"
     />
 
     <!-- Main Content -->
@@ -480,7 +476,7 @@ const monthEvents = computed(() => {
           :calendar-days="calendarDays"
           :selected-date="selectedDate"
           :loading="loading"
-          :events="searchQuery.trim() ? filteredEvents : events"
+          :events="visibleEvents"
           :calendar-scroll-ref="calendarScrollRef"
           @navigate-month="navigateMonth"
           @day-click="handleDayClick"
@@ -512,13 +508,8 @@ const monthEvents = computed(() => {
         :month-events="monthEvents"
         :current-month="currentMonth"
         :current-date="currentDate"
-        :event-type-filter="monthEventTypeFilter"
-        :sort-by="monthSortBy"
-        :sort-order="monthSortOrder"
+        :searching="!!searchQuery.trim()"
         @update:show="showMonthEvents = $event"
-        @update:event-type-filter="monthEventTypeFilter = $event"
-        @update:sort-by="monthSortBy = $event"
-        @update:sort-order="monthSortOrder = $event"
         @event-click="openEventDetails"
         @navigate-month="navigateMonth"
         @set-date="handleSetDate"
@@ -549,6 +540,15 @@ const monthEvents = computed(() => {
         @back="showEventDetails = false; selectedEvent = null; showMonthEvents = true"
       />
     </div>
+
+    <!-- Floating actions -->
+    <EventsFab
+      v-if="showFab"
+      :show-month-events="showMonthEvents"
+      @add="handleAddEvent"
+      @toggle-list="handleToggleMonthEvents"
+      @today="goToToday"
+    />
 
     <!-- Confirmation Modal -->
     <ConfirmationModal

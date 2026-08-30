@@ -29,3 +29,6 @@ dist-ssr
 .env.*.local
 .vercel
 .env*
+
+# Local data backups (contain real member and attendance records)
+backups/

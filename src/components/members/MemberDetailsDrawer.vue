@@ -2,10 +2,11 @@
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { X, Trash2, User, Phone, Briefcase, Image as ImageIcon, ExternalLink, Edit2, Check } from '../../icons';
-import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate, CIVIL_STATUS_OPTIONS as civilStatusOptions } from "../../utils/memberUtils";
+import { getFullName, getSexIcon, getSexIconColor, calculateAgeFromDate, CIVIL_STATUS_OPTIONS as civilStatusOptions } from "../../utils/memberUtils";
 import { useMediaQuery } from "../../composables/useMediaQuery";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 import ImageCropper from "./ImageCropper.vue";
+import MemberAvatar from "./MemberAvatar.vue";
 import InlineEditField from "../common/InlineEditField.vue";
 import { useMinistries } from "../../composables/useMinistries";
 
@@ -218,12 +219,12 @@ const sexOptions = [
       <div v-else class="flex-1 overflow-y-auto p-5">
         <!-- Profile Section -->
         <div class="flex items-center gap-4 pb-5 mb-5 border-b border-gray-200 dark:border-gray-700">
-          <div class="relative group">
-            <img
-              :src="getAvatarUrl(localMember)"
-              :alt="getFullName(localMember)"
-              class="h-16 w-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
-            />
+          <MemberAvatar
+            :member="localMember"
+            size="h-16 w-16"
+            plain-class="border-2 border-gray-200 dark:border-gray-600"
+            class="group"
+          >
             <button
               @click="showImageCropper = true"
               aria-label="Change photo"
@@ -231,7 +232,7 @@ const sexOptions = [
             >
               <ImageIcon class="h-5 w-5 text-white" />
             </button>
-          </div>
+          </MemberAvatar>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white truncate">

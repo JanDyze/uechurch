@@ -3,6 +3,7 @@ import { subscribeToAttendance, addAttendance, updateAttendance, deleteAttendanc
 import { useEvents } from './useEvents'
 import { useMinutes } from './useMinutes'
 import { useRecurringEvents } from './useRecurringEvents'
+import { readProvenance, ATTENDANCE_START_DATE } from '../../lib/attendance'
 
 export function useAttendance() {
   const attendance = ref([])
@@ -49,22 +50,31 @@ export function useAttendance() {
     return eventDate <= today
   }
 
+  // A gathering only counts as "still to record" if it happened in the window
+  // where recording was actually being done. Everything older is history that
+  // was never going to be filled in.
+  const awaitsRecording = (dateString) =>
+    isPastOrToday(dateString) && String(dateString) >= ATTENDANCE_START_DATE
+
   // Aggregate attendance from events and minutes
   const aggregatedAttendance = computed(() => {
     const records = []
     const today = new Date(now.value)
     today.setHours(0, 0, 0, 0)
 
-    // Create a map of attendance records by eventId to check for duplicates
-    const attendanceByEventId = new Map()
+    // Which occurrences already have a record, so the loops below know what
+    // still needs recording. Keyed on occurrenceKey rather than the old
+    // overloaded eventId — a one-off has no key and so can never collide.
+    const minuteIds = new Set(minutes.value.map(m => m.firestoreId || m.id))
+    const recordedKeys = new Map()
     attendance.value.forEach(record => {
-      if (record.eventId) {
-        attendanceByEventId.set(record.eventId, record)
-      }
+      const { occurrenceKey } = readProvenance(record, { knownMinuteIds: minuteIds })
+      if (occurrenceKey) recordedKeys.set(occurrenceKey, record)
     })
 
     // Add attendance records from dedicated attendance collection.
-    // `source` describes where a row LIVES, not what it points at: every saved
+    // `rowType` describes where a row LIVES, not what it points at (that is
+    // `source`, from lib/attendance.js): every saved
     // attendance document is owned by this page and stays editable/deletable,
     // whether or not it was recorded against an event. Only the placeholder
     // rows synthesised below from events/minutes are read-only here.
@@ -83,7 +93,7 @@ export function useAttendance() {
 
       records.push({
         ...record,
-        source: 'attendance',
+        rowType: 'attendance',
         // Title/date belong to the event or meeting, so they are shown read-only
         linkedSource: linkedEvent ? 'event' : linkedMinute ? 'minute' : null,
         // Include expected attendees from linked event
@@ -96,7 +106,7 @@ export function useAttendance() {
     // events loop below does, otherwise the meeting shows up twice.
     minutes.value.forEach(minute => {
       const minuteId = minute.firestoreId || minute.id
-      if (isPastOrToday(minute.date) && !attendanceByEventId.has(minuteId)) {
+      if (awaitsRecording(minute.date) && !recordedKeys.has(minuteId)) {
         records.push({
           id: `minute-${minute.id || minute.firestoreId}`,
           firestoreId: minute.firestoreId || minute.id,
@@ -109,7 +119,7 @@ export function useAttendance() {
           attendees: minute.attendees || [],
           totalAttendees: minute.attendees?.length || 0,
           notes: '',
-          source: 'minute',
+          rowType: 'minute',
           createdAt: minute.createdAt || new Date(),
           updatedAt: minute.updatedAt || new Date()
         })
@@ -118,10 +128,10 @@ export function useAttendance() {
 
     // Add events that are past or today, but only if no attendance record exists for them
     events.value.forEach(event => {
-      if (isPastOrToday(event.date)) {
+      if (awaitsRecording(event.date)) {
         const eventId = event.firestoreId || event.id
         // Only add event if there's no attendance record for it
-        if (!attendanceByEventId.has(eventId)) {
+        if (!recordedKeys.has(eventId)) {
           records.push({
             id: `event-${eventId}`,
             firestoreId: eventId,
@@ -135,7 +145,7 @@ export function useAttendance() {
             expectedAttendees: event.attendees || 0, // Expected/planned attendees
             totalAttendees: 0, // Actual recorded attendance (0 for events)
             notes: event.description || '',
-            source: 'event',
+            rowType: 'event',
             createdAt: new Date(),
             updatedAt: new Date()
           })
@@ -156,10 +166,12 @@ export function useAttendance() {
       // of Greenwich.
       const eventDate = new Date(`${event.date}T00:00:00`)
       if (Number.isNaN(eventDate.getTime()) || eventDate < monthStart) return
+      // The schedule has always existed; recording against it has not.
+      if (String(event.date) < ATTENDANCE_START_DATE) return
 
       if (!event.visibleFrom || now.value < event.visibleFrom.getTime()) return
       // Already recorded, or replaced by a saved event for that date
-      if (attendanceByEventId.has(event.id)) return
+      if (recordedKeys.has(event.id)) return
 
       records.push({
         id: event.id,
@@ -174,7 +186,7 @@ export function useAttendance() {
         expectedAttendees: event.attendees || 0,
         totalAttendees: 0,
         notes: event.description || '',
-        source: 'recurring',
+        rowType: 'recurring',
         createdAt: new Date(),
         updatedAt: new Date()
       })

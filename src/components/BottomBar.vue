@@ -30,7 +30,7 @@ const showMoreMenu = ref(false)
 
 const allPrimaryNav = [
   { name: 'Dashboard', path: '/dashboard', icon: Home, capability: 'dashboard.view' },
-  { name: 'Members', path: '/members', icon: Users, capability: 'members.view' },
+  { name: 'People', path: '/members', icon: Users, capability: 'members.view' },
   { name: 'Events', path: '/events', icon: Calendar, capability: 'events.view' },
 ]
 

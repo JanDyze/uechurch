@@ -4,7 +4,8 @@ import { X, Search, Check, UserCheck, Loader2 } from '../../icons'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import { useAuth } from '../../composables/useAuth'
-import { getFullName, getAvatarUrl } from '../../utils/memberUtils'
+import { getFullName } from '../../utils/memberUtils'
+import MemberAvatar from '../members/MemberAvatar.vue'
 import { suggestMembers } from '../../utils/memberMatch'
 import { memberKey } from '../../utils/sgUtils'
 
@@ -130,11 +131,7 @@ useFocusTrap(dialogRef, computed(() => props.show), close)
                       : 'border-gray-100 dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700',
                   ]"
                 >
-                  <img
-                    :src="getAvatarUrl(member)"
-                    :alt="getFullName(member)"
-                    class="h-10 w-10 rounded-full object-cover bg-gray-100 dark:bg-gray-800"
-                  />
+                  <MemberAvatar :member="member" size="h-10 w-10" />
                   <span class="flex-1 min-w-0">
                     <span class="block text-sm font-semibold text-gray-900 dark:text-white truncate">
                       {{ getFullName(member) }}
@@ -182,11 +179,7 @@ useFocusTrap(dialogRef, computed(() => props.show), close)
                   @click="selected = member"
                   class="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors"
                 >
-                  <img
-                    :src="getAvatarUrl(member)"
-                    :alt="getFullName(member)"
-                    class="h-8 w-8 rounded-full object-cover bg-gray-100 dark:bg-gray-800"
-                  />
+                  <MemberAvatar :member="member" size="h-8 w-8" />
                   <span class="flex-1 min-w-0 text-sm text-gray-900 dark:text-white truncate">
                     {{ getFullName(member) }}
                   </span>

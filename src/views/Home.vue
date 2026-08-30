@@ -28,7 +28,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '../composables/useToast'
 import { useAllLineups } from '../composables/useLineups'
 import { usePermissions } from '../composables/usePermissions'
-import { getAvatarUrl, getFullName } from '../utils/memberUtils'
+import { getFullName } from '../utils/memberUtils'
+import MemberAvatar from '../components/members/MemberAvatar.vue'
 import { memberKey } from '../utils/sgUtils'
 import { formatServiceDate } from '../utils/lineupUtils'
 
@@ -181,7 +182,7 @@ const collections = computed(() => [
           </div>
           <div class="text-[11px] font-bold text-gray-400">
             {{ officialMembers.length }} member{{ officialMembers.length === 1 ? '' : 's' }} ·
-            {{ members.length - officialMembers.length }} guest{{ members.length - officialMembers.length === 1 ? '' : 's' }}
+            {{ members.length - officialMembers.length }} attendee{{ members.length - officialMembers.length === 1 ? '' : 's' }}
           </div>
         </router-link>
 
@@ -281,12 +282,7 @@ const collections = computed(() => [
 
         <template v-if="upcomingService">
           <div class="flex items-center gap-3">
-            <img
-              v-if="serviceLeader"
-              :src="getAvatarUrl(serviceLeader)"
-              alt=""
-              class="h-10 w-10 rounded-full object-cover shrink-0"
-            />
+            <MemberAvatar v-if="serviceLeader" :member="serviceLeader" alt="" size="h-10 w-10" />
             <div class="min-w-0">
               <p class="text-sm font-black text-gray-900 dark:text-white truncate">
                 {{ serviceLeader ? getFullName(serviceLeader) : 'No leader assigned' }}

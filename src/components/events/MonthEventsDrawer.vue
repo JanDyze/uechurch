@@ -1,9 +1,9 @@
 <script setup>
-import { Clock, MapPin, Users, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Check, Filter } from '../../icons'
+import { MapPin, X, ChevronDown, ChevronLeft, ChevronRight } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
+import { getEventTypeColor } from '../../utils/eventColors'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { computed, ref } from 'vue'
-import { useAppSettings } from '../../composables/useAppSettings'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 
 const props = defineProps({
@@ -27,32 +27,15 @@ const props = defineProps({
     type: Date,
     default: () => new Date()
   },
-  eventTypeFilter: {
-    type: Array,
-    default: () => []
-  },
-  sortBy: {
-    type: String,
-    default: 'date'
-  },
-  sortOrder: {
-    type: String,
-    default: 'asc'
+  // Whether the list is already narrowed, so an empty month can say which kind
+  // of empty it is rather than claiming nothing was ever scheduled.
+  searching: {
+    type: Boolean,
+    default: false
   }
 })
 
-const { categories } = useAppSettings()
-const eventTypes = computed(() => categories.value.eventTypes)
-
-const emit = defineEmits([
-  'update:show',
-  'update:eventTypeFilter',
-  'update:sortBy',
-  'update:sortOrder',
-  'eventClick',
-  'navigateMonth',
-  'setDate'
-])
+const emit = defineEmits(['update:show', 'eventClick', 'navigateMonth', 'setDate'])
 
 /* Month navigation - the calendar is hidden on mobile while this card is open,
    so months have to be reachable from here. */
@@ -91,133 +74,50 @@ const isCurrentMonth = (monthIndex) => {
   return pickerYear.value === now.getFullYear() && monthIndex === now.getMonth()
 }
 
-// Type filter dropdown state
-const showTypeDropdown = ref(false)
-
 // Done section accordion state (collapsed by default)
 const showDoneEvents = ref(false)
-
-// Filter section visibility toggle
-const showFilters = ref(false)
 
 const dialogRef = ref(null)
 useFocusTrap(dialogRef, () => props.show, () => emit('update:show', false), { trap: false })
 
-const toggleTypeFilter = (type) => {
-  const currentFilters = [...props.eventTypeFilter]
-  const index = currentFilters.indexOf(type)
-  if (index === -1) {
-    currentFilters.push(type)
-  } else {
-    currentFilters.splice(index, 1)
-  }
-  emit('update:eventTypeFilter', currentFilters)
-}
+// Date order, ascending, with time breaking a tie. There is no sort control:
+// a month reads as a calendar or it reads as nothing, and the toolbar's search
+// covers the narrowing the type filter used to do - typing "prayer" or
+// "birthday" reaches the same rows with no panel to open.
+const sortedEvents = computed(() =>
+  [...props.monthEvents].sort(
+    (a, b) =>
+      String(a.date || '').localeCompare(String(b.date || '')) ||
+      String(a.time || '').localeCompare(String(b.time || ''))
+  )
+)
 
-const clearTypeFilters = () => {
-  emit('update:eventTypeFilter', [])
-}
-
-const selectAllTypes = () => {
-  emit('update:eventTypeFilter', [...eventTypes.value])
-}
-
-const filterButtonLabel = computed(() => {
-  if (props.eventTypeFilter.length === 0) return 'All Types'
-  if (props.eventTypeFilter.length === 1) return props.eventTypeFilter[0].charAt(0).toUpperCase() + props.eventTypeFilter[0].slice(1)
-  return `${props.eventTypeFilter.length} types`
+// Dates are compared as 'YYYY-MM-DD' strings, never parsed: `new Date('2026-08-14')`
+// is UTC midnight, which is the 13th anywhere west of Greenwich, and an event
+// would file itself under Done a day early. Recomputed rather than captured at
+// setup, so a page left open overnight rolls over with the day.
+const todayKey = computed(() => {
+  void props.monthEvents
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 })
 
-// Filter and sort events
-const filteredAndSortedEvents = computed(() => {
-  let filtered = props.monthEvents
+const isToday = (dateStr) => dateStr === todayKey.value
 
-  // Apply type filter (multi-select)
-  if (props.eventTypeFilter.length > 0) {
-    filtered = filtered.filter((event) => props.eventTypeFilter.includes(event.type))
-  }
-
-  // Apply sorting
-  const sorted = [...filtered].sort((a, b) => {
-    let comparison = 0
-
-    switch (props.sortBy) {
-      case 'date':
-        const dateA = new Date(a.date)
-        const dateB = new Date(b.date)
-        comparison = dateA.getTime() - dateB.getTime()
-        // If same date, sort by time
-        if (comparison === 0) {
-          comparison = (a.time || '').localeCompare(b.time || '')
-        }
-        break
-      case 'time':
-        comparison = (a.time || '').localeCompare(b.time || '')
-        // If same time, sort by date
-        if (comparison === 0) {
-          const dateA = new Date(a.date)
-          const dateB = new Date(b.date)
-          comparison = dateA.getTime() - dateB.getTime()
-        }
-        break
-      case 'title':
-        comparison = (a.title || '').localeCompare(b.title || '')
-        break
-      case 'type':
-        comparison = (a.type || '').localeCompare(b.type || '')
-        break
-      default:
-        comparison = 0
-    }
-
-    return props.sortOrder === 'asc' ? comparison : -comparison
-  })
-
-  return sorted
-})
-
-const getEventTypeColor = (type, isPast = false) => {
-  if (isPast) {
-    return 'bg-gray-400 text-white'
-  }
-  const colors = {
-    worship: 'bg-blue-500 text-white',
-    prayer: 'bg-purple-500 text-white',
-    meeting: 'bg-slate-500 text-white',
-    fellowship: 'bg-teal-500 text-white',
-    outreach: 'bg-orange-500 text-white',
-    training: 'bg-green-500 text-white',
-    celebration: 'bg-pink-500 text-white',
-    special: 'bg-amber-500 text-white',
-  }
-  return colors[type] || 'bg-gray-500 text-white'
-}
-
-
-// Date helpers
-const today = new Date()
-today.setHours(0, 0, 0, 0)
-
-const isToday = (dateStr) => {
-  const eventDate = new Date(dateStr)
-  eventDate.setHours(0, 0, 0, 0)
-  return eventDate.getTime() === today.getTime()
-}
-
-const isPastEvent = (dateStr) => {
-  const eventDate = new Date(dateStr)
-  eventDate.setHours(0, 0, 0, 0)
-  return eventDate.getTime() < today.getTime()
-}
+const isPastEvent = (dateStr) => String(dateStr || '') < todayKey.value
 
 // Split events into past and upcoming
-const pastEvents = computed(() => {
-  return filteredAndSortedEvents.value.filter(e => isPastEvent(e.date))
-})
+const pastEvents = computed(() => sortedEvents.value.filter((e) => isPastEvent(e.date)))
 
-const upcomingEvents = computed(() => {
-  return filteredAndSortedEvents.value.filter(e => !isPastEvent(e.date))
-})
+const upcomingEvents = computed(() => sortedEvents.value.filter((e) => !isPastEvent(e.date)))
+
+const dayNumber = (dateStr) => Number(String(dateStr || '').slice(8, 10)) || ''
+
+const weekdayLabel = (dateStr) => {
+  const [year, month, day] = String(dateStr || '').split('-').map(Number)
+  if (!year || !month || !day) return ''
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'short' })
+}
 </script>
 
 <template>
@@ -231,7 +131,7 @@ const upcomingEvents = computed(() => {
   >
     <!-- Header -->
     <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent lg:rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-5 py-4">
-      <div class="flex items-center justify-between gap-2 mb-4">
+      <div class="flex items-center justify-between gap-2">
         <!-- Month navigator -->
         <div class="relative flex items-center gap-0.5 min-w-0">
           <button
@@ -323,141 +223,28 @@ const upcomingEvents = computed(() => {
           </div>
         </div>
 
-        <div class="flex shrink-0 items-center gap-1">
-          <button
-            @click="showFilters = !showFilters"
-            aria-label="Toggle filters"
-            :aria-expanded="showFilters"
-            :class="[
-              'p-2 rounded-lg transition-colors',
-              showFilters
-                ? 'bg-primary text-white'
-                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-            ]"
-            title="Toggle Filters"
-          >
-            <Filter class="h-5 w-5" />
-          </button>
-          <button
-            @click="$emit('update:show', false)"
-            aria-label="Close"
-            class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            <X class="h-5 w-5" />
-          </button>
-        </div>
+        <button
+          @click="$emit('update:show', false)"
+          aria-label="Close"
+          class="shrink-0 p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        >
+          <X class="h-5 w-5" />
+        </button>
       </div>
-
-      <!-- Filter and Sort Options - Toggleable -->
-      <Transition name="expand">
-        <div v-if="showFilters">
-          <div class="grid grid-cols-2 gap-3 pb-2 pt-1 border-t border-primary/10 dark:border-primary-light/10 mt-1">
-            <!-- Event Type Filter (Multi-select dropdown) -->
-            <div class="relative">
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Filter by Type
-              </label>
-              <button
-                @click="showTypeDropdown = !showTypeDropdown"
-                class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center justify-between"
-              >
-                <span :class="eventTypeFilter.length === 0 ? 'text-gray-500' : ''">{{ filterButtonLabel }}</span>
-                <ChevronDown :class="['h-4 w-4 transition-transform', showTypeDropdown ? 'rotate-180' : '']" />
-              </button>
-              
-              <!-- Dropdown Menu -->
-              <div
-                v-if="showTypeDropdown"
-                class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1 max-h-64 overflow-y-auto"
-              >
-                <!-- Quick actions -->
-                <div class="flex items-center gap-1 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
-                  <button
-                    @click="selectAllTypes"
-                    class="flex-1 text-xs px-2 py-1 rounded text-primary dark:text-primary-light hover:bg-primary/10 dark:hover:bg-primary-light/10 transition-colors"
-                  >
-                    Select All
-                  </button>
-                  <button
-                    @click="clearTypeFilters"
-                    class="flex-1 text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    Clear
-                  </button>
-                </div>
-                
-                <!-- Type options -->
-                <button
-                  v-for="type in eventTypes"
-                  :key="type"
-                  @click="toggleTypeFilter(type)"
-                  class="w-full px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
-                >
-                  <div
-                    :class="[
-                      'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
-                      eventTypeFilter.includes(type)
-                        ? 'bg-primary dark:bg-primary-light border-primary dark:border-primary-light'
-                        : 'border-gray-300 dark:border-gray-600'
-                    ]"
-                  >
-                    <Check v-if="eventTypeFilter.includes(type)" class="h-3 w-3 text-white" />
-                  </div>
-                  <span class="text-gray-900 dark:text-white">{{ type.charAt(0).toUpperCase() + type.slice(1) }}</span>
-                </button>
-              </div>
-              
-              <!-- Click outside to close -->
-              <div
-                v-if="showTypeDropdown"
-                @click="showTypeDropdown = false"
-                class="fixed inset-0 z-40"
-              ></div>
-            </div>
-
-            <!-- Sort Options -->
-            <div>
-              <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Sort by
-              </label>
-              <div class="flex items-center gap-2">
-                <select
-                  :value="sortBy"
-                  @change="$emit('update:sortBy', $event.target.value)"
-                  class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="date">Date</option>
-                  <option value="time">Time</option>
-                  <option value="title">Title</option>
-                  <option value="type">Type</option>
-                </select>
-                <button
-                  @click="$emit('update:sortOrder', sortOrder === 'asc' ? 'desc' : 'asc')"
-                  class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
-                  :title="sortOrder === 'asc' ? 'Ascending' : 'Descending'"
-                  :aria-label="sortOrder === 'asc' ? 'Ascending' : 'Descending'"
-                >
-                  <ArrowUp v-if="sortOrder === 'asc'" class="h-4 w-4" />
-                  <ArrowDown v-else class="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Transition>
     </div>
-    
-    <!-- Content -->
-    <div class="flex-1 overflow-y-auto p-4">
+
+    <!-- Content: extra bottom padding so the floating button never covers
+         the last event -->
+    <div class="flex-1 overflow-y-auto p-4 pb-20">
       <div v-if="loading" class="space-y-3">
         <EventCardSkeleton v-for="i in 5" :key="i" />
       </div>
       <div
-        v-else-if="filteredAndSortedEvents.length === 0"
+        v-else-if="sortedEvents.length === 0"
         class="text-center text-gray-500 dark:text-gray-400 py-8"
       >
-        <p v-if="monthEvents.length === 0">No events scheduled for this month</p>
-        <p v-else>No events match the current filter</p>
+        <p v-if="searching">Nothing in this month matches your search</p>
+        <p v-else>No events scheduled for this month</p>
       </div>
       <template v-else>
         <!-- Past Events (collapsible accordion) -->
@@ -496,8 +283,8 @@ const upcomingEvents = computed(() => {
                     getEventTypeColor(event.type, true),
                   ]"
                 >
-                  <span class="text-xl font-bold leading-none">{{ new Date(event.date).getDate() }}</span>
-                  <span class="text-[10px] uppercase tracking-wide opacity-90">{{ new Date(event.date).toLocaleDateString('en-US', { weekday: 'short' }) }}</span>
+                  <span class="text-xl font-bold leading-none">{{ dayNumber(event.date) }}</span>
+                  <span class="text-[10px] uppercase tracking-wide opacity-90">{{ weekdayLabel(event.date) }}</span>
                 </div>
                 <div class="flex-1 min-w-0">
                   <h3 class="font-medium text-sm text-gray-500 dark:text-gray-400 truncate">
@@ -545,8 +332,8 @@ const upcomingEvents = computed(() => {
                   getEventTypeColor(event.type),
                 ]"
               >
-                <span class="text-xl font-bold leading-none">{{ new Date(event.date).getDate() }}</span>
-                <span class="text-[10px] uppercase tracking-wide opacity-90">{{ new Date(event.date).toLocaleDateString('en-US', { weekday: 'short' }) }}</span>
+                <span class="text-xl font-bold leading-none">{{ dayNumber(event.date) }}</span>
+                <span class="text-[10px] uppercase tracking-wide opacity-90">{{ weekdayLabel(event.date) }}</span>
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
@@ -571,23 +358,3 @@ const upcomingEvents = computed(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.expand-enter-active,
-.expand-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  max-height: 200px;
-  opacity: 1;
-  overflow: hidden;
-}
-
-.expand-enter-from,
-.expand-leave-to {
-  max-height: 0;
-  opacity: 0;
-  margin-top: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  transform: translateY(-10px);
-}
-</style>

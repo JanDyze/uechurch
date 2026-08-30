@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { ChevronLeft, ChevronRight, List, LayoutGrid } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
+import { getEventTypeColor, getEventTypeDot } from '../../utils/eventColors'
 import philippineHolidays from '../../data/philippineHolidays.json'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
@@ -115,21 +116,6 @@ const getEventsForDate = (date) => {
   if (!props.events || !Array.isArray(props.events)) return []
   return props.events.filter((event) => event.date === dateString)
 }
-
-const getEventTypeColor = (type) => {
-  const colors = {
-    worship: 'bg-blue-500 text-white',
-    prayer: 'bg-purple-500 text-white',
-    meeting: 'bg-slate-500 text-white',
-    fellowship: 'bg-teal-500 text-white',
-    outreach: 'bg-orange-500 text-white',
-    training: 'bg-green-500 text-white',
-    celebration: 'bg-pink-500 text-white',
-    special: 'bg-amber-500 text-white',
-  }
-  return colors[type] || 'bg-gray-500 text-white'
-}
-
 
 // Days in the current month that have a holiday or an event, in date order, for the agenda view
 const agendaDays = computed(() => {
@@ -290,7 +276,7 @@ const handleDayKeydown = (event, day) => {
     ></div>
 
     <!-- Agenda View: default on narrow/short screens where a month grid is hard to scan -->
-    <div v-if="showAgendaView" class="flex-1 overflow-y-auto p-3 md:p-4 min-h-0">
+    <div v-if="showAgendaView" class="flex-1 overflow-y-auto p-3 pb-20 md:p-4 md:pb-20 min-h-0">
       <div v-if="loading" aria-hidden="true" class="space-y-2">
         <div
           v-for="i in 6"
@@ -449,7 +435,7 @@ const handleDayKeydown = (event, day) => {
               <span
                 v-for="event in getEventsForDate(day.fullDate).slice(0, 3)"
                 :key="event.id"
-                :class="['h-1.5 w-1.5 rounded-full shrink-0', getEventTypeColor(event.type).split(' ')[0]]"
+                :class="['h-1.5 w-1.5 rounded-full shrink-0', getEventTypeDot(event.type)]"
               ></span>
               <span
                 v-if="getEventsForDate(day.fullDate).length > 3"

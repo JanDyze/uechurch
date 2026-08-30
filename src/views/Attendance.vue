@@ -1,548 +1,122 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { Plus } from '../icons'
 import { useAttendance } from '../composables/useAttendance'
+import { useAttendanceStats } from '../composables/useAttendanceStats'
 import { useMembers } from '../composables/useMembers'
-import { useEvents } from '../composables/useEvents'
-import { useMinutes } from '../composables/useMinutes'
-import AttendanceToolbar from '../components/attendance/AttendanceToolbar.vue'
-import FilterDrawer from '../components/attendance/FilterDrawer.vue'
-import AttendanceChecker from '../components/attendance/AttendanceChecker.vue'
+import { usePermissions } from '../composables/usePermissions'
+import AttendanceSummary from '../components/attendance/AttendanceSummary.vue'
 import AttendanceListItem from '../components/attendance/AttendanceListItem.vue'
-import ConfirmationModal from '../components/common/ConfirmationModal.vue'
-import { useToast } from '../composables/useToast'
 
-const toast = useToast()
+// No toolbar. Every gathering is already grouped under its month and stamped
+// with its date, and the summary above answers the question people actually
+// arrive with — how full was it — without anyone typing anything. Recording
+// is the one action, so it gets a button of its own rather than a bar.
 
-const { aggregatedAttendance, loading, addAttendanceToFirestore, updateAttendanceInFirestore, removeAttendance } = useAttendance()
+const router = useRouter()
+const { canManage } = usePermissions()
+
+const { aggregatedAttendance, loading } = useAttendance()
 const { members } = useMembers()
-const { removeEvent } = useEvents()
-const { removeMinute } = useMinutes()
 
-const searchQuery = ref('')
-const showFilters = ref(false)
-const showRecordAttendance = ref(false)
-const dateFilter = ref(null)
-const eventTypeFilter = ref(null)
-const memberFilter = ref(null)
+const rosterSize = computed(() => members.value?.length || 0)
+const { stats, recentBars } = useAttendanceStats(aggregatedAttendance, rosterSize)
 
-// Past events/meetings with no attendance saved are shown as prompts. They are
-// generated, not stored, so they cannot be deleted - this hides them instead.
-// Persisted, so turning them off stays off.
-const STORAGE_KEY_SHOW_NOT_RECORDED = 'attendance_showNotRecorded'
-const showNotRecorded = ref(
-  localStorage.getItem(STORAGE_KEY_SHOW_NOT_RECORDED) !== 'false'
-)
-watch(showNotRecorded, (value) => {
-  localStorage.setItem(STORAGE_KEY_SHOW_NOT_RECORDED, String(value))
-})
-const editingAttendance = ref(null)
-const selectedEvent = ref(null)
-const newAttendanceData = ref({
-  eventId: '',
-  eventType: '',
-  eventTitle: '',
-  date: '',
-  time: '',
-  location: '',
-  attendees: [],
-  notes: '',
-  expectedAttendees: 0
-})
-
-// Confirmation modal state
-const showConfirmation = ref(false)
-const confirmationConfig = ref({
-  title: 'Confirm Action',
-  message: '',
-  confirmText: 'Confirm',
-  cancelText: 'Cancel',
-  confirmButtonClass: 'bg-[#01779b] text-white hover:bg-[#015a77]',
-  onConfirm: null
-})
-
-const showConfirmModal = (config) => {
-  confirmationConfig.value = { ...confirmationConfig.value, ...config }
-  showConfirmation.value = true
-}
-
-const handleConfirmation = () => {
-  if (confirmationConfig.value.onConfirm) {
-    confirmationConfig.value.onConfirm()
-  }
-}
-
-// Filter attendance records
-const filteredAttendance = computed(() => {
-  let filtered = aggregatedAttendance.value
-
-  // Hide the generated "not recorded" prompts, leaving only saved records
-  if (!showNotRecorded.value) {
-    filtered = filtered.filter(record => record.source === 'attendance')
-  }
-
-  // Search filter
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(record =>
-      record.eventTitle?.toLowerCase().includes(query) ||
-      record.location?.toLowerCase().includes(query) ||
-      record.notes?.toLowerCase().includes(query)
-    )
-  }
-
-  // Date filter
-  if (dateFilter.value) {
-    const filterDate = new Date(dateFilter.value).toISOString().split('T')[0]
-    filtered = filtered.filter(record => record.date === filterDate)
-  }
-
-  // Event type filter
-  if (eventTypeFilter.value) {
-    filtered = filtered.filter(record => record.eventType === eventTypeFilter.value)
-  }
-
-  // Member filter
-  if (memberFilter.value) {
-    filtered = filtered.filter(record => {
-      if (Array.isArray(record.attendees)) {
-        return record.attendees.some(attendeeId => {
-          const memberId = String(memberFilter.value)
-          return String(attendeeId) === memberId
-        })
-      }
-      return false
-    })
-  }
-
-  return filtered
-})
-
-// Group attendance by month
+// Grouped on the raw 'YYYY-MM' prefix rather than a parsed Date, for the same
+// reason the summary is: `new Date('2026-08-01')` is UTC midnight and would
+// file the first of the month under the previous one west of Greenwich. The
+// two have to agree, or "This month" would report on a different set of
+// gatherings than the month header directly beneath it.
 const attendanceByMonth = computed(() => {
-  const grouped = {}
-  
-  filteredAttendance.value.forEach(record => {
-    if (!record.date) return
-    
-    const date = new Date(record.date)
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    const monthLabel = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    
-    if (!grouped[monthKey]) {
-      grouped[monthKey] = {
-        label: monthLabel,
-        records: []
-      }
+  const grouped = new Map()
+
+  aggregatedAttendance.value.forEach((record) => {
+    const key = String(record.date || '').slice(0, 7)
+    if (!key) return
+
+    if (!grouped.has(key)) {
+      const [year, month] = key.split('-')
+      grouped.set(key, {
+        key,
+        label: new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric',
+        }),
+        records: [],
+      })
     }
-    
-    grouped[monthKey].records.push(record)
+    grouped.get(key).records.push(record)
   })
-  
-  // Sort months descending (newest first)
-  return Object.entries(grouped)
-    .sort(([a], [b]) => b.localeCompare(a))
-    .map(([key, value]) => ({ key, ...value }))
+
+  return [...grouped.values()].sort((a, b) => b.key.localeCompare(a.key))
 })
 
-// Get unique event types
-const eventTypes = computed(() => {
-  const types = new Set()
-  aggregatedAttendance.value.forEach(record => {
-    if (record.eventType) {
-      types.add(record.eventType)
-    }
-  })
-  return Array.from(types).sort()
-})
+// Recording is a screen of its own: the route carries only a key, and the
+// record page looks the rest up from the same live list this page renders.
+const openRecorder = (query = {}) => router.push({ name: 'RecordAttendance', query })
 
+const handleRecordAttendance = (record) => openRecorder({ key: record?.occurrenceKey || record?.id })
 
-const handleDeleteAttendance = (record) => {
-  // Placeholder rows for events/meetings have no saved record behind them,
-  // so there is nothing to delete. Saved records are always deletable.
-  if (!record || record.source !== 'attendance') return
-
-  showConfirmModal({
-    title: 'Delete Attendance Record',
-    message: record.linkedSource
-      ? `Delete the attendance recorded for "${record.eventTitle}"? The ${record.linkedSource === 'minute' ? 'meeting' : 'event'} itself stays, so it will reappear in this list as "Not recorded". To hide those, turn off "Show not recorded" in Filters.`
-      : `Are you sure you want to delete the attendance record for "${record.eventTitle}"?`,
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
-    confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
-    onConfirm: async () => {
-      try {
-        await removeAttendance(record)
-        handleCancelAttendance()
-        toast.success('Attendance record deleted')
-      } catch (error) {
-        console.error('Error deleting attendance:', error)
-        showConfirmModal({
-          title: 'Error',
-          message: 'Failed to delete attendance record. Please try again.',
-          confirmText: 'OK',
-          cancelText: '',
-          onConfirm: () => {},
-        })
-      }
-    }
-  })
-}
-
-// Only event/meeting placeholders have something stored to delete. Recurring
-// occurrences come from a Settings schedule with no document behind them, so
-// they get no delete button - they are managed in Settings instead.
-const placeholderKind = computed(() => {
-  const source = selectedEvent.value?.source
-  return source === 'event' || source === 'minute' ? source : null
-})
-
-// "Not recorded" rows are generated from an event or meeting, so the only way
-// to remove one is to delete the thing that generates it. Deletes the real
-// event/meeting, same as doing it from the Events or Minutes page.
-const handleDeleteSource = () => {
-  const record = selectedEvent.value
-  if (!record) return
-
-  const isMeeting = record.source === 'minute'
-  const title = record.eventTitle || record.title || 'this item'
-
-  showConfirmModal({
-    title: isMeeting ? 'Delete Meeting' : 'Delete Event',
-    message: isMeeting
-      ? `Delete the meeting "${title}"? This also removes it and its minutes from the Minutes page. This cannot be undone.`
-      : `Delete the event "${title}"? This also removes it from the Events page. This cannot be undone.`,
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
-    confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
-    onConfirm: async () => {
-      try {
-        if (isMeeting) {
-          await removeMinute(record)
-        } else {
-          await removeEvent(record)
-        }
-        handleCancelAttendance()
-        toast.success(isMeeting ? 'Meeting deleted' : 'Event deleted')
-      } catch (error) {
-        console.error('Error deleting source item:', error)
-        toast.error(`Failed to delete ${isMeeting ? 'meeting' : 'event'}. Please try again.`)
-      }
-    }
-  })
-}
-
-const clearFilters = () => {
-  searchQuery.value = ''
-  dateFilter.value = null
-  eventTypeFilter.value = null
-  memberFilter.value = null
-  showNotRecorded.value = true
-}
-
-const hasActiveFilters = computed(() => {
-  return !!(
-    searchQuery.value.trim() ||
-    dateFilter.value ||
-    eventTypeFilter.value ||
-    memberFilter.value ||
-    !showNotRecorded.value
-  )
-})
-
-// Selected attendance ID for highlighting
-const selectedAttendanceId = computed(() => {
-  if (editingAttendance.value) {
-    return editingAttendance.value.id || editingAttendance.value.firestoreId || null
-  }
-  if (selectedEvent.value) {
-    return selectedEvent.value.id || selectedEvent.value.firestoreId || null
-  }
-  return null
-})
-
-// Attendance recording
-const handleToggleRecordAttendance = () => {
-  if (showRecordAttendance.value) {
-    // If already open, close it
-    showRecordAttendance.value = false
-    editingAttendance.value = null
-    selectedEvent.value = null
-    newAttendanceData.value = {
-      eventId: '',
-      eventType: '',
-      eventTitle: '',
-      date: '',
-      time: '',
-      location: '',
-      attendees: [],
-      notes: '',
-      expectedAttendees: 0
-    }
-  } else {
-    // If closed, open it and reset data
-    selectedEvent.value = null
-    editingAttendance.value = null
-    newAttendanceData.value = {
-      eventId: '',
-      eventType: '',
-      eventTitle: '',
-      date: new Date().toISOString().split('T')[0],
-      time: '',
-      location: '',
-      attendees: [],
-      notes: '',
-      expectedAttendees: 0
-    }
-    showRecordAttendance.value = true
-  }
-}
-
-const handleRecordAttendance = (event = null) => {
-  if (event) {
-    // Set selectedEvent so drawer can use it for pre-filling
-    selectedEvent.value = {
-      ...event,
-      title: event.eventTitle || event.title || '',
-      type: event.eventType || event.type || '',
-      attendees: event.expectedAttendees || event.attendees || 0
-    }
-    // Also set newAttendanceData with event/meeting info
-    // For meetings, use existing attendees if available
-    const existingAttendees = event.source === 'minute' ? (event.attendees || []) : []
-    
-    newAttendanceData.value = {
-      eventId: event.firestoreId || event.id || '',
-      eventType: event.eventType || event.type || '',
-      eventTitle: event.eventTitle || event.title || '',
-      date: event.date || '',
-      time: event.time || '',
-      location: event.location || '',
-      attendees: existingAttendees,
-      notes: '',
-      expectedAttendees: event.expectedAttendees || event.attendees || 0
-    }
-  } else {
-    selectedEvent.value = null
-    newAttendanceData.value = {
-      eventId: '',
-      eventType: '',
-      eventTitle: '',
-      date: new Date().toISOString().split('T')[0],
-      time: '',
-      location: '',
-      attendees: [],
-      notes: '',
-      expectedAttendees: 0
-    }
-  }
-  editingAttendance.value = null
-  showRecordAttendance.value = true
-}
-
-const handleEditAttendance = (record) => {
-  if (record.source !== 'attendance') return
-  editingAttendance.value = record
-  newAttendanceData.value = {
-    eventId: record.eventId || '',
-    eventType: record.eventType || '',
-    eventTitle: record.eventTitle || '',
-    date: record.date || '',
-    time: record.time || '',
-    location: record.location || '',
-    attendees: record.attendees || [],
-    notes: record.notes || '',
-    expectedAttendees: record.expectedAttendees || 0
-  }
-  selectedEvent.value = null
-  showRecordAttendance.value = true
-}
-
-const handleSaveAttendance = async () => {
-  try {
-    // Get expected attendees from the selected event if it exists
-    let expectedAttendees = 0
-    if (selectedEvent.value) {
-      expectedAttendees = selectedEvent.value.attendees || selectedEvent.value.expectedAttendees || 0
-    } else if (editingAttendance.value && editingAttendance.value.expectedAttendees) {
-      // Keep existing expected attendees when editing
-      expectedAttendees = editingAttendance.value.expectedAttendees
-    }
-    
-    const attendanceData = {
-      ...newAttendanceData.value,
-      totalAttendees: newAttendanceData.value.attendees?.length || 0,
-      expectedAttendees: expectedAttendees
-    }
-    
-    if (editingAttendance.value) {
-      await updateAttendanceInFirestore(editingAttendance.value, attendanceData)
-    } else {
-      await addAttendanceToFirestore(attendanceData)
-    }
-    
-    showRecordAttendance.value = false
-    editingAttendance.value = null
-    selectedEvent.value = null
-    newAttendanceData.value = {
-      eventId: '',
-      eventType: '',
-      eventTitle: '',
-      date: '',
-      time: '',
-      location: '',
-      attendees: [],
-      notes: '',
-      expectedAttendees: 0
-    }
-  } catch (error) {
-    console.error('Error saving attendance:', error)
-    showConfirmModal({
-      title: 'Error',
-      message: 'Failed to save attendance record. Please try again.',
-      confirmText: 'OK',
-      cancelText: '',
-      onConfirm: () => {},
-    })
-  }
-}
-
-const handleCancelAttendance = () => {
-  showRecordAttendance.value = false
-  editingAttendance.value = null
-  selectedEvent.value = null
-  newAttendanceData.value = {
-    eventId: '',
-    eventType: '',
-    eventTitle: '',
-    date: '',
-    time: '',
-    location: '',
-    attendees: [],
-    notes: '',
-    expectedAttendees: 0
-  }
-}
+const handleEditAttendance = (record) => openRecorder({ id: record?.firestoreId || record?.id })
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <!-- Toolbar -->
-    <AttendanceToolbar
-      :search-query="searchQuery"
-      :show-filters="showFilters"
-      :show-record-attendance="showRecordAttendance"
-      :has-active-filters="hasActiveFilters"
-      @update:search-query="searchQuery = $event"
-      @update:show-filters="showFilters = $event"
-      @toggle-record-attendance="handleToggleRecordAttendance"
-    />
+  <div class="relative flex h-full flex-col">
+    <div
+      class="flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white pb-20 dark:border-gray-700 dark:bg-gray-800"
+    >
+      <AttendanceSummary :stats="stats" :recent-bars="recentBars" :loading="loading" />
 
-    <!-- Main Content -->
-    <div class="flex-1 overflow-hidden flex relative">
-      <!-- Attendance List -->
-      <div :class="[
-        'overflow-y-auto bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-all',
-        showRecordAttendance ? 'flex-1 min-w-0' : 'flex-1'
-      ]">
-        <div v-if="loading" class="divide-y divide-gray-200 dark:divide-gray-700">
-          <div
-            v-for="i in 10"
-            :key="`skeleton-${i}`"
-            class="p-4 flex items-center gap-4"
-          >
-            <div class="h-12 w-12 rounded-lg bg-gray-200 dark:bg-gray-600 animate-pulse"></div>
-            <div class="flex-1 space-y-2">
-              <div class="h-4 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
-              <div class="h-3 w-24 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
-            </div>
+      <div v-if="loading" class="divide-y divide-gray-200 dark:divide-gray-700">
+        <div v-for="i in 10" :key="`skeleton-${i}`" class="flex items-center gap-3 px-4 py-3">
+          <div class="h-9 w-12 shrink-0 animate-pulse rounded bg-gray-200 dark:bg-gray-600"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-600"></div>
+            <div class="h-3 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-600"></div>
           </div>
-        </div>
-        <div v-else-if="filteredAttendance.length === 0" class="p-8 text-center text-gray-500 dark:text-gray-400">
-          <div class="text-gray-400 dark:text-gray-500 mb-4">
-            <svg class="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-          <p class="mb-4">
-            {{ hasActiveFilters ? 'No attendance records found matching your filters.' : 'No attendance records yet.' }}
-          </p>
-          <button
-            v-if="hasActiveFilters"
-            @click="clearFilters"
-            class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            Clear Filters
-          </button>
-        </div>
-        <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
-          <template v-for="monthGroup in attendanceByMonth" :key="monthGroup.key">
-            <!-- Month Header -->
-            <div class="sticky top-0 z-10 bg-gray-100 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600">
-              <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                {{ monthGroup.label }}
-              </h3>
-            </div>
-            <!-- Attendance records for this month -->
-            <AttendanceListItem
-              v-for="record in monthGroup.records"
-              :key="record.id"
-              :record="record"
-              :members="members"
-              :selected="selectedAttendanceId === (record.id || record.firestoreId)"
-              @record-attendance="handleRecordAttendance(record)"
-              @edit-attendance="handleEditAttendance(record)"
-            />
-          </template>
+          <div class="h-6 w-12 shrink-0 animate-pulse rounded bg-gray-200 dark:bg-gray-600"></div>
         </div>
       </div>
 
-      <!-- Filter Drawer -->
-      <FilterDrawer
-        :show-filters="showFilters"
-        :date-filter="dateFilter"
-        :event-type-filter="eventTypeFilter"
-        :member-filter="memberFilter"
-        :event-types="eventTypes"
-        :members="members"
-        :has-active-filters="hasActiveFilters"
-        :show-not-recorded="showNotRecorded"
-        @update:show-not-recorded="showNotRecorded = $event"
-        @update:show-filters="showFilters = $event"
-        @update:date-filter="dateFilter = $event"
-        @update:event-type-filter="eventTypeFilter = $event"
-        @update:member-filter="memberFilter = $event"
-        @clear-filters="clearFilters"
-      />
+      <p
+        v-else-if="attendanceByMonth.length === 0"
+        class="p-8 text-center text-sm text-gray-500 dark:text-gray-400"
+      >
+        Nothing to show yet. Once an event, meeting or service has passed it appears here ready to
+        record.
+      </p>
 
-      <!-- Attendance Checker -->
-      <AttendanceChecker
-        :show="showRecordAttendance"
-        :is-edit="!!editingAttendance"
-        :attendance-data="newAttendanceData"
-        :event-data="selectedEvent"
-        :details-locked="!!editingAttendance?.linkedSource"
-        :placeholder-kind="placeholderKind"
-        @update:show="showRecordAttendance = $event"
-        @update:attendance-data="newAttendanceData = $event"
-        @save="handleSaveAttendance"
-        @cancel="handleCancelAttendance"
-        @delete="handleDeleteAttendance(editingAttendance)"
-        @delete-source="handleDeleteSource"
-      />
+      <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
+        <template v-for="monthGroup in attendanceByMonth" :key="monthGroup.key">
+          <div
+            class="sticky top-0 z-10 border-b border-gray-200 bg-gray-100 px-4 py-2 dark:border-gray-600 dark:bg-gray-700"
+          >
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+              {{ monthGroup.label }}
+            </h3>
+          </div>
+          <AttendanceListItem
+            v-for="record in monthGroup.records"
+            :key="record.id"
+            :record="record"
+            :members="members"
+            @record-attendance="handleRecordAttendance(record)"
+            @edit-attendance="handleEditAttendance(record)"
+          />
+        </template>
+      </div>
     </div>
 
-    <!-- Confirmation Modal -->
-    <ConfirmationModal
-      :show="showConfirmation"
-      :title="confirmationConfig.title"
-      :message="confirmationConfig.message"
-      :confirm-text="confirmationConfig.confirmText"
-      :cancel-text="confirmationConfig.cancelText"
-      :confirm-button-class="confirmationConfig.confirmButtonClass"
-      @update:show="showConfirmation = $event"
-      @confirm="handleConfirmation"
-      @cancel="showConfirmation = false"
-    />
+    <!-- One action on this page, so it is a button rather than a menu. -->
+    <button
+      v-if="canManage('attendance')"
+      @click="openRecorder()"
+      aria-label="Record attendance"
+      title="Record attendance"
+      class="absolute bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/30 transition-transform hover:bg-primary-hover active:scale-95"
+    >
+      <Plus class="h-6 w-6" />
+    </button>
   </div>
 </template>
-

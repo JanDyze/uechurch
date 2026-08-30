@@ -3,8 +3,9 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Trash2, Calendar, MapPin, Phone, Briefcase, Users, Tag, User, Image as ImageIcon } from '../icons'
 import { useMembers } from '../composables/useMembers'
-import { getFullName, getAvatarUrl, getSexIcon, getSexIconColor, calculateAgeFromDate, mergeTagSources, CIVIL_STATUS_OPTIONS as civilStatusOptions } from '../utils/memberUtils'
+import { getFullName, getSexIcon, getSexIconColor, calculateAgeFromDate, mergeTagSources, CIVIL_STATUS_OPTIONS as civilStatusOptions } from '../utils/memberUtils'
 import { subscribeToCustomTags } from '../api/tagsService'
+import MemberAvatar from '../components/members/MemberAvatar.vue'
 import YouBadge from '../components/members/YouBadge.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import ImageCropper from '../components/members/ImageCropper.vue'
@@ -146,7 +147,7 @@ const sexOptions = [
         class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
       >
         <ArrowLeft class="h-5 w-5" />
-        <span>Back to Members</span>
+        <span>Back to People</span>
       </button>
       
       <div v-if="member" class="flex items-center gap-2">
@@ -175,7 +176,7 @@ const sexOptions = [
         @click="router.push('/members')"
         class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
       >
-        Back to Members
+        Back to People
       </button>
     </div>
 
@@ -186,22 +187,22 @@ const sexOptions = [
         <div class="p-8 bg-linear-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary-light/15 dark:via-primary-light/5">
           <div class="flex items-start gap-6">
             <!-- Avatar with edit overlay -->
-            <div class="relative group">
-              <img
-                :src="getAvatarUrl(localMember)"
-                :alt="getFullName(localMember)"
-                class="h-28 w-28 rounded-2xl border-4 border-white dark:border-gray-700 shadow-xl object-cover"
-              />
+            <MemberAvatar
+              :member="localMember"
+              size="h-28 w-28"
+              plain-class="border-4 border-white dark:border-gray-700 shadow-xl"
+              class="group"
+            >
               <button
                 @click="showImageCropper = true"
-                class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
               >
                 <div class="text-center">
                   <ImageIcon class="h-6 w-6 text-white mx-auto mb-1" />
                   <span class="text-xs text-white">Change</span>
                 </div>
               </button>
-            </div>
+            </MemberAvatar>
             
             <div class="flex-1 pt-2">
               <div class="flex items-center gap-3 mb-2">

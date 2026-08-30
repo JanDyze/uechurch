@@ -131,3 +131,50 @@ export const calculateAgeFromDate = (dateOfBirth) => {
   return age;
 };
 
+
+/**
+ * The details every person definitively has, so a blank one is always a gap in
+ * the record rather than a fact about the person. That distinction is the
+ * whole reason a contact number is NOT on this list: plenty of people —
+ * children especially — genuinely have no phone, and a badge that fires on
+ * them would be crying wolf on most of the roster within a year. Missing
+ * numbers are counted on their own tile instead, where the number is
+ * information rather than an accusation.
+ *
+ * Kept short for the same reason. Occupation, nickname and photo all have
+ * fallbacks or no consequence when blank, and civil status is written onto
+ * every new record by the add form.
+ *
+ * Order matters — it is the order the labels are read out in.
+ */
+export const IMPORTANT_MEMBER_DETAILS = [
+  { key: "dateOfBirth", label: "birthday" },
+  { key: "address", label: "address" },
+  { key: "sex", label: "sex" },
+];
+
+/** Absent, or present but empty — an imported record is full of "   ". */
+export const isBlankDetail = (value) =>
+  value === null ||
+  value === undefined ||
+  (typeof value === "string" && value.trim() === "");
+
+/**
+ * Which important details this member has not got, as readable labels.
+ *
+ * `age` is deliberately not accepted in place of `dateOfBirth`: a record can
+ * carry an age with no birth date, which is enough for the age bands but not
+ * enough to greet anyone on the day.
+ */
+export const missingMemberDetails = (member = {}) =>
+  IMPORTANT_MEMBER_DETAILS.filter(({ key }) => isBlankDetail(member[key])).map(({ label }) => label);
+
+/**
+ * "birthday and address", "birthday, address and sex" — a phrase that drops
+ * straight into a sentence, because the badge's job is to say what is missing
+ * without having to be opened.
+ */
+export const listPhrase = (items = []) => {
+  if (items.length <= 1) return items[0] || "";
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+};

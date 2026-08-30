@@ -1,14 +1,23 @@
 import { db } from './firebase'
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp, where } from 'firebase/firestore'
+import { readProvenance } from '../../lib/attendance'
 
 const ATTENDANCE_COLLECTION = 'attendance'
 
 // Normalize attendance data from Firestore
 const normalizeAttendance = (doc) => {
   const data = doc.data()
+  // source/sourceId/occurrenceKey replace the old single `eventId`, which meant
+  // four different things. readProvenance derives them from a legacy record
+  // when they are missing, so documents written before this change keep
+  // working and a backfill is optional rather than a prerequisite.
+  const provenance = readProvenance(data)
   return {
     id: doc.id,
     firestoreId: doc.id,
+    ...provenance,
+    // Kept for now so nothing that still reads it breaks; new writes set the
+    // three fields above and leave this as the event id only when there is one.
     eventId: data.eventId || '',
     eventType: data.eventType || '',
     eventTitle: data.eventTitle || '',

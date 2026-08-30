@@ -12,6 +12,7 @@ import {
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import { getAvatarUrl, getFullName } from '../../utils/memberUtils'
+import MemberAvatar from '../members/MemberAvatar.vue'
 import { memberKey } from '../../utils/sgUtils'
 import { formatServiceDate, keyForLeader, songLeadersFrom } from '../../utils/lineupUtils'
 import SongPickerSheet from './SongPickerSheet.vue'
@@ -389,7 +390,7 @@ const handleSave = () => {
                   @click="addToTeam(member)"
                   class="w-full flex items-center gap-2 p-2 rounded-lg text-left hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
-                  <img :src="getAvatarUrl(member)" alt="" class="h-7 w-7 rounded-full object-cover" />
+                  <MemberAvatar :member="member" alt="" size="h-7 w-7" />
                   <span class="text-sm text-gray-800 dark:text-gray-100 truncate">
                     {{ getFullName(member) }}
                   </span>

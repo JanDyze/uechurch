@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { ArrowLeft, Calendar, Clock, MapPin, Users, Trash2, Edit2 } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
+import { getEventTypeColor } from '../../utils/eventColors'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 
@@ -26,21 +27,6 @@ const emit = defineEmits(['update:show', 'edit', 'delete', 'back'])
 
 const dialogRef = ref(null)
 useFocusTrap(dialogRef, () => props.show, () => emit('back'))
-
-const getEventTypeColor = (type) => {
-  const colors = {
-    worship: 'bg-blue-500 text-white',
-    prayer: 'bg-purple-500 text-white',
-    meeting: 'bg-slate-500 text-white',
-    fellowship: 'bg-teal-500 text-white',
-    outreach: 'bg-orange-500 text-white',
-    training: 'bg-green-500 text-white',
-    celebration: 'bg-pink-500 text-white',
-    special: 'bg-amber-500 text-white',
-  }
-  return colors[type] || 'bg-gray-500 text-white'
-}
-
 
 const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleDateString('en-US', {

@@ -1,7 +1,6 @@
 import { computed, markRaw, ref, triggerRef } from 'vue'
 import * as authService from '../api/authService'
 import { recordSignIn } from '../api/userAccountsService'
-import { getAccountAvatarUrl } from '../utils/memberUtils'
 
 // Global auth state (shared across components)
 const user = ref(null)
@@ -55,9 +54,10 @@ export function useAuth() {
 
   const email = computed(() => user.value?.email || '')
 
-  // Google supplies a real profile photo; everyone else gets a generated face
-  // seeded by uid, which keeps it the same across devices.
-  const avatarUrl = computed(() => getAccountAvatarUrl(user.value))
+  // No avatarUrl here on purpose. The face to show is not a property of the
+  // sign-in — a linked member record's photo outranks the provider thumbnail —
+  // so it is resolved in useAvatars(), which is the one place that knows about
+  // both. Reach for useAvatars().myAvatarUrl.
 
   // updateProfile mutates the existing User object without firing
   // onAuthStateChanged, so nothing would re-render on its own — publish the
@@ -73,7 +73,6 @@ export function useAuth() {
     isAuthenticated,
     displayName,
     email,
-    avatarUrl,
     ready,
     initAuth,
     updateDisplayName,

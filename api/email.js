@@ -34,7 +34,6 @@ import {
   zonedDateString,
   parseDateString,
   addDays,
-  formatLongDate,
   DEFAULT_TIMEZONE,
 } from "../lib/occurrences.js";
 
@@ -51,8 +50,23 @@ const DEFAULT_CHURCH = {
 
 const docsOf = (snapshot) => snapshot.docs.map((d) => ({ id: d.id, data: d.data() }));
 
+// The base URL for every link and image in the email. Gmail fetches images
+// through its own proxy, so this has to resolve from the public internet for
+// anyone but the sender: the request host is localhost when a send is
+// triggered from `npm run dev:server`, and a login-protected deployment URL on
+// a preview deploy. Both arrive as broken images in every inbox.
+//
+// So: an explicit APP_URL first, then the production domain, which Vercel sets
+// on every deployment including previews. The request host is now the last
+// resort rather than the default.
 const appUrlFrom = (req) =>
-  (process.env.APP_URL || `https://${req.headers.host}`).replace(/\/$/, "");
+  (
+    process.env.APP_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "") ||
+    `https://${req.headers.host}`
+  ).replace(/\/$/, "");
 
 async function loadChurch(firestore) {
   const snap = await firestore.collection("appSettings").doc("church").get();
@@ -122,17 +136,19 @@ async function runDigest({ firestore, kind, today, appUrl, preview, trigger, act
   const { start, end } = rangeFor(kind, today);
   const occurrences = collectOccurrences(calendar, start, end);
 
-  const digest = buildEventDigest({ kind, today, church, occurrences, appUrl });
-  if (!digest) {
-    return {
-      kind,
-      skipped: true,
-      reason: `Nothing on the calendar for ${
-        kind === "today" ? formatLongDate(today) : `${formatLongDate(start)} to ${formatLongDate(end)}`
-      }.`,
-      recipients: 0,
-      sent: 0,
-    };
+  // `schedules` lets the monthly digest tell the weekly given (the Sunday
+  // service) from a schedule that only fires some weeks, which it collapses
+  // and lists respectively.
+  const digest = buildEventDigest({
+    kind,
+    today,
+    church,
+    occurrences,
+    schedules: calendar.schedules,
+    appUrl,
+  });
+  if (digest.skipped) {
+    return { kind, skipped: true, reason: digest.reason, recipients: 0, sent: 0 };
   }
 
   const recipients = await loadRecipients(firestore, kind);

@@ -16,16 +16,18 @@ import {
 } from '../icons'
 import { useAuth } from '../composables/useAuth'
 import { useUserAccounts } from '../composables/useUserAccounts'
+import { useAvatars } from '../composables/useAvatars'
 import { useToast } from '../composables/useToast'
-import { getAccountAvatarUrl } from '../utils/memberUtils'
 import { formatDate, formatDateTime, timeAgo } from '../utils/timeUtils'
 import { providerLabel, syncAccountsFromAuth } from '../api/userAccountsService'
 import ProviderBadge from '../components/people/ProviderBadge.vue'
+import MemberAvatar from '../components/members/MemberAvatar.vue'
 
 const router = useRouter()
 const toast = useToast()
 const { user } = useAuth()
 const { accounts, loading, stats } = useUserAccounts()
+const { accountMember, accountAvatarUrl } = useAvatars()
 
 // Pulls in accounts that have not opened the app since this page existed —
 // the browser can only ever stamp its own.
@@ -293,17 +295,17 @@ const openMemberProfile = (account) => {
           @click="openDetails(account.uid)"
           class="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-left hover:border-primary/40 transition-colors"
         >
-          <div class="relative shrink-0">
-            <img
-              :src="getAccountAvatarUrl(account)"
-              alt=""
-              class="h-11 w-11 rounded-full object-cover bg-gray-100 dark:bg-gray-700"
-            />
+          <MemberAvatar
+            :member="accountMember(account)"
+            :src="accountAvatarUrl(account)"
+            alt=""
+            size="h-11 w-11"
+          >
             <span
               v-if="account.isOnline"
               class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800"
             />
-          </div>
+          </MemberAvatar>
 
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -385,17 +387,17 @@ const openMemberProfile = (account) => {
             <div
               class="shrink-0 flex items-start gap-3 px-5 py-4 border-b border-gray-200 dark:border-gray-700"
             >
-              <div class="relative shrink-0">
-                <img
-                  :src="getAccountAvatarUrl(selectedAccount)"
-                  alt=""
-                  class="h-12 w-12 rounded-full object-cover bg-gray-100 dark:bg-gray-700"
-                />
+              <MemberAvatar
+                :member="accountMember(selectedAccount)"
+                :src="accountAvatarUrl(selectedAccount)"
+                alt=""
+                size="h-12 w-12"
+              >
                 <span
                   v-if="selectedAccount.isOnline"
                   class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800"
                 />
-              </div>
+              </MemberAvatar>
               <div class="min-w-0 flex-1">
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white truncate">
                   {{ selectedAccount.name }}

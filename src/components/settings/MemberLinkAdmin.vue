@@ -15,7 +15,8 @@ import { useMemberClaims } from '../../composables/useMemberClaims'
 import { useMembers } from '../../composables/useMembers'
 import { useAuth } from '../../composables/useAuth'
 import { useToast } from '../../composables/useToast'
-import { getFullName, getAvatarUrl } from '../../utils/memberUtils'
+import { getFullName } from '../../utils/memberUtils'
+import MemberAvatar from '../members/MemberAvatar.vue'
 import { memberKey } from '../../utils/sgUtils'
 
 const toast = useToast()
@@ -206,11 +207,11 @@ const handleDemote = async (admin) => {
           :key="claim.firestoreId"
           class="p-4 flex items-start gap-3"
         >
-          <img
+          <MemberAvatar
             v-if="memberForClaim(claim)"
-            :src="getAvatarUrl(memberForClaim(claim))"
+            :member="memberForClaim(claim)"
             alt=""
-            class="h-10 w-10 rounded-full object-cover bg-gray-100 dark:bg-gray-700 shrink-0"
+            size="h-10 w-10"
           />
           <div class="flex-1 min-w-0">
             <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
@@ -271,11 +272,7 @@ const handleDemote = async (admin) => {
           :key="memberKey(member)"
           class="p-4 flex items-center gap-3"
         >
-          <img
-            :src="getAvatarUrl(member)"
-            alt=""
-            class="h-9 w-9 rounded-full object-cover bg-gray-100 dark:bg-gray-700 shrink-0"
-          />
+          <MemberAvatar :member="member" alt="" size="h-9 w-9" />
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
               {{ getFullName(member) }}

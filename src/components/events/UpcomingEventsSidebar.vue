@@ -1,6 +1,7 @@
 <script setup>
 import { Clock, MapPin } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
+import { getEventTypeColor } from '../../utils/eventColors'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 
 const props = defineProps({
@@ -27,20 +28,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:eventTypeFilter', 'update:upcomingDaysFilter', 'eventClick'])
-
-const getEventTypeColor = (type) => {
-  const colors = {
-    worship: 'bg-blue-500 text-white',
-    prayer: 'bg-purple-500 text-white',
-    meeting: 'bg-slate-500 text-white',
-    fellowship: 'bg-teal-500 text-white',
-    outreach: 'bg-orange-500 text-white',
-    training: 'bg-green-500 text-white',
-    celebration: 'bg-pink-500 text-white',
-    special: 'bg-amber-500 text-white',
-  }
-  return colors[type] || 'bg-gray-500 text-white'
-}
 
 </script>
 
@@ -149,6 +136,4 @@ const getEventTypeColor = (type) => {
     </div>
   </div>
 </template>
-
-
 

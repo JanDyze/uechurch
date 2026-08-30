@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Check, FileText, Mic2, Pencil, StickyNote, Users } from '../../icons'
 import { getAvatarUrl, getFullName } from '../../utils/memberUtils'
+import MemberAvatar from '../members/MemberAvatar.vue'
 import { memberKey } from '../../utils/sgUtils'
 import { parseIso } from '../../utils/lineupUtils'
 
@@ -71,7 +72,7 @@ const isEmpty = computed(
           <!-- Leader -->
           <div class="flex items-center gap-2">
             <template v-if="leader">
-              <img :src="getAvatarUrl(leader)" alt="" class="h-7 w-7 rounded-full object-cover shrink-0" />
+              <MemberAvatar :member="leader" alt="" size="h-7 w-7" />
               <span class="min-w-0 flex-1 text-sm font-semibold text-gray-900 dark:text-white truncate">
                 {{ getFullName(leader) }}
               </span>

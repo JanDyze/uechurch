@@ -42,7 +42,7 @@ const NAV_GROUPS = [
     key: 'people',
     label: 'People',
     items: [
-      { name: 'Members', path: '/members', icon: Users, capability: 'members.view' },
+      { name: 'People', path: '/members', icon: Users, capability: 'members.view' },
       { name: 'Small Groups', path: '/small-groups', icon: UsersRound, capability: 'smallgroups.view' },
       { name: 'Attendance', path: '/attendance', icon: ClipboardCheck, capability: 'attendance.view' },
     ],
@@ -128,48 +128,70 @@ const navigate = (path) => {
 
     <div class="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto no-scrollbar">
       <!-- Logo/Branding -->
-      <div class="flex items-center shrink-0 px-2 mb-8 overflow-hidden">
-        <div class="flex items-center gap-2 min-w-0">
-          <img :src="logoUrl" :alt="church.shortName" :class="['w-auto transition-all shrink-0', isMinimized ? 'h-15' : 'h-15']" />
-          <div v-if="!isMinimized" class="min-w-0 overflow-hidden">
-            <h2 class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap tracking-tight">{{ church.shortName }}</h2>
-            <p class="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 whitespace-nowrap tracking-widest mt-0.5">{{ church.fullName }}</p>
-          </div>
+      <div class="flex items-center justify-center shrink-0 px-2 mb-8 overflow-hidden">
+        <img :src="logoUrl" :alt="church.shortName" class="h-15 w-auto shrink-0" />
+        <!-- The wordmark collapses by max-width instead of v-if, so it narrows
+             and fades over the same 300ms the aside spends resizing. flex-1
+             makes it fill the row while expanded, which keeps the parent's
+             justify-center a no-op until the text is actually gone -- that is
+             what stops the logo from snapping to centre on the first frame. -->
+        <div
+          class="flex-1 min-w-0 overflow-hidden transition-all duration-300 ease-in-out"
+          :class="isMinimized ? 'max-w-0 opacity-0 ml-0' : 'max-w-[240px] opacity-100 ml-2'"
+          :aria-hidden="isMinimized"
+        >
+          <h2 class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap tracking-tight">{{ church.shortName }}</h2>
+          <p class="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 whitespace-nowrap tracking-widest mt-0.5">{{ church.fullName }}</p>
         </div>
       </div>
 
       <!-- Navigation -->
       <nav class="flex-1 px-3 space-y-4">
         <div v-for="group in navGroups" :key="group.key" class="space-y-1">
-          <p
-            v-if="group.label && !isMinimized"
-            class="px-2.5 pb-0.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-600"
-          >
-            {{ group.label }}
-          </p>
           <!-- Minimized: a hairline stands in for the heading, so the groups
-               stay legible when the labels are gone. -->
-          <div
-            v-else-if="group.label && isMinimized"
-            class="mx-auto w-6 border-t border-gray-200 dark:border-slate-800"
-          />
+               stay legible when the labels are gone. The two share one slot and
+               cross-fade rather than swapping via v-if/v-else, so collapsing
+               never reflows the group spacing mid-animation: the <p> holds the
+               natural height in both states and the hairline is an overlay. -->
+          <div v-if="group.label" class="relative px-2.5 pb-0.5">
+            <p
+              class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-600 whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out"
+              :class="isMinimized ? 'opacity-0' : 'opacity-100'"
+            >
+              {{ group.label }}
+            </p>
+            <div
+              class="pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-300 ease-in-out"
+              :class="isMinimized ? 'opacity-100' : 'opacity-0'"
+              aria-hidden="true"
+            >
+              <div class="w-6 border-t border-gray-200 dark:border-slate-800"></div>
+            </div>
+          </div>
           <button
             v-for="item in group.items"
             :key="item.name"
             @click="navigate(item.path)"
             :class="[
-              'group flex items-center p-2.5 text-sm font-semibold rounded-xl w-full transition-all relative',
+              'group flex items-center justify-center p-2.5 text-sm font-semibold rounded-xl w-full transition-all relative',
               isActive(item.path)
                 ? 'active text-white shadow-lg shadow-primary/20 border-l-4 border-primary dark:border-primary-light'
-                : 'text-gray-500 dark:text-slate-400 hover:text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border-l-4 border-transparent hover:border-gray-300 dark:hover:border-slate-700',
-              isMinimized ? 'justify-center' : ''
+                : 'text-gray-500 dark:text-slate-400 hover:text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border-l-4 border-transparent hover:border-gray-300 dark:hover:border-slate-700'
             ]"
             :title="isMinimized ? item.name : ''"
             :aria-label="item.name"
             :aria-current="isActive(item.path) ? 'page' : undefined"
           >
-            <component :is="item.icon" :class="['shrink-0 h-6 w-6', isMinimized ? '' : 'mr-3']" />
-            <span v-if="!isMinimized" class="truncate whitespace-nowrap">{{ item.name }}</span>
+            <component
+              :is="item.icon"
+              :class="['shrink-0 h-6 w-6 transition-all duration-300 ease-in-out', isMinimized ? 'mr-0' : 'mr-3']"
+            />
+            <!-- text-left because a <button> centres its text by default, and
+                 flex-1 hands this span the whole remaining row. -->
+            <span
+              class="flex-1 min-w-0 text-left truncate whitespace-nowrap transition-all duration-300 ease-in-out"
+              :class="isMinimized ? 'max-w-0 opacity-0' : 'max-w-[240px] opacity-100'"
+            >{{ item.name }}</span>
           </button>
         </div>
       </nav>

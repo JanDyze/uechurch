@@ -3,12 +3,14 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useMembers } from "../composables/useMembers";
 import { useMediaQuery } from "../composables/useMediaQuery";
-import { useMemberFilters } from "../composables/useMemberFilters";
+import { useMemberSearch } from "../composables/useMemberSearch";
 import { useMemberSorting } from "../composables/useMemberSorting";
+import { useMemberStats } from "../composables/useMemberStats";
 import { useMemberForm } from "../composables/useMemberForm";
 import { useToast } from "../composables/useToast";
 import MembersToolbar from "../components/members/MembersToolbar.vue";
-import FilterDrawer from "../components/members/FilterDrawer.vue";
+import MembersSummary from "../components/members/MembersSummary.vue";
+import MembersFab from "../components/members/MembersFab.vue";
 import AddMemberDrawer from "../components/members/AddMemberDrawer.vue";
 import MemberDetailsDrawer from "../components/members/MemberDetailsDrawer.vue";
 import MemberContextMenu from "../components/members/MemberContextMenu.vue";
@@ -32,8 +34,9 @@ const searchQuery = ref("");
 // Member data management
 const { members, loading, addMemberToFirestore, updateMemberInFirestore, removeMember } = useMembers();
 
-// Filters
-const { filters, allTags, filteredMembers: baseFilteredMembers, hasActiveFilters, applyFilters, clearFilters } = useMemberFilters(members, searchQuery);
+// Search is the only way the list is narrowed - it matches tags, sex, civil
+// status, occupation and address as well as names.
+const { allTags, filteredMembers: searchedMembers } = useMemberSearch(members, searchQuery);
 
 // Custom tags created from the toolbar's "Add tag" control, registered as
 // selectable options without being applied to any member yet.
@@ -52,44 +55,21 @@ onUnmounted(() => {
 
 // Tags offered when assigning/editing a member's tags: existing tags plus
 // ready-to-pick presets and toolbar-created tags, even before anyone has
-// been tagged with them. Filtering/exporting deliberately keep using the
-// plain `allTags` above, since offering a filter for a tag nobody has yet
-// would just be dead weight.
+// been tagged with them.
 const assignableTags = computed(() => mergeTagSources(allTags.value, customTags.value));
 
 // Sorting
 const { sortBy, sortOrder, sortMembers } = useMemberSorting();
 
-// Apply sorting to filtered members
+// Apply sorting to the searched members
 const filteredMembers = computed(() => {
-  return sortMembers(baseFilteredMembers.value);
+  return sortMembers(searchedMembers.value);
 });
 
-// LocalStorage keys
-const STORAGE_KEY_LAYOUT = 'members_layout';
-const STORAGE_KEY_VIEW_MODE = 'members_viewMode';
+// At-a-glance report. Scoped to what is on screen, so searching "youth"
+// reports on the youth rather than on everyone.
+const { stats, agedTotal, birthdayMonthLabel } = useMemberStats(filteredMembers);
 
-// Get saved preferences from localStorage
-const getSavedLayout = () => localStorage.getItem(STORAGE_KEY_LAYOUT) || 'grid';
-const getSavedViewMode = () => localStorage.getItem(STORAGE_KEY_VIEW_MODE) || 'simple';
-
-// View mode: 'simple' or 'detailed'
-const viewMode = computed({
-  get: () => route.query.viewMode || getSavedViewMode(),
-  set: (value) => {
-    localStorage.setItem(STORAGE_KEY_VIEW_MODE, value);
-    updateQueryParams({ viewMode: value });
-  }
-});
-
-// Layout mode: 'grid' or 'list'
-const layoutMode = computed({
-  get: () => route.query.layout || getSavedLayout(),
-  set: (value) => {
-    localStorage.setItem(STORAGE_KEY_LAYOUT, value);
-    updateQueryParams({ layout: value });
-  }
-});
 const showExport = ref(false);
 const selectedMember = ref(null);
 const showDetails = ref(false);
@@ -104,7 +84,7 @@ const { showAddMember, newMember, canAddMember, addMemberTooltip, calculateAge, 
 // URL query parameter helpers
 const updateQueryParams = (params) => {
   const query = { ...route.query };
-  
+
   // Remove null/false params
   Object.keys(params).forEach(key => {
     if (params[key] === null || params[key] === false || params[key] === undefined) {
@@ -113,76 +93,8 @@ const updateQueryParams = (params) => {
       query[key] = params[key];
     }
   });
-  
+
   router.replace({ query });
-};
-
-// Handle layout switch (updates both layout and viewMode in one call)
-const handleSwitchLayout = ({ layout, viewMode: newViewMode }) => {
-  localStorage.setItem(STORAGE_KEY_LAYOUT, layout);
-  localStorage.setItem(STORAGE_KEY_VIEW_MODE, newViewMode);
-  updateQueryParams({ layout, viewMode: newViewMode });
-};
-
-// Track if filters were just applied (to avoid URL conflicts)
-const filtersJustApplied = ref(false);
-
-// Computed properties for drawer visibility with URL params
-const showFilters = computed({
-  get: () => route.query.filter === 'true',
-  set: (value) => {
-    if (value) {
-      showAddMember.value = false;
-      showDetails.value = false;
-      selectedMember.value = null;
-      filtersJustApplied.value = false;
-      updateQueryParams({ filter: 'true', add: null, view: null });
-    } else if (!filtersJustApplied.value) {
-      // Only remove filter param if we're just closing (not applying)
-      updateQueryParams({ filter: null });
-    }
-    // Reset flag
-    filtersJustApplied.value = false;
-  }
-});
-
-// Wrap applyFilters to set flag before closing drawer
-const handleApplyFilters = (newFilters) => {
-  filtersJustApplied.value = true;
-  applyFilters(newFilters);
-  
-  // Count active filters for toast message
-  const activeCount = [
-    newFilters.tags?.length > 0,
-    newFilters.isMember !== null,
-    newFilters.sex !== null,
-    newFilters.civilStatus !== null,
-    newFilters.hasAddress !== null,
-    newFilters.hasOccupation !== null,
-  ].filter(Boolean).length;
-  
-  if (activeCount > 0) {
-    toast.success(`${activeCount} filter${activeCount > 1 ? 's' : ''} applied`);
-  } else {
-    toast.info('Filters cleared');
-  }
-};
-
-// Wrap clearFilters to show toast
-const handleClearFilters = () => {
-  clearFilters();
-  toast.info('All filters cleared');
-};
-
-// Remove a single filter from the toolbar chips (mobile)
-const handleRemoveFilter = ({ key, value }) => {
-  const next = { ...filters.value, tags: [...(filters.value.tags || [])] };
-  if (key === 'tags') {
-    next.tags = next.tags.filter((tag) => tag !== value);
-  } else {
-    next[key] = null;
-  }
-  applyFilters(next);
 };
 
 // Computed property for showAddMember to work with v-model and URL params
@@ -193,7 +105,7 @@ const showAddMemberComputed = computed({
       showDetails.value = false;
       selectedMember.value = null;
       showAddMember.value = true;
-      updateQueryParams({ add: 'true', filter: null, view: null });
+      updateQueryParams({ add: 'true', view: null });
     } else {
       showAddMember.value = false;
       updateQueryParams({ add: null });
@@ -217,8 +129,8 @@ const showDetailsComputed = computed({
 const syncViewDrawer = () => {
   const viewId = route.query.view;
   if (viewId && members.value.length > 0) {
-    const member = members.value.find(m => 
-      String(m.id) === String(viewId) || 
+    const member = members.value.find(m =>
+      String(m.id) === String(viewId) ||
       String(m.firestoreId) === String(viewId)
     );
     if (member) {
@@ -233,18 +145,13 @@ const syncViewDrawer = () => {
 
 // Watch URL params to sync state on navigation
 watch(() => route.query, (query) => {
-  // Sync filter drawer
-  if (query.filter === 'true') {
-    showAddMember.value = false;
-  }
-
   // Sync add drawer
   if (query.add === 'true') {
     showAddMember.value = true;
   } else {
     showAddMember.value = false;
   }
-  
+
   // Sync view drawer
   syncViewDrawer();
 }, { immediate: true });
@@ -265,16 +172,16 @@ const handleAddMember = async () => {
   }
 };
 
-// Export handler
+// Export handler - `onlyVisible` exports exactly what the search is showing.
 const handleExport = (config) => {
-  exportToExcel(members.value, config);
+  exportToExcel(config.onlyVisible ? filteredMembers.value : members.value, config);
   toast.success('Export downloaded successfully!');
 };
 
 // Member details handlers
 const handleMemberClick = (member) => {
   const memberId = member.firestoreId || member.id;
-  updateQueryParams({ view: memberId, filter: null, add: null });
+  updateQueryParams({ view: memberId, add: null });
 };
 
 // Context menu state
@@ -301,7 +208,7 @@ const handleContextView = (member) => {
 
 const handleContextEdit = (member) => {
   // Same as handleMemberClick: the drawer opens off the `view` query param
-  updateQueryParams({ view: member?.firestoreId || member?.id, filter: null, add: null });
+  updateQueryParams({ view: member?.firestoreId || member?.id, add: null });
   // Trigger edit mode in the drawer after it opens
   setTimeout(() => {
     const drawer = document.querySelector('.add-member-drawer');
@@ -369,7 +276,7 @@ const handleMemberDelete = async (member) => {
   const getFullName = (m) => {
     return `${m.firstName || ''} ${m.lastName || ''}`.trim() || 'this member';
   };
-  
+
   showConfirmModal({
     title: 'Delete Member',
     message: `Are you sure you want to delete ${getFullName(member)}? This action cannot be undone.`,
@@ -399,61 +306,53 @@ const selectedMemberId = computed(() => {
 // Check if any side drawer is open (member details uses modal on mobile)
 const isDrawerOpen = computed(() => {
   const memberDetailsOpen = showDetailsComputed.value && !isMobile.value;
-  return showFilters.value || showAddMemberComputed.value || memberDetailsOpen;
+  return showAddMemberComputed.value || memberDetailsOpen;
 });
+
+// The button would sit on top of whatever a drawer or the details modal is
+// showing, and both carry their own actions anyway.
+const showFab = computed(() => !showAddMemberComputed.value && !showDetailsComputed.value);
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <!-- Search Bar and View Controls -->
+  <div class="relative flex flex-col h-full">
+    <!-- Search, export and add -->
     <MembersToolbar
       v-model:searchQuery="searchQuery"
-      v-model:viewMode="viewMode"
-      v-model:layoutMode="layoutMode"
-      v-model:showFilters="showFilters"
-      v-model:showAddMember="showAddMemberComputed"
-      :hasActiveFilters="hasActiveFilters"
-      :allTags="assignableTags"
-      :filters="filters"
       :resultCount="filteredMembers.length"
       :totalCount="members.length"
-      @export="showExport = true"
-      @switchLayout="handleSwitchLayout"
-      @removeFilter="handleRemoveFilter"
-      @clearFilters="handleClearFilters"
     />
 
     <!-- Members List -->
     <div class="flex-1 overflow-hidden bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex">
       <!-- Members Content -->
-      <div class="flex-1 min-w-0 h-full overflow-y-auto">
-      <!-- Grid Layout -->
-        <div v-if="layoutMode === 'grid'" :class="[
+      <div class="flex-1 min-w-0 h-full overflow-y-auto pb-20">
+        <MembersSummary
+          :stats="stats"
+          :agedTotal="agedTotal"
+          :birthdayMonthLabel="birthdayMonthLabel"
+          :loading="loading"
+        />
+
+      <!-- Grid on desktop, list on mobile - the viewport decides, not a toggle -->
+        <div v-if="!isMobile" :class="[
           'grid gap-3 p-3',
-          isMobile
-            ? 'grid-cols-2'
-            : (isDrawerOpen ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4')
+          isDrawerOpen ? 'grid-cols-2' : 'grid-cols-4'
         ]">
           <template v-if="loading">
-            <MemberCardSkeleton
-              v-for="i in 12"
-              :key="`skeleton-${i}`"
-              :viewMode="viewMode"
-            />
+            <MemberCardSkeleton v-for="i in 12" :key="`skeleton-${i}`" />
           </template>
           <MemberCard
             v-else
           v-for="member in filteredMembers"
           :key="member.id"
             :member="member"
-            :viewMode="viewMode"
             :selected="selectedMemberId === member.id || selectedMemberId === member.firestoreId"
             @click="handleMemberClick"
             @contextmenu="handleContextMenu"
           />
           </div>
 
-      <!-- List Layout -->
       <div v-else class="space-y-1 p-2">
           <template v-if="loading">
             <div
@@ -473,7 +372,6 @@ const isDrawerOpen = computed(() => {
           v-for="member in filteredMembers"
           :key="member.id"
             :member="member"
-            :viewMode="viewMode"
             :selected="selectedMemberId === member.id || selectedMemberId === member.firestoreId"
             @click="handleMemberClick"
             @contextmenu="handleContextMenu"
@@ -484,18 +382,6 @@ const isDrawerOpen = computed(() => {
         No members found matching your search.
       </div>
       </div>
-
-      <!-- Filter Drawer -->
-      <FilterDrawer
-        v-model:showFilters="showFilters"
-        :filters="filters"
-        v-model:sortBy="sortBy"
-        v-model:sortOrder="sortOrder"
-        :allTags="allTags"
-        :hasActiveFilters="hasActiveFilters"
-        @applyFilters="handleApplyFilters"
-        @clearFilters="handleClearFilters"
-      />
 
       <!-- Add Member Drawer -->
       <AddMemberDrawer
@@ -548,14 +434,20 @@ const isDrawerOpen = computed(() => {
       />
     </div>
 
+    <!-- Floating actions -->
+    <MembersFab
+      v-if="showFab"
+      @add="showAddMemberComputed = true"
+      @export="showExport = true"
+    />
+
     <!-- Export Dialog -->
     <ExportDialog
       v-model:showExport="showExport"
       :members="members"
-      :allTags="allTags"
+      :visibleCount="filteredMembers.length"
       :currentSortBy="sortBy"
       :currentSortOrder="sortOrder"
-      :currentFilters="filters"
       @export="handleExport"
     />
   </div>
@@ -563,28 +455,12 @@ const isDrawerOpen = computed(() => {
 
 <style scoped>
 /* Drawer column animations */
-.drawer-enter-active .filter-drawer,
-.drawer-enter-active .config-drawer,
-.drawer-enter-active .add-member-drawer {
-  transition: max-width 0.3s ease-out, opacity 0.3s ease;
-}
-
-.drawer-leave-active .filter-drawer,
-.drawer-leave-active .config-drawer,
+.drawer-enter-active .add-member-drawer,
 .drawer-leave-active .add-member-drawer {
   transition: max-width 0.3s ease-out, opacity 0.3s ease;
 }
 
-.drawer-enter-from .filter-drawer,
-.drawer-enter-from .config-drawer,
-.drawer-enter-from .add-member-drawer {
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-}
-
-.drawer-leave-to .filter-drawer,
-.drawer-leave-to .config-drawer,
+.drawer-enter-from .add-member-drawer,
 .drawer-leave-to .add-member-drawer {
   max-width: 0;
   opacity: 0;

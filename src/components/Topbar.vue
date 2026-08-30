@@ -9,6 +9,7 @@ import { useEmailDigest } from "../composables/useEmailDigest";
 import { subscribeToNotifications } from "../api/notifyService";
 import { useFocusTrap } from "../composables/useFocusTrap";
 import { useAuth } from "../composables/useAuth";
+import { useAvatars } from "../composables/useAvatars";
 import { useToast } from "../composables/useToast";
 import { useMembers } from "../composables/useMembers";
 import { useMyMember } from "../composables/useMyMember";
@@ -16,11 +17,14 @@ import { useMemberClaims } from "../composables/useMemberClaims";
 import { usePresence } from "../composables/usePresence";
 import { getFullName } from "../utils/memberUtils";
 import ClaimMemberSheet from "./auth/ClaimMemberSheet.vue";
+import MemberAvatar from "./members/MemberAvatar.vue";
 
 const route = useRoute();
 const router = useRouter();
 const { isDark, toggleTheme } = useTheme();
-const { displayName, email: userEmail, avatarUrl, logout } = useAuth();
+const { displayName, email: userEmail, logout } = useAuth();
+// Prefers the linked member record's photo over the sign-in thumbnail.
+const { myAvatarUrl } = useAvatars();
 const toast = useToast();
 const { isEnabled: notificationsEnabled, enabling, enable } = useNotifications();
 
@@ -98,6 +102,7 @@ const toggleMenu = () => {
 const pageTitle = computed(() => {
   const routeNames = {
     Home: 'Dashboard',
+    Members: 'People',
     MemberDetails: 'Member',
     MinuteDetails: 'Minutes',
     PrayerConcerns: 'Prayer Concerns',
@@ -360,10 +365,11 @@ const openMyProfile = () => {
               :aria-expanded="isUserMenuOpen"
               class="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
             >
-              <img
-                :src="avatarUrl"
+              <MemberAvatar
+                :member="myMember"
+                :src="myAvatarUrl"
                 alt="User Avatar"
-                class="w-8 h-8 rounded-full object-cover"
+                size="w-8 h-8"
               />
             </button>
 
@@ -384,10 +390,12 @@ const openMyProfile = () => {
                 class="absolute top-full right-0 mt-3 w-64 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border-2 border-primary/20 dark:border-primary-light/20 rounded-2xl shadow-2xl z-100 overflow-hidden"
               >
                 <div class="flex items-center gap-3 p-4">
-                  <img
-                    :src="avatarUrl"
+                  <MemberAvatar
+                    :member="myMember"
+                    :src="myAvatarUrl"
                     alt=""
-                    class="w-10 h-10 rounded-full object-cover border-2 border-primary/20"
+                    size="w-10 h-10"
+                    plain-class="border-2 border-primary/20"
                   />
                   <div class="min-w-0">
                     <p

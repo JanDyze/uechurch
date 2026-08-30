@@ -127,32 +127,6 @@ const styles = {
   },
 };
 
-// Apply filters to members
-const applyFilters = (members, filters) => {
-  let result = [...members];
-
-  if (filters.tags && filters.tags.length > 0) {
-    result = result.filter((member) => {
-      if (!member.tags || !Array.isArray(member.tags)) return false;
-      return filters.tags.some((tag) => member.tags.includes(tag));
-    });
-  }
-
-  if (filters.isMember !== null && filters.isMember !== undefined) {
-    result = result.filter((member) => member.isMember === filters.isMember);
-  }
-
-  if (filters.sex) {
-    result = result.filter((member) => member.sex === filters.sex);
-  }
-
-  if (filters.civilStatus) {
-    result = result.filter((member) => member.civilStatus === filters.civilStatus);
-  }
-
-  return result;
-};
-
 // Sort members
 const sortMembers = (members, sortBy, sortOrder) => {
   const sorted = [...members];
@@ -209,13 +183,9 @@ const getCellStyle = (fieldKey, value, rowIndex) => {
 
 // Export members to Excel (.xlsx) with styling
 export const exportToExcel = (members, config) => {
-  // Apply filters
-  let dataToExport = config.useCurrentFilters
-    ? applyFilters(members, config.filters)
-    : members;
-
-  // Apply sorting
-  dataToExport = sortMembers(dataToExport, config.sortBy, config.sortOrder);
+  // The caller decides which members to hand over (all, or just what the
+  // search is showing) - this only sorts them.
+  const dataToExport = sortMembers(members, config.sortBy, config.sortOrder);
 
   // Get selected headers
   const headers = availableFields

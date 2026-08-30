@@ -3,17 +3,19 @@ import { computed, ref, watch } from 'vue'
 import { ChevronLeft, ChevronRight, Users, X } from '../icons'
 import { usePresence } from '../composables/usePresence'
 import { useAuth } from '../composables/useAuth'
+import { useAvatars } from '../composables/useAvatars'
 import { useFocusTrap } from '../composables/useFocusTrap'
 import { useMediaQuery } from '../composables/useMediaQuery'
-import { getAccountAvatarUrl } from '../utils/memberUtils'
 import ActivePeopleList from './people/ActivePeopleList.vue'
+import MemberAvatar from './members/MemberAvatar.vue'
 
 // The people rail. On a wide screen it is a permanent right-hand column, the
 // way Facebook keeps its contacts list; anywhere narrower it collapses into a
 // drawer opened from the Topbar, since the content column needs the width more
 // than the rail does.
 const { visitors, onlineCount, showPeoplePanel, isRailCollapsed, toggleRail } = usePresence()
-const { displayName, avatarUrl } = useAuth()
+const { displayName } = useAuth()
+const { accountMember, accountAvatarUrl, myMember, myAvatarUrl } = useAvatars()
 
 // Collapsed, the rail is a strip of faces. Past a handful it would run off the
 // bottom of a laptop screen, so the rest are counted instead.
@@ -21,8 +23,19 @@ const STRIP_LIMIT = 6
 const stripVisitors = computed(() => visitors.value.slice(0, STRIP_LIMIT))
 const stripOverflow = computed(() => Math.max(0, visitors.value.length - STRIP_LIMIT))
 
-const visitorAvatar = (visitor) =>
-  getAccountAvatarUrl({ photoURL: visitor.photoURL, uid: visitor.uid || visitor.id })
+const visitorAccount = (visitor) => ({
+  photoURL: visitor.photoURL,
+  uid: visitor.uid || visitor.id,
+})
+const visitorAvatar = (visitor) => accountAvatarUrl(visitorAccount(visitor))
+const visitorMember = (visitor) => accountMember(visitorAccount(visitor))
+
+// The tally counts you, which is why the list does too.
+const onlineLabel = computed(() =>
+  onlineCount.value
+    ? `You and ${onlineCount.value} ${onlineCount.value === 1 ? 'other' : 'others'} online`
+    : 'You are the only one online'
+)
 
 const drawerRef = ref(null)
 useFocusTrap(drawerRef, showPeoplePanel, () => {
@@ -50,11 +63,13 @@ watch(railIsVisible, (visible) => {
     >
       <template v-if="!isRailCollapsed">
         <Users class="h-4 w-4 shrink-0 text-primary dark:text-primary-light" />
-        <h2 class="flex-1 text-sm font-bold text-gray-900 dark:text-white">People</h2>
+        <h2 class="flex-1 text-sm font-bold text-gray-900 dark:text-white">Online Souls</h2>
         <span
           class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 dark:text-slate-500"
+          :title="onlineLabel"
+          :aria-label="onlineLabel"
         >
-          <span class="h-2 w-2 rounded-full bg-emerald-500" />
+          <span class="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
           {{ onlineCount + 1 }}
         </span>
       </template>
@@ -65,8 +80,8 @@ watch(railIsVisible, (visible) => {
           'flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/5 transition-colors',
           isRailCollapsed ? 'mx-auto' : '',
         ]"
-        :title="isRailCollapsed ? 'Show people' : 'Hide people'"
-        :aria-label="isRailCollapsed ? 'Show people' : 'Hide people'"
+        :title="isRailCollapsed ? 'Show online souls' : 'Hide online souls'"
+        :aria-label="isRailCollapsed ? 'Show online souls' : 'Hide online souls'"
         :aria-expanded="!isRailCollapsed"
       >
         <ChevronLeft v-if="isRailCollapsed" class="h-4 w-4" />
@@ -82,18 +97,19 @@ watch(railIsVisible, (visible) => {
         @click="toggleRail"
         class="w-full flex justify-center py-1.5"
         :title="`${displayName} (you)`"
-        :aria-label="`${displayName} (you). Show people`"
+        :aria-label="`${displayName} (you). Show online souls`"
       >
-        <span class="relative">
-          <img
-            :src="avatarUrl"
-            alt=""
-            class="h-9 w-9 rounded-full object-cover bg-gray-100 dark:bg-slate-800 ring-2 ring-primary"
-          />
+        <MemberAvatar
+          :member="myMember"
+          :src="myAvatarUrl"
+          alt=""
+          size="h-9 w-9"
+          plain-class="ring-2 ring-primary"
+        >
           <span
             class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950"
           />
-        </span>
+        </MemberAvatar>
       </button>
 
       <button
@@ -106,25 +122,25 @@ watch(railIsVisible, (visible) => {
             ? `${visitor.name || 'Someone'} · ${visitor.sessionCount} devices`
             : visitor.name || 'Someone'
         "
-        :aria-label="`${visitor.name || 'Someone'} is active now. Show people`"
+        :aria-label="`${visitor.name || 'Someone'} is active now. Show online souls`"
       >
-        <span class="relative">
-          <img
-            :src="visitorAvatar(visitor)"
-            alt=""
-            class="h-9 w-9 rounded-full object-cover bg-gray-100 dark:bg-slate-800"
-          />
+        <MemberAvatar
+          :member="visitorMember(visitor)"
+          :src="visitorAvatar(visitor)"
+          alt=""
+          size="h-9 w-9"
+        >
           <span
             class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950"
           />
-        </span>
+        </MemberAvatar>
       </button>
 
       <button
         v-if="stripOverflow"
         @click="toggleRail"
         class="w-full flex justify-center py-1.5"
-        :aria-label="`${stripOverflow} more people active. Show people`"
+        :aria-label="`${stripOverflow} more souls online. Show online souls`"
       >
         <span
           class="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 dark:bg-slate-800 text-xs font-bold text-gray-500 dark:text-slate-400"
@@ -157,12 +173,14 @@ watch(railIsVisible, (visible) => {
               id="people-drawer-title"
               class="flex-1 text-sm font-bold text-gray-900 dark:text-white"
             >
-              People
+              Online Souls
             </h2>
             <span
               class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 dark:text-slate-500"
+              :title="onlineLabel"
+              :aria-label="onlineLabel"
             >
-              <span class="h-2 w-2 rounded-full bg-emerald-500" />
+              <span class="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
               {{ onlineCount + 1 }}
             </span>
             <button
