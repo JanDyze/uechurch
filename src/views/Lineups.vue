@@ -52,6 +52,7 @@ import { copyText } from '../utils/clipboard'
 import { formatLyricsSheet, songLyricsText } from '../utils/songUtils'
 import LineupServicePanel from '../components/lineups/LineupServicePanel.vue'
 import LineupServiceRow from '../components/lineups/LineupServiceRow.vue'
+import SundayEditorDrawer from '../components/lineups/SundayEditorDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -170,111 +171,51 @@ const otherPast = computed(() => past.value.filter((s) => s.date !== focusedDate
 
 const showPast = ref(false)
 
-/**
- * Forces the open panel to rebuild.
- *
- * The panel keeps a local copy of the service and deliberately does not
- * re-seed when the same date changes underneath — that change is usually its
- * own edit coming back, and replacing the form would move the cursor out of
- * whatever is being typed. Clearing a service is the exception: the date does
- * not change but everything in it just went, and without this the panel would
- * go on showing the songs it no longer has.
- */
-const panelNonce = ref(0)
-
 const focus = (date) => {
   focusedDate.value = date
   // Opening a service from the past list should not then hide it again.
   if (date < todayIso()) showPast.value = true
 }
 
+onUnmounted(() => unsubscribeSongs?.())
+
 /* -------------------------------------------------------------------------
- * Saving
- * The panel has no Save button. Edits arrive here as they are made and are
- * written a beat later, the way the presenter's run sheet works — a Sunday
- * morning is no time to remember to press something.
+ * Editing
+ * In a drawer rather than on the panel. Reading a month and changing one
+ * service are different jobs: the panel is laid out to be read, and the drawer
+ * gives the editing a screen of its own, with room for the song picker and the
+ * member search, then closes and gets out of the way.
  * ---------------------------------------------------------------------- */
 
+const showEditor = ref(false)
+const editingSunday = ref(null)
 const saving = ref(false)
 
-/** What is stored, as a string, so a write that would change nothing is not
- *  sent — including this page's own write arriving back from Firestore. */
-const signatureOf = (sunday) => JSON.stringify(sunday || null)
+const openEditor = (sunday) => {
+  if (!canPlan.value) return
+  editingSunday.value = sunday
+  showEditor.value = true
+}
 
-let savedSignature = ''
-let saveTimer = null
-/** The edit waiting to be written, held out of `sundays` so the panel is never
- *  re-seeded from a half-typed value. */
-let pending = null
-
-const persistNow = async () => {
-  const next = pending
-  if (!next) return
-
-  const signature = signatureOf(next)
-  if (signature === savedSignature) {
-    pending = null
-    return
-  }
-
+const handleSave = async (sunday) => {
   saving.value = true
   try {
-    await saveSunday(next)
-    savedSignature = signature
-    pending = null
+    await saveSunday(sunday)
+    showEditor.value = false
+    toast.success('Service saved')
   } catch (error) {
-    // Left pending on purpose: the next edit retries the whole service rather
-    // than leaving a gap in it.
     console.error('Error saving lineup service:', error)
-    toast.error('Could not save. Your next change will try again.')
+    toast.error('Could not save the service. Please try again.')
   } finally {
     saving.value = false
   }
 }
 
-/**
- * Called by the panel on every change.
- *
- * Debounced hard enough to cover typing a theme or a key, which would
- * otherwise be a write per keystroke.
- */
-const onPanelChange = (edited) => {
-  if (!canPlan.value) return
-  pending = edited
-  clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
-    saveTimer = null
-    persistNow()
-  }, 800)
-}
-
-// Switching service or leaving the page must not drop what was just typed.
-watch(focusedDate, () => {
-  if (saveTimer) {
-    clearTimeout(saveTimer)
-    saveTimer = null
-    persistNow()
-  }
-  savedSignature = ''
-})
-
-onUnmounted(() => {
-  if (saveTimer) {
-    clearTimeout(saveTimer)
-    persistNow()
-  }
-  unsubscribeSongs?.()
-})
-
 const handleClear = async (date) => {
-  clearTimeout(saveTimer)
-  saveTimer = null
-  pending = null
   saving.value = true
   try {
     await clearSunday(date)
-    savedSignature = ''
-    panelNonce.value += 1
+    showEditor.value = false
     toast.success('Service cleared')
   } catch (error) {
     console.error('Error clearing lineup service:', error)
@@ -489,17 +430,13 @@ const copySundayLyrics = async (sunday) => {
         <!-- The service you came for -->
         <template v-if="focused">
           <LineupServicePanel
-            :key="`${focused.date}-${panelNonce}`"
             :sunday="focused"
             :members="members"
-            :songs="songs"
             :can-edit="canPlan"
             :is-mine="isMyService(focused)"
             :is-next="focused.date === upcoming[0]?.date"
             :is-past="focused.date < todayIso()"
-            :saving="saving"
-            @change="onPanelChange"
-            @clear="handleClear"
+            @edit="openEditor"
           />
 
           <!-- Tech grabs the whole service's words in one go, in service order. -->
@@ -565,5 +502,15 @@ const copySundayLyrics = async (sunday) => {
         </p>
       </template>
     </div>
+
+    <SundayEditorDrawer
+      v-model:show="showEditor"
+      :sunday="editingSunday"
+      :members="members"
+      :songs="songs"
+      :saving="saving"
+      @save="handleSave"
+      @clear="handleClear"
+    />
   </div>
 </template>

@@ -23,6 +23,22 @@ git diff --stat
 Read enough of the diff to describe it truthfully. Never write a message from
 the file list alone.
 
+**`npm run build` passing does not mean a Vue change works.** An SFC compiles
+happily with an undefined identifier in its template, or a `const` used above
+where it is declared inside an immediate watcher — both fail only when the
+component mounts. Both have shipped to the user that way. For a changed
+component, render it in Node before claiming it works:
+
+```
+# a temporary entry that imports the components and renderToString()s them
+npx vite build --ssr src/__ssrcheck.js --outDir dist-ssr/check --logLevel error
+node dist-ssr/check/__ssrcheck.js
+rm -f src/__ssrcheck.js && rm -rf dist-ssr
+```
+
+Cover the states the props actually take — editable and read-only, full and
+empty — and delete the scratch entry afterwards.
+
 **Never commit:**
 - `dist/`, `node_modules/` — build output and dependencies.
 - `data/bible/`, `backups/` — gitignored: 189 MB of publisher-copyrighted

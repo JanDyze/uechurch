@@ -11,6 +11,21 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.9.2] — 2026-09-04
+
+### Changed
+- **Editing is back in a drawer.** In-place editing put three pickers and a
+  dozen inputs inside a panel meant to be read. The focused service is now a
+  display panel with one Edit button; the drawer opens over it with room for
+  the song picker and the member search, and closes again.
+- Autosave goes with it — the drawer saves on Save, as it did before.
+- The panel reads better for it: leader, band, the order with keys, notes, each
+  under its own heading, and the "You're leading" summary still on top.
+
+### Kept
+- The focus-plus-rows month, one permission, and the worship-ministry band
+  filter are all unchanged.
+
 ## [0.9.1] — 2026-09-04
 
 ### Fixed
