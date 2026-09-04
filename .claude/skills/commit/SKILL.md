@@ -31,7 +31,20 @@ the file list alone.
 - Scratch and throwaway files (`__t.mjs`, one-off `*.test.mjs`, temp scripts).
   Leave them untracked and say so; delete only if the user asks.
 
-Prefer `git add <paths>` over `git add -A` so nothing above slips in.
+**Stage explicit paths. Never `git add -A` or `git add .`.**
+
+The person who owns this repo edits it in parallel, in their own editor, while
+you work. A sweep does not just risk the files listed above — it captures
+whatever they were in the middle of and buries it in a commit whose message
+says nothing about it. This has happened. List the paths you touched:
+
+```
+git add src/views/Lineups.vue src/composables/useLineups.js CHANGELOG.md
+```
+
+Then `git status --short` again before committing, and confirm the staged set
+is exactly what you changed. Anything staged that you did not write is theirs:
+leave it unstaged, finish your commit without it, and tell them it is there.
 
 ## 2. Decide the bump
 
