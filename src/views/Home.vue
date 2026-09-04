@@ -27,7 +27,7 @@ import { useTasks } from '../composables/useTasks'
 import { useMemberClaims } from '../composables/useMemberClaims'
 import { useAllLineups } from '../composables/useLineups'
 import { subscribeToNotifications } from '../api/notifyService'
-import { getFullName } from '../utils/memberUtils'
+import { getDisplayName } from '../utils/memberUtils'
 import { memberKey } from '../utils/sgUtils'
 import { formatServiceDate } from '../utils/lineupUtils'
 import { isAssignedTo, isDueToday, isOverdue } from '../utils/taskUtils'
@@ -420,7 +420,7 @@ const barHeight = (share) => `${Math.max(3, Math.round((Number(share) || 0) * 0.
             <MemberAvatar v-if="serviceLeader" :member="serviceLeader" alt="" size="h-10 w-10" />
             <div class="min-w-0">
               <p class="text-sm font-black text-gray-900 dark:text-white truncate">
-                {{ serviceLeader ? getFullName(serviceLeader) : 'No leader assigned' }}
+                {{ serviceLeader ? getDisplayName(serviceLeader) : 'No leader assigned' }}
               </p>
               <p class="text-[11px] font-bold text-gray-400 truncate">
                 {{ formatServiceDate(upcomingService.date)

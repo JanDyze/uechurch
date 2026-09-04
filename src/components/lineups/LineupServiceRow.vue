@@ -12,7 +12,7 @@
  */
 import { computed } from 'vue'
 import { ChevronRight, Mic2, Warning } from '../../icons'
-import { getFullName } from '../../utils/memberUtils'
+import { getDisplayName } from '../../utils/memberUtils'
 import { memberKey } from '../../utils/sgUtils'
 import MemberAvatar from '../members/MemberAvatar.vue'
 import { formatShortDate } from '../../utils/lineupUtils'
@@ -84,7 +84,7 @@ const needsLeader = computed(() => props.showGaps && !props.isPast && !props.sun
             leader ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500',
           ]"
         >
-          {{ leader ? getFullName(leader) : 'No leader' }}
+          {{ leader ? getDisplayName(leader) : 'No leader' }}
         </span>
         <span class="block truncate text-[11px] font-medium text-gray-400">
           {{ songCount }} {{ songCount === 1 ? 'song' : 'songs' }}

@@ -8,16 +8,61 @@
 
 export const versionHistory = [
   {
-    version: '0.8.0',
+    version: '0.9.3',
     date: '2026-09-04',
-    title: 'Song leaders can plan their own service',
+    title: 'Notes have left the lineup',
     summary:
-      'Lineups now has two people in mind: the ministry head who staffs a service, and the leader who plans its songs.',
+      'The notes boxes on the month and on each service are both gone. Notes on an individual song stay.',
     highlights: [
-      'Being named a Sunday’s leader lets you choose that service’s songs, theme and notes — no extra permission needed.',
-      'Leaders can open the month while it is still a draft, so songs are ready before it is published.',
-      'Your own services carry a "You’re leading" badge, and the month summary tells you how many you have.',
-      'Adding an off-Sunday service date is gone — the month is the calendar’s Sundays.',
+      'A song can still carry its own note — "opener", "key change on the last chorus". That is the one people actually read mid-service.',
+      'A Sunday no longer counts as unplanned just because nobody wrote a note on it.',
+    ],
+  },
+  {
+    version: '0.9.2',
+    date: '2026-09-04',
+    title: 'Editing opens in a drawer again',
+    summary:
+      'The service you are reading and the form you edit it in are two different things again.',
+    highlights: [
+      'A service is a panel you read, with one Edit button.',
+      'The drawer opens over it with room for the song picker and the member search, and saves when you press Save.',
+    ],
+  },
+  {
+    version: '0.9.0',
+    date: '2026-09-04',
+    title: 'One permission for lineups',
+    summary:
+      'Anyone granted Worship lineups plans all of it. Leading a Sunday changes what you see, not what you may do.',
+    highlights: [
+      'Whoever can plan lineups can set the leader, the band and the songs.',
+      'The service you are leading opens first and carries a "You’re leading" badge.',
+      'That service gains a summary: how many songs, who you are playing with, and what is still missing.',
+    ],
+  },
+  {
+    version: '0.8.3',
+    date: '2026-09-04',
+    title: 'One service at a time',
+    summary:
+      'Lineups used to be a scrolling stack of fully expanded Sundays. Now the one you came for is open and the rest are a line each.',
+    highlights: [
+      'The service that opens is the next one you are leading, or simply the next one.',
+      'Past services fold away instead of eating half the scroll.',
+      'Each closed row still says the leader, the song count, the band size and the theme.',
+      'The month is the calendar’s Sundays — adding an off-Sunday date is gone.',
+    ],
+  },
+  {
+    version: '0.8.2',
+    date: '2026-09-04',
+    title: 'The band picker knows who plays',
+    summary:
+      'Picking a band offers the worship ministries rather than the whole congregation.',
+    highlights: [
+      'Song Leader and Instrumentalist — between them, the band.',
+      'A "Show all members" way out is still there for a visiting musician.',
     ],
   },
   {

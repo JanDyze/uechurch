@@ -17,7 +17,7 @@
  */
 import { computed } from 'vue'
 import { ListMusic, Mic2, Pencil, Users } from '../../icons'
-import { getAvatarUrl, getFullName } from '../../utils/memberUtils'
+import { getAvatarUrl, getDisplayName } from '../../utils/memberUtils'
 import { memberKey } from '../../utils/sgUtils'
 import MemberAvatar from '../members/MemberAvatar.vue'
 import { formatServiceDate } from '../../utils/lineupUtils'
@@ -38,7 +38,7 @@ const memberById = (id) =>
   null
 
 const leader = computed(() => memberById(props.sunday.leaderId))
-const leaderName = computed(() => (leader.value ? getFullName(leader.value) : ''))
+const leaderName = computed(() => (leader.value ? getDisplayName(leader.value) : ''))
 
 const team = computed(() =>
   (props.sunday.teamIds || []).map((id) => ({ id, member: memberById(id) }))
@@ -54,7 +54,7 @@ const songs = computed(() => props.sunday.songs || [])
  * Sunday is ready.
  */
 const bandNames = computed(() =>
-  team.value.map((row) => (row.member ? getFullName(row.member) : 'Former member'))
+  team.value.map((row) => (row.member ? getDisplayName(row.member) : 'Former member'))
 )
 
 const readiness = computed(() => {
@@ -183,7 +183,7 @@ const readiness = computed(() => {
               alt=""
               class="h-5 w-5 rounded-full object-cover"
             />
-            {{ row.member ? getFullName(row.member) : 'Former member' }}
+            {{ row.member ? getDisplayName(row.member) : 'Former member' }}
           </span>
         </div>
         <p v-else class="text-xs text-gray-400 dark:text-gray-500">Nobody on the band yet.</p>

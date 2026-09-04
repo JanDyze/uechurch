@@ -2,7 +2,7 @@
 // calendar dates (never UTC — an evening in Manila must not roll a service
 // back to Saturday), plus the song-key lookup that ties a lineup to the song
 // list.
-import { getFullName } from './memberUtils'
+import { getDisplayName } from './memberUtils'
 import { memberKey } from './sgUtils'
 
 /** Members serving in this ministry are offered as song leaders. */
@@ -106,7 +106,7 @@ const inMinistries = (members, names) =>
     .filter((m) =>
       (m.ministries || []).some((ministry) => names.includes(String(ministry).toLowerCase()))
     )
-    .sort((a, b) => getFullName(a).localeCompare(getFullName(b)))
+    .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
 
 /**
  * Members serving in the Song Leader ministry; everyone else stays out of the
@@ -149,7 +149,7 @@ const loadRows = (counts, members) =>
   [...counts.entries()]
     .map(([id, count]) => {
       const member = members.find((m) => memberKey(m) === id || String(m.firestoreId) === id)
-      return { id, count, name: member ? getFullName(member) : 'Unknown', member }
+      return { id, count, name: member ? getDisplayName(member) : 'Unknown', member }
     })
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 

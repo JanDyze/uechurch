@@ -11,7 +11,7 @@ import {
 } from '../../icons'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
-import { getAvatarUrl, getFullName } from '../../utils/memberUtils'
+import { getAvatarUrl, getDisplayName, getFullName } from '../../utils/memberUtils'
 import MemberAvatar from '../members/MemberAvatar.vue'
 import { memberKey } from '../../utils/sgUtils'
 import {
@@ -75,7 +75,7 @@ const noLeadersAssigned = computed(() => leaders.value.length === 0)
 
 const leaderOptions = computed(() => {
   if (showAllMembers.value || noLeadersAssigned.value) {
-    return [...props.members].sort((a, b) => getFullName(a).localeCompare(getFullName(b)))
+    return [...props.members].sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
   }
   return leaders.value
 })
@@ -86,8 +86,16 @@ const memberById = (id) =>
 
 const leaderName = computed(() => {
   const member = memberById(form.value?.leaderId)
-  return member ? getFullName(member) : ''
+  return member ? getDisplayName(member) : ''
 })
+
+// A native <option> is one line of text, so the full name trails the nickname
+// here instead of sitting beneath it as it does in the band picker below.
+const leaderOptionLabel = (member) => {
+  const display = getDisplayName(member)
+  const full = getFullName(member)
+  return display === full ? full : `${display} — ${full}`
+}
 
 const songById = (songId) => props.songs.find((s) => String(s.id) === String(songId)) || null
 
@@ -143,8 +151,8 @@ const teamCandidates = computed(() => {
     showAllForTeam.value || noWorshipAssigned.value ? props.members : worshipTeam.value
   return pool
     .filter((m) => !chosen.has(memberKey(m)) && memberKey(m) !== String(form.value?.leaderId))
-    .filter((m) => !q || getFullName(m).toLowerCase().includes(q))
-    .sort((a, b) => getFullName(a).localeCompare(getFullName(b)))
+    .filter((m) => !q || `${getFullName(m)} ${getDisplayName(m)}`.toLowerCase().includes(q))
+    .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
     .slice(0, 8)
 })
 
@@ -238,7 +246,7 @@ const handleSave = () => {
               >
                 <option value="">Unassigned</option>
                 <option v-for="member in leaderOptions" :key="memberKey(member)" :value="memberKey(member)">
-                  {{ getFullName(member) }}
+                  {{ leaderOptionLabel(member) }}
                 </option>
               </select>
               <p v-if="noLeadersAssigned" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
@@ -380,12 +388,12 @@ const handleSave = () => {
                     alt=""
                     class="h-5 w-5 rounded-full object-cover"
                   />
-                  {{ row.member ? getFullName(row.member) : 'Former member' }}
+                  {{ row.member ? getDisplayName(row.member) : 'Former member' }}
                   <button
                     type="button"
                     @click="removeFromTeam(row.id)"
                     class="text-gray-400 hover:text-red-600"
-                    :aria-label="`Remove ${row.member ? getFullName(row.member) : 'member'}`"
+                    :aria-label="`Remove ${row.member ? getDisplayName(row.member) : 'member'}`"
                   >
                     <X class="h-3.5 w-3.5" />
                   </button>
@@ -431,8 +439,16 @@ const handleSave = () => {
                   class="w-full flex items-center gap-2 p-2 rounded-lg text-left hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
                   <MemberAvatar :member="member" alt="" size="h-7 w-7" />
-                  <span class="text-sm text-gray-800 dark:text-gray-100 truncate">
-                    {{ getFullName(member) }}
+                  <span class="min-w-0">
+                    <span class="block truncate text-sm text-gray-800 dark:text-gray-100">
+                      {{ getDisplayName(member) }}
+                    </span>
+                    <span
+                      v-if="getFullName(member) !== getDisplayName(member)"
+                      class="block truncate text-xs text-gray-500 dark:text-gray-400"
+                    >
+                      {{ getFullName(member) }}
+                    </span>
                   </span>
                 </button>
                 <p v-if="!teamCandidates.length" class="p-2 text-xs text-gray-500 dark:text-gray-400">

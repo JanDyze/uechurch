@@ -3,7 +3,9 @@ import { onMounted, watch } from 'vue'
 import { useTheme } from './composables/useTheme'
 import { useNotifications } from './composables/useNotifications'
 import { useAppSettings } from './composables/useAppSettings'
+import { useVersionCheck } from './composables/useVersionCheck'
 import ToastContainer from './components/common/ToastContainer.vue'
+import WhatsNewModal from './components/common/WhatsNewModal.vue'
 
 const { isTransitioning, isDark, transitionOrigin } = useTheme()
 
@@ -25,7 +27,15 @@ watch(
 
 // Re-attach push handlers/token if notifications were already allowed
 const { init: initNotifications } = useNotifications()
-onMounted(initNotifications)
+
+// The service worker reloads the page itself when a deploy lands, so this runs
+// on the build the user has just been moved onto.
+const { checkOnLaunch: checkAppVersion } = useVersionCheck()
+
+onMounted(() => {
+  initNotifications()
+  checkAppVersion()
+})
 </script>
 
 <template>
@@ -34,6 +44,9 @@ onMounted(initNotifications)
     
     <!-- Global Toast Notifications -->
     <ToastContainer />
+
+    <!-- Tells the user what changed after the service worker moved them to a new build -->
+    <WhatsNewModal />
     
     <!-- Theme transition overlay - circular reveal -->
     <div 

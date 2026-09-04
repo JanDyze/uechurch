@@ -3,6 +3,18 @@ export const getFullName = (member) => {
   return `${member.firstName} ${member.lastName}`;
 };
 
+/**
+ * What to call someone on a roster: their nickname when the record carries
+ * one, otherwise their first name. Never a surname.
+ *
+ * A lineup is read at a glance by people who already know each other, so the
+ * band chips and the leader line want the name that gets used out loud. Use
+ * getFullName instead wherever someone is being *identified* rather than
+ * addressed — an export, a claim screen, an audit row.
+ */
+export const getDisplayName = (member) =>
+  member?.nickname?.trim() || member?.firstName || "";
+
 export const getAvatarUrl = (member) => {
   // If member has a custom image (base64), use it
   if (member.image) {

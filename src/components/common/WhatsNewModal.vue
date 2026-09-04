@@ -1,66 +1,208 @@
 <script setup>
-import { computed } from 'vue'
-import { XMarkIcon } from '@heroicons/vue/24/outline'
+import { ref, computed } from 'vue'
+import { X, Sparkles, ChevronDown } from '../../icons'
+import { useFocusTrap } from '../../composables/useFocusTrap'
+import { useVersionCheck } from '../../composables/useVersionCheck'
 
-const props = defineProps({
-  open: Boolean,
-  versionInfo: Object,
+const { isOpen, releasesToShow, hasUnseenReleases, currentVersion, versionHistory, close } =
+  useVersionCheck()
+
+// The whole history is a long read, so it is a second view rather than more of
+// the first one, and only one release is open in it at a time.
+const showAll = ref(false)
+const expandedVersion = ref(null)
+
+const openAll = () => {
+  showAll.value = true
+  expandedVersion.value = versionHistory[0]?.version ?? null
+}
+
+const toggle = (version) => {
+  expandedVersion.value = expandedVersion.value === version ? null : version
+}
+
+const dismiss = () => {
+  showAll.value = false
+  expandedVersion.value = null
+  close()
+}
+
+const dialogRef = ref(null)
+useFocusTrap(dialogRef, isOpen, dismiss)
+
+// Reached two ways, and it should not tell someone who came looking that
+// something has changed when nothing has.
+const subtitle = computed(() => {
+  if (showAll.value) return `${versionHistory.length} releases so far`
+  if (!hasUnseenReleases.value) return `You're on the latest version, v${currentVersion}`
+  if (releasesToShow.value.length > 1)
+    return `${releasesToShow.value.length} updates since you were last here`
+  return 'The app has been updated'
 })
 
-const emit = defineEmits(['close'])
-
-const formattedDate = computed(() => {
-  if (!props.versionInfo?.date) return ''
-  return props.versionInfo.date.toLocaleDateString('en-US', {
+const formatDate = (iso) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   })
-})
 </script>
 
 <template>
+  <!-- z-120 matches ConfirmationModal: this opens over whatever drawer or
+       sheet the app happened to restore on launch. -->
   <Teleport to="body">
-    <Transition name="modal-fade">
-      <div v-if="open" class="modal-overlay" @click.self="emit('close')">
-        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="version-title">
-          <!-- Close button -->
-          <button
-            class="close-button"
-            @click="emit('close')"
-            aria-label="Close what's new modal"
-          >
-            <XMarkIcon class="w-6 h-6" />
-          </button>
-
+    <Transition name="whats-new">
+      <div
+        v-if="isOpen"
+        class="fixed inset-0 z-120 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm sm:p-4"
+        @click.self="dismiss"
+      >
+        <div
+          ref="dialogRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="whats-new-title"
+          tabindex="-1"
+          class="flex flex-col w-full sm:max-w-lg max-h-[85dvh] sm:max-h-[80dvh] bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-xl"
+          @click.stop
+        >
           <!-- Header -->
-          <div class="modal-header">
-            <div class="version-badge">v{{ versionInfo?.version }}</div>
-            <h2 id="version-title" class="modal-title">{{ versionInfo?.title }}</h2>
-            <p class="modal-subtitle">{{ versionInfo?.description }}</p>
-            <p class="release-date">Released {{ formattedDate }}</p>
+          <div
+            class="shrink-0 flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-4 border-b border-gray-200 dark:border-gray-700"
+          >
+            <div class="flex items-start gap-3 min-w-0">
+              <span
+                class="shrink-0 grid place-items-center h-10 w-10 rounded-full text-white"
+                :style="{ background: 'var(--color-primary)' }"
+              >
+                <Sparkles class="h-5 w-5" />
+              </span>
+              <div class="min-w-0">
+                <h2
+                  id="whats-new-title"
+                  class="text-lg font-semibold text-gray-900 dark:text-white"
+                >
+                  {{ showAll ? 'All releases' : "What's new" }}
+                </h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ subtitle }}
+                </p>
+              </div>
+            </div>
+            <button
+              @click="dismiss"
+              aria-label="Close"
+              class="shrink-0 p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <X class="h-5 w-5" />
+            </button>
           </div>
 
-          <!-- Breaking Changes Badge -->
-          <div v-if="versionInfo?.breaking" class="breaking-badge">
-            ⚠️ Breaking Changes in this release
+          <!-- Releases -->
+          <div class="flex-1 overflow-y-auto px-5 sm:px-6 py-5">
+            <div v-if="!showAll" class="space-y-6">
+            <section v-for="release in releasesToShow" :key="release.version">
+              <div class="flex items-baseline gap-2 flex-wrap">
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                  {{ release.title }}
+                </h3>
+                <span
+                  class="text-xs font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                >
+                  v{{ release.version }}
+                </span>
+              </div>
+              <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                {{ formatDate(release.date) }}
+              </p>
+              <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                {{ release.summary }}
+              </p>
+              <ul class="mt-3 space-y-2">
+                <li
+                  v-for="(item, i) in release.highlights"
+                  :key="i"
+                  class="flex gap-2.5 text-sm text-gray-700 dark:text-gray-300"
+                >
+                  <span
+                    class="shrink-0 mt-1.5 h-1.5 w-1.5 rounded-full"
+                    :style="{ background: 'var(--color-primary)' }"
+                  />
+                  <span>{{ item }}</span>
+                </li>
+              </ul>
+            </section>
+
+            <!-- Only reachable on a build with no entry of its own — a local
+                 dev run, where the version is not substituted in. -->
+            <p
+              v-if="!releasesToShow.length"
+              class="text-sm text-gray-500 dark:text-gray-400"
+            >
+              No release notes for this build.
+            </p>
+            </div>
+
+            <!-- Every release, titles only until one is opened. -->
+            <div v-else class="divide-y divide-gray-100 dark:divide-gray-700">
+              <div v-for="release in versionHistory" :key="release.version">
+                <button
+                  type="button"
+                  @click="toggle(release.version)"
+                  :aria-expanded="expandedVersion === release.version"
+                  class="w-full flex items-center gap-3 py-3 text-left"
+                >
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">
+                      {{ release.title }}
+                    </span>
+                    <span class="block text-xs text-gray-400 dark:text-gray-500">
+                      v{{ release.version }} &middot; {{ formatDate(release.date) }}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    class="h-4 w-4 shrink-0 text-gray-400 transition-transform"
+                    :class="expandedVersion === release.version ? 'rotate-180' : ''"
+                  />
+                </button>
+                <div v-if="expandedVersion === release.version" class="pb-4">
+                  <p class="text-sm text-gray-600 dark:text-gray-300">{{ release.summary }}</p>
+                  <ul class="mt-3 space-y-2">
+                    <li
+                      v-for="(item, i) in release.highlights"
+                      :key="i"
+                      class="flex gap-2.5 text-sm text-gray-700 dark:text-gray-300"
+                    >
+                      <span
+                        class="shrink-0 mt-1.5 h-1.5 w-1.5 rounded-full"
+                        :style="{ background: 'var(--color-primary)' }"
+                      />
+                      <span>{{ item }}</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Changes List -->
-          <div class="changes-section">
-            <h3 class="section-title">What's New</h3>
-            <ul class="changes-list">
-              <li v-for="(change, index) in versionInfo?.changes" :key="index" class="change-item">
-                <span class="change-bullet">✨</span>
-                <span class="change-text">{{ change }}</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Footer -->
-          <div class="modal-footer">
-            <button class="dismiss-button" @click="emit('close')">
-              Got it!
+          <!-- Footer. pb accounts for the phone's home indicator. -->
+          <div
+            class="shrink-0 px-5 sm:px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-gray-200 dark:border-gray-700"
+          >
+            <button
+              @click="dismiss"
+              class="w-full px-4 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-90"
+              :style="{ background: 'var(--color-primary)' }"
+            >
+              {{ showAll ? 'Done' : 'Got it' }}
+            </button>
+            <button
+              type="button"
+              @click="showAll ? (showAll = false) : openAll()"
+              class="mt-2 w-full py-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            >
+              {{ showAll ? 'Back' : 'See all releases' }}
             </button>
           </div>
         </div>
@@ -70,232 +212,36 @@ const formattedDate = computed(() => {
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
-  padding: 1rem;
+.whats-new-enter-active,
+.whats-new-leave-active {
+  transition: opacity 0.25s ease;
 }
 
-.modal-content {
-  background: var(--color-surface, white);
-  border-radius: 1rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  max-width: 500px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.close-button {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-secondary, #6b7280);
-  border-radius: 0.5rem;
-  transition: all 0.2s ease;
-  z-index: 10;
-}
-
-.close-button:hover {
-  background: var(--color-bg-hover, #f3f4f6);
-  color: var(--color-text-primary, #111827);
-}
-
-.modal-header {
-  padding: 2.5rem 2rem 1.5rem 2rem;
-  text-align: center;
-}
-
-.version-badge {
-  display: inline-block;
-  background: var(--color-primary, #3b82f6);
-  color: white;
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.375rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
-}
-
-.modal-title {
-  font-size: 1.875rem;
-  font-weight: 700;
-  margin: 0.75rem 0 0.5rem 0;
-  color: var(--color-text-primary, #111827);
-}
-
-.modal-subtitle {
-  font-size: 1rem;
-  color: var(--color-text-secondary, #6b7280);
-  margin: 0.5rem 0;
-}
-
-.release-date {
-  font-size: 0.875rem;
-  color: var(--color-text-tertiary, #9ca3af);
-  margin-top: 0.75rem;
-}
-
-.breaking-badge {
-  background: #fee2e2;
-  border-left: 4px solid #ef4444;
-  color: #991b1b;
-  padding: 1rem;
-  margin: 1rem 1.5rem;
-  border-radius: 0.375rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.changes-section {
-  padding: 1.5rem 2rem;
-}
-
-.section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text-primary, #111827);
-  margin: 0 0 1rem 0;
-}
-
-.changes-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.change-item {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  color: var(--color-text-secondary, #6b7280);
-  font-size: 0.9375rem;
-  line-height: 1.5;
-}
-
-.change-bullet {
-  flex-shrink: 0;
-  margin-top: 0.125rem;
-}
-
-.change-text {
-  flex: 1;
-}
-
-.modal-footer {
-  padding: 1.5rem 2rem 2rem;
-  display: flex;
-  gap: 1rem;
-  margin-top: auto;
-}
-
-.dismiss-button {
-  flex: 1;
-  background: var(--color-primary, #3b82f6);
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.dismiss-button:hover {
-  background: var(--color-primary-hover, #2563eb);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.dismiss-button:active {
-  transform: translateY(0);
-}
-
-/* Animations */
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-fade-enter-from,
-.modal-fade-leave-to {
+.whats-new-enter-from,
+.whats-new-leave-to {
   opacity: 0;
 }
 
-.modal-fade-enter-active .modal-content {
-  animation: modal-slide-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.modal-fade-leave-active .modal-content {
-  animation: modal-slide-down 0.2s ease;
-}
-
-@keyframes modal-slide-up {
-  from {
-    transform: translateY(2rem);
-    opacity: 0;
+/* On a phone the panel is a sheet and rises from the bottom; on a desktop it
+   is a dialog and simply fades with the backdrop. */
+@media (max-width: 639px) {
+  .whats-new-enter-active > div,
+  .whats-new-leave-active > div {
+    transition: transform 0.25s ease;
   }
-  to {
-    transform: translateY(0);
-    opacity: 1;
+
+  .whats-new-enter-from > div,
+  .whats-new-leave-to > div {
+    transform: translateY(100%);
   }
 }
 
-@keyframes modal-slide-down {
-  from {
-    transform: translateY(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateY(2rem);
-    opacity: 0;
-  }
-}
-
-/* Responsive */
-@media (max-width: 640px) {
-  .modal-overlay {
-    padding: 0;
-  }
-
-  .modal-content {
-    border-radius: 1rem 1rem 0 0;
-    max-height: 95vh;
-  }
-
-  .modal-header {
-    padding: 2rem 1.5rem 1rem 1.5rem;
-  }
-
-  .modal-title {
-    font-size: 1.5rem;
-  }
-
-  .changes-section {
-    padding: 1rem 1.5rem;
-  }
-
-  .modal-footer {
-    padding: 1rem 1.5rem 1.5rem;
+@media (prefers-reduced-motion: reduce) {
+  .whats-new-enter-active,
+  .whats-new-leave-active,
+  .whats-new-enter-active > div,
+  .whats-new-leave-active > div {
+    transition: none;
   }
 }
 </style>

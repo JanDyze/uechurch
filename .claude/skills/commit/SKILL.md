@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Commit the working tree with a conventional-commit message and keep the app version in step — decide the bump, update package.json, add the CHANGELOG entry, and tag. Use when the user says "commit", "commit all", "bump the version", "cut a release", or "what version is this".
+description: Commit the working tree with a conventional-commit message and keep the app version in step — decide the bump, update package.json, add the CHANGELOG and in-app release-note entries, and tag. Use when the user says "commit", "commit all", "bump the version", "cut a release", or "what version is this".
 ---
 
 # Commit and version
@@ -58,6 +58,9 @@ says nothing about it. This has happened. List the paths you touched:
 git add src/views/Lineups.vue src/composables/useLineups.js CHANGELOG.md
 ```
 
+A release commit also stages `package.json` and `src/data/versionHistory.js`
+— the two files step 3 touches.
+
 Then `git status --short` again before committing, and confirm the staged set
 is exactly what you changed. Anything staged that you did not write is theirs:
 leave it unstaged, finish your commit without it, and tell them it is there.
@@ -91,6 +94,21 @@ Only if step 2 called for a bump:
    headings that apply. Mark anything breaking **Breaking** inline.
 3. Write it for the person running the church, not for the diff. "Songs became
    a real module with a projector attached" beats "added SongDetails.vue".
+4. Add an entry to `src/data/versionHistory.js` — the release note the app
+   shows in its What's new modal. This is the step that gets forgotten, and a
+   missing entry means nobody is told the release happened.
+
+   - Only for a release someone using the app would notice. A fix for a bug
+     that never reached anyone, an internal refactor and a dependency bump all
+     get no entry, and the modal skips that version.
+   - A title, a one-line summary, and two to four short bullets. It is read
+     once, on a phone, by someone on their way to a service — `CHANGELOG.md`
+     stays the full account.
+   - **If this release reverses or supersedes an earlier entry, edit or delete
+     that entry rather than stacking a contradiction on top of it.** Someone
+     upgrading across several releases reads them all in one sitting, and two
+     entries describing opposite behaviour is worse than one that is slightly
+     out of date. This file is what the church is told, not an audit log.
 
 ## 4. Commit
 

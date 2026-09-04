@@ -25,6 +25,7 @@ import ChurchSettings from '../components/settings/ChurchSettings.vue'
 import EmailDigestAdmin from '../components/settings/EmailDigestAdmin.vue'
 import LandingPageAdmin from '../components/settings/LandingPageAdmin.vue'
 import { useAppSettings } from '../composables/useAppSettings'
+import { useVersionCheck } from '../composables/useVersionCheck'
 
 const { categories: appCategories, church, saveChurch, saveCategories } = useAppSettings()
 const eventTypes = computed(() => appCategories.value.eventTypes)
@@ -51,6 +52,10 @@ const TABS = [
 // bug from their phone, the first thing to establish is which build they
 // are actually running, and a cached service worker can be well behind.
 const appVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'
+
+// The version line is where someone already looks to answer "which build is
+// this", so it is also where they can re-read what changed in it.
+const { open: openWhatsNew } = useVersionCheck()
 
 const activeTab = ref(TABS.some((t) => t.key === route.query.tab) ? route.query.tab : 'schedule')
 
@@ -500,7 +505,13 @@ const formatTime = (time) => {
     <!-- Which build this is. Every tab, because a bug report can come from
          any of them and the version is the first question asked. -->
     <p class="pb-4 text-center text-xs text-gray-400 dark:text-gray-500">
-      UEC Church v{{ appVersion }}
+      UEC Church v{{ appVersion }} &middot;
+      <button
+        @click="openWhatsNew"
+        class="underline underline-offset-2 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+      >
+        What's new
+      </button>
     </p>
 
     <!-- Editor -->
