@@ -8,6 +8,19 @@ import { memberKey } from './sgUtils'
 /** Members serving in this ministry are offered as song leaders. */
 export const SONG_LEADER_MINISTRY = 'song leader'
 
+/**
+ * The ministries a worship band is drawn from, lowercased for comparison.
+ *
+ * Song Leader and Instrumentalist, which between them are the band: whoever is
+ * singing out front and whoever is playing. Both come from DEFAULT_MINISTRIES,
+ * so a church that has never renamed anything has these already.
+ *
+ * A church that uses other names for these jobs registers them in Settings and
+ * they will not match here. That is why the picker keeps a way out rather than
+ * simply showing nobody.
+ */
+export const WORSHIP_MINISTRIES = ['song leader', 'instrumentalist']
+
 const pad = (n) => String(n).padStart(2, '0')
 
 /** 'YYYY-MM' for a Date, in local time. */
@@ -87,6 +100,14 @@ export const monthKeyOfIso = (iso) => String(iso || '').slice(0, 7)
 
 export const isSunday = (iso) => parseIso(iso)?.getDay() === 0
 
+/** Members serving in any of the named ministries, case-insensitively. */
+const inMinistries = (members, names) =>
+  members
+    .filter((m) =>
+      (m.ministries || []).some((ministry) => names.includes(String(ministry).toLowerCase()))
+    )
+    .sort((a, b) => getFullName(a).localeCompare(getFullName(b)))
+
 /**
  * Members serving in the Song Leader ministry; everyone else stays out of the
  * picker.
@@ -97,12 +118,17 @@ export const isSunday = (iso) => parseIso(iso)?.getDay() === 0
  * moved to `ministries` and the filter matched nobody — so the picker silently
  * fell back to listing the whole congregation.
  */
-export const songLeadersFrom = (members = []) =>
-  members
-    .filter((m) =>
-      (m.ministries || []).some((name) => String(name).toLowerCase() === SONG_LEADER_MINISTRY)
-    )
-    .sort((a, b) => getFullName(a).localeCompare(getFullName(b)))
+export const songLeadersFrom = (members = []) => inMinistries(members, [SONG_LEADER_MINISTRY])
+
+/**
+ * Members serving in a worship ministry — the pool a Sunday's band is picked
+ * from, rather than the whole congregation.
+ *
+ * Same rule and the same reason as the song leaders above: ministries, never
+ * tags. Tags are free text anyone with member-edit rights can type, so reading
+ * them here would let a label spell its way onto the band.
+ */
+export const worshipTeamFrom = (members = []) => inMinistries(members, WORSHIP_MINISTRIES)
 
 /**
  * The key this leader sings a song in, as recorded on the song list. Song

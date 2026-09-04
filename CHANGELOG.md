@@ -11,6 +11,19 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.8.2] — 2026-09-04
+
+### Changed
+- **The band picker offers the worship ministries, not the congregation.** Song
+  Leader and Instrumentalist — which between them are the band — instead of
+  every member of the church. Filtered on `ministries`, never `tags`, for the
+  reason already recorded on `songLeadersFrom`: tags are free text, and reading
+  them would let a label spell its way onto the band.
+- The picker says which list it is showing and keeps a "Show all members" way
+  out for a visiting musician or a church that names these jobs differently.
+  If nobody is rostered in a worship ministry at all it lists everyone with a
+  note saying so, rather than offering an empty list.
+
 ## [0.8.1] — 2026-09-04
 
 ### Removed

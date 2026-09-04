@@ -14,7 +14,12 @@ import { useFocusTrap } from '../../composables/useFocusTrap'
 import { getAvatarUrl, getFullName } from '../../utils/memberUtils'
 import MemberAvatar from '../members/MemberAvatar.vue'
 import { memberKey } from '../../utils/sgUtils'
-import { formatServiceDate, keyForLeader, songLeadersFrom } from '../../utils/lineupUtils'
+import {
+  formatServiceDate,
+  keyForLeader,
+  songLeadersFrom,
+  worshipTeamFrom,
+} from '../../utils/lineupUtils'
 import SongPickerSheet from './SongPickerSheet.vue'
 
 const props = defineProps({
@@ -39,6 +44,10 @@ const showSongPicker = ref(false)
 const showAllMembers = ref(false)
 const teamSearch = ref('')
 const showTeamPicker = ref(false)
+// The band comes from the worship ministries, not the congregation. This
+// opens that back up when the person needed is not rostered in one — a
+// visiting musician, or a church that names these jobs differently.
+const showAllForTeam = ref(false)
 
 // Re-seed on open so editing one Sunday and then another never carries values
 // across.
@@ -53,6 +62,7 @@ watch(
     }
     showSongPicker.value = false
     showTeamPicker.value = false
+    showAllForTeam.value = false
     teamSearch.value = ''
     showAllMembers.value = false
   },
@@ -124,10 +134,19 @@ const teamMembers = computed(() =>
   (form.value?.teamIds || []).map((id) => ({ id, member: memberById(id) }))
 )
 
+/** Song leaders and instrumentalists: the people a band is actually made of. */
+const worshipTeam = computed(() => worshipTeamFrom(props.members))
+
+/** Nobody is rostered in a worship ministry, so filtering would offer nothing
+ *  at all. The whole roster is a worse list but a usable one. */
+const noWorshipAssigned = computed(() => worshipTeam.value.length === 0)
+
 const teamCandidates = computed(() => {
   const q = teamSearch.value.trim().toLowerCase()
   const chosen = new Set((form.value?.teamIds || []).map(String))
-  return props.members
+  const pool =
+    showAllForTeam.value || noWorshipAssigned.value ? props.members : worshipTeam.value
+  return pool
     .filter((m) => !chosen.has(memberKey(m)) && memberKey(m) !== String(form.value?.leaderId))
     .filter((m) => !q || getFullName(m).toLowerCase().includes(q))
     .sort((a, b) => getFullName(a).localeCompare(getFullName(b)))
@@ -421,6 +440,27 @@ const handleSave = () => {
               </div>
 
               <div v-if="showTeamPicker && canEditRoster" class="rounded-xl border border-gray-200 dark:border-gray-700 p-2 space-y-1">
+                <div class="flex items-center justify-between gap-2 px-1">
+                  <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                    {{ showAllForTeam || noWorshipAssigned ? 'All members' : 'Worship ministries' }}
+                  </p>
+                  <button
+                    v-if="!noWorshipAssigned"
+                    type="button"
+                    @click="showAllForTeam = !showAllForTeam"
+                    class="text-xs font-semibold text-primary dark:text-primary-light"
+                  >
+                    {{ showAllForTeam ? 'Worship only' : 'Show all members' }}
+                  </button>
+                </div>
+
+                <p
+                  v-if="noWorshipAssigned"
+                  class="px-1 text-xs text-amber-600 dark:text-amber-400"
+                >
+                  Nobody serves in a worship ministry yet, so every member is listed.
+                </p>
+
                 <div class="relative">
                   <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
@@ -443,7 +483,11 @@ const handleSave = () => {
                   </span>
                 </button>
                 <p v-if="!teamCandidates.length" class="p-2 text-xs text-gray-500 dark:text-gray-400">
-                  No members match.
+                  {{
+                    showAllForTeam || noWorshipAssigned
+                      ? 'No members match.'
+                      : 'Nobody in the worship ministries matches. Show all members to look wider.'
+                  }}
                 </p>
               </div>
             </div>
