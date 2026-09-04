@@ -11,6 +11,36 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.8.0] — 2026-09-04
+
+Lineups now has two people in mind instead of one: the worship ministry head
+who staffs a service, and the leader who then plans its songs.
+
+### Added
+- **Being named a Sunday's leader grants editing it.** A song leader can plan
+  her own service's songs, theme and notes without the run of the month — no
+  `lineups.manage` needed. She sees the band she is playing with, read-only,
+  and the leader field that put her there.
+- She can also open the month while it is still a draft, which is how the
+  sequence works: the head staffs the month, the leaders fill in songs, and
+  only then is it published. Everyone else still sees "Not published yet".
+- **Role-aware prompts.** A card says "Tap to assign a leader and band" to the
+  head and "Tap to choose your songs" to the leader, and carries a "You're
+  leading" badge on the viewer's own services. The month summary says
+  "2 still need a leader" to the head and "You're leading 2 services this
+  month" to a leader.
+
+### Changed
+- A leader's save writes back only songs, theme and notes, merged onto what is
+  stored at that moment, so it cannot overwrite a band the head reassigned
+  while her drawer sat open.
+- Clearing a service stays with the head: it wipes the leader and band too.
+
+### Removed
+- **"Add another service date".** The month is the calendar's Sundays. Any
+  off-Sunday date already stored is still shown and still editable — the page
+  simply no longer offers a way to add one. Drops `addServiceDate`.
+
 ## [0.7.4] — 2026-09-04
 
 The band half of a lineup, and a shorter road from a missing song to YouTube.

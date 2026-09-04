@@ -9,7 +9,12 @@ import { parseIso } from '../../utils/lineupUtils'
 const props = defineProps({
   sunday: { type: Object, required: true },
   members: { type: Array, default: () => [] },
+  // What this viewer may do here, which is a question of which of the two
+  // jobs is theirs: the head assigns people, the Sunday's own leader chooses
+  // its songs. Both open the same card; it should say so differently.
   canManage: { type: Boolean, default: false },
+  canEditSongs: { type: Boolean, default: false },
+  isMine: { type: Boolean, default: false },
   // The next service from today on: the one the whole page is really about.
   isNext: { type: Boolean, default: false },
   isPast: { type: Boolean, default: false },
@@ -37,6 +42,28 @@ const weekday = computed(() =>
 const isEmpty = computed(
   () => !props.sunday.leaderId && !props.sunday.songs?.length && !props.sunday.theme
 )
+
+/** Anyone who can change something here can open it. */
+const canOpen = computed(() => props.canManage || props.canEditSongs)
+
+/**
+ * What tapping the card is for, in the viewer's own terms.
+ *
+ * The head is looking at an empty slot and needs to staff it. A leader is
+ * looking at her own Sunday and needs to choose songs for it. Same card, and
+ * the wrong prompt on either would be worse than none.
+ */
+const prompt = computed(() => {
+  if (props.canManage) {
+    if (!props.sunday.leaderId) return 'Tap to assign a leader and band'
+    if (!props.sunday.songs?.length) return 'Tap to plan this service'
+    return ''
+  }
+  if (props.canEditSongs) {
+    return props.sunday.songs?.length ? 'Tap to edit your songs' : 'Tap to choose your songs'
+  }
+  return ''
+})
 </script>
 
 <template>
@@ -47,13 +74,14 @@ const isEmpty = computed(
         ? 'border-primary ring-1 ring-primary/30'
         : 'border-gray-200 dark:border-gray-700',
       isPast ? 'opacity-60' : '',
-      canManage ? 'hover:border-primary/60' : '',
+      canOpen ? 'hover:border-primary/60' : '',
+      isMine && !isNext ? 'border-primary/40' : '',
     ]"
   >
     <component
-      :is="canManage ? 'button' : 'div'"
-      :type="canManage ? 'button' : undefined"
-      @click="canManage && emit('edit', sunday)"
+      :is="canOpen ? 'button' : 'div'"
+      :type="canOpen ? 'button' : undefined"
+      @click="canOpen && emit('edit', sunday)"
       class="block w-full text-left"
     >
       <div class="flex gap-3 p-3 sm:p-4">
@@ -87,12 +115,18 @@ const isEmpty = computed(
             </template>
 
             <span
-              v-if="isNext"
+              v-if="isMine"
+              class="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
+            >
+              You&rsquo;re leading
+            </span>
+            <span
+              v-else-if="isNext"
               class="shrink-0 px-2 py-0.5 rounded-full bg-primary/10 text-primary dark:text-primary-light text-[10px] font-bold uppercase tracking-wide"
             >
               Up next
             </span>
-            <Pencil v-else-if="canManage" class="shrink-0 h-4 w-4 text-gray-300 dark:text-gray-600" />
+            <Pencil v-else-if="canOpen" class="shrink-0 h-4 w-4 text-gray-300 dark:text-gray-600" />
           </div>
 
           <p v-if="sunday.theme" class="mt-1.5 text-xs font-semibold text-primary dark:text-primary-light truncate">
@@ -176,12 +210,12 @@ const isEmpty = computed(
             <span class="min-w-0">{{ sunday.notes }}</span>
           </p>
 
-          <!-- Empty slot call to action -->
+          <!-- What there is to do here, if anything -->
           <p
-            v-if="isEmpty && canManage"
+            v-if="prompt && !isPast"
             class="mt-2 text-xs font-semibold text-primary dark:text-primary-light"
           >
-            Tap to plan this service
+            {{ prompt }}
           </p>
         </div>
       </div>

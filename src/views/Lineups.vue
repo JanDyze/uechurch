@@ -2,7 +2,6 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  CalendarPlus,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -23,12 +22,12 @@ import {
   formatServiceDate,
   isValidMonthKey,
   monthKeyOf,
-  monthKeyOfIso,
   bandLoad,
   leaderLoad,
   shiftMonth,
   todayIso,
 } from '../utils/lineupUtils'
+import { memberKey } from '../utils/sgUtils'
 import { copyText } from '../utils/clipboard'
 import { formatLyricsSheet, songLyricsText } from '../utils/songUtils'
 import LineupSundayCard from '../components/lineups/LineupSundayCard.vue'
@@ -37,10 +36,29 @@ import SundayEditorDrawer from '../components/lineups/SundayEditorDrawer.vue'
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
-const { canManage } = usePermissions()
+const { canManage, myMember } = usePermissions()
 const { members } = useMembers()
 
+// Two jobs on one page, and they belong to two different people.
+//
+// The worship ministry head decides who serves: who leads a Sunday and who is
+// on the band with them. That is the whole month's shape and it is theirs.
+//
+// The leader of a given Sunday then chooses that Sunday's songs. She does not
+// need — and should not have — the run of the month to do it, so being named as
+// its leader is what grants it. She can see the band she is playing with, and
+// cannot change it.
 const canPlan = computed(() => canManage('lineups'))
+
+/** Whether this account is the person leading a given service. */
+const isMyService = (sunday) => {
+  const mine = myMember.value
+  if (!mine || !sunday?.leaderId) return false
+  const id = String(sunday.leaderId)
+  return memberKey(mine) === id || String(mine.firestoreId) === id
+}
+
+const canEditSongs = (sunday) => canPlan.value || isMyService(sunday)
 
 // The month lives in the URL so a lineup can be linked to and shared.
 const month = computed(() =>
@@ -56,7 +74,6 @@ const {
   isPublished,
   saveSunday,
   clearSunday,
-  addServiceDate,
   setStatus,
   setNotes,
 } = useLineup(month)
@@ -72,8 +89,24 @@ onMounted(() => {
 })
 onUnmounted(() => unsubscribeSongs?.())
 
-/** A draft is the planners' workspace; everyone else sees it as unpublished. */
-const isHiddenDraft = computed(() => !isPublished.value && !canPlan.value)
+/** The services this account is leading this month. */
+const myServices = computed(() => sundays.value.filter(isMyService))
+
+/**
+ * A draft is the planners' workspace; everyone else sees it as unpublished.
+ *
+ * Except a leader who has been given a service in it. The head staffs the
+ * month first and publishes it once it is settled, which would otherwise leave
+ * the leaders unable to choose their songs until the congregation could already
+ * read the lineup. Being named on a service is what lets her in early — the
+ * same thing that lets her edit it.
+ */
+const isHiddenDraft = computed(
+  () => !isPublished.value && !canPlan.value && !myServices.value.length
+)
+
+/** Sundays with nobody leading them — the head's outstanding work. */
+const unassignedCount = computed(() => sundays.value.filter((s) => !s.leaderId).length)
 
 const plannedCount = computed(() => sundays.value.filter(isSundayPlanned).length)
 
@@ -93,13 +126,21 @@ const editingSunday = ref(null)
 const saving = ref(false)
 
 const openEditor = (sunday) => {
+  if (!canEditSongs(sunday)) return
   editingSunday.value = sunday
   showEditor.value = true
 }
 
-const handleSave = async (sunday) => {
+const handleSave = async (edited) => {
   saving.value = true
   try {
+    // A leader writes back only what is hers to write, merged onto what is
+    // stored right now — so saving her songs cannot overwrite a band the head
+    // reassigned while her drawer sat open.
+    const live = sundays.value.find((s) => s.date === edited.date) || edited
+    const sunday = canPlan.value
+      ? edited
+      : { ...live, songs: edited.songs, theme: edited.theme, notes: edited.notes }
     await saveSunday(sunday)
     showEditor.value = false
     toast.success('Service saved')
@@ -134,33 +175,6 @@ const togglePublished = async () => {
   } catch (error) {
     console.error('Error changing lineup status:', error)
     toast.error('Could not change the status.')
-  }
-}
-
-// Extra service dates — Christmas Eve, a revival week, anything off-Sunday.
-const showDatePicker = ref(false)
-const extraDate = ref('')
-
-const monthBounds = computed(() => {
-  const [y, m] = month.value.split('-').map(Number)
-  const last = new Date(y, m, 0).getDate()
-  return { min: `${month.value}-01`, max: `${month.value}-${String(last).padStart(2, '0')}` }
-})
-
-const confirmExtraDate = async () => {
-  const date = extraDate.value
-  if (!date || monthKeyOfIso(date) !== month.value) {
-    toast.error('Pick a date inside this month.')
-    return
-  }
-  try {
-    await addServiceDate(date)
-    showDatePicker.value = false
-    extraDate.value = ''
-    toast.success('Service date added')
-  } catch (error) {
-    console.error('Error adding service date:', error)
-    toast.error('Could not add the date.')
   }
 }
 
@@ -318,9 +332,27 @@ const saveMonthNotes = async () => {
           <!-- Month summary -->
           <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-4">
             <div class="flex items-center justify-between gap-3">
-              <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ plannedCount }} of {{ sundays.length }} service{{ sundays.length === 1 ? '' : 's' }} planned
-              </p>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                  {{ plannedCount }} of {{ sundays.length }} service{{ sundays.length === 1 ? '' : 's' }} planned
+                </p>
+                <!-- What is left to do, addressed to whoever is reading. The
+                     head is short of leaders; a leader is short of songs. -->
+                <p
+                  v-if="canPlan && unassignedCount"
+                  class="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+                >
+                  {{ unassignedCount }} still
+                  {{ unassignedCount === 1 ? 'needs a leader' : 'need a leader' }}
+                </p>
+                <p
+                  v-else-if="myServices.length"
+                  class="mt-0.5 text-xs font-medium text-primary dark:text-primary-light"
+                >
+                  You&rsquo;re leading {{ myServices.length }}
+                  {{ myServices.length === 1 ? 'service' : 'services' }} this month
+                </p>
+              </div>
               <span
                 v-if="canPlan && !isPublished"
                 class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400"
@@ -387,49 +419,14 @@ const saveMonthNotes = async () => {
             :sunday="sunday"
             :members="members"
             :can-manage="canPlan"
+            :can-edit-songs="canEditSongs(sunday)"
+            :is-mine="isMyService(sunday)"
             :is-next="sunday.date === nextServiceDate"
             :is-past="sunday.date < todayIso()"
             :lyrics-copied="lyricsCopiedDate === sunday.date"
             @edit="openEditor"
             @copy-lyrics="copySundayLyrics"
           />
-
-          <!-- Extra service date -->
-          <div v-if="canPlan">
-            <button
-              v-if="!showDatePicker"
-              @click="showDatePicker = true"
-              class="w-full py-3 rounded-2xl border border-dashed border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:border-primary hover:text-primary transition-colors inline-flex items-center justify-center gap-2"
-            >
-              <CalendarPlus class="h-4 w-4" />
-              Add another service date
-            </button>
-            <div
-              v-else
-              class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 flex items-center gap-2"
-            >
-              <input
-                v-model="extraDate"
-                type="date"
-                :min="monthBounds.min"
-                :max="monthBounds.max"
-                aria-label="Extra service date"
-                class="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-              <button
-                @click="confirmExtraDate"
-                class="shrink-0 px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
-              >
-                Add
-              </button>
-              <button
-                @click="showDatePicker = false"
-                class="shrink-0 px-3 py-2 rounded-lg text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
 
           <!-- Month notes -->
           <div
@@ -476,6 +473,7 @@ const saveMonthNotes = async () => {
         :members="members"
         :songs="songs"
         :saving="saving"
+      :can-edit-roster="canPlan"
         @save="handleSave"
         @clear="handleClear"
       />

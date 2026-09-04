@@ -23,6 +23,11 @@ const props = defineProps({
   members: { type: Array, default: () => [] },
   songs: { type: Array, default: () => [] },
   saving: { type: Boolean, default: false },
+  // Which of the two jobs this person is here to do. The worship ministry head
+  // staffs the service; the leader named on it chooses its songs. The drawer
+  // shows both halves either way — a leader should be able to see who she is
+  // playing with — and only lets each edit their own.
+  canEditRoster: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:show', 'save', 'clear'])
@@ -182,7 +187,13 @@ const handleSave = () => {
                 {{ formatServiceDate(form.date) }}
               </h3>
               <p class="text-xs text-gray-500 dark:text-gray-400">
-                {{ form.songs.length }} song{{ form.songs.length === 1 ? '' : 's' }} in the order
+                <template v-if="canEditRoster">
+                  Assign who serves, and plan the order
+                </template>
+                <template v-else>
+                  Your service &mdash; choose the songs
+                </template>
+                &middot; {{ form.songs.length }} song{{ form.songs.length === 1 ? '' : 's' }}
               </p>
             </div>
             <button
@@ -196,8 +207,29 @@ const handleSave = () => {
 
           <!-- Body -->
           <div class="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 space-y-5">
+            <!-- Leader. Read-only for the leader herself: being named here is
+                 what gave her this drawer, so it is not hers to change. -->
+            <div v-if="!canEditRoster">
+              <p class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Song leader
+              </p>
+              <div
+                class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-900/50"
+              >
+                <MemberAvatar
+                  v-if="memberById(form.leaderId)"
+                  :member="memberById(form.leaderId)"
+                  alt=""
+                  size="h-7 w-7"
+                />
+                <span class="min-w-0 truncate text-sm font-medium text-gray-900 dark:text-white">
+                  {{ leaderName || 'Unassigned' }}
+                </span>
+              </div>
+            </div>
+
             <!-- Leader -->
-            <div>
+            <div v-else>
               <div class="flex items-center justify-between gap-2 mb-1">
                 <label for="lineup-leader" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Song leader
@@ -340,6 +372,7 @@ const handleSave = () => {
                   Worship team
                 </label>
                 <button
+                  v-if="canEditRoster"
                   type="button"
                   @click="showTeamPicker = !showTeamPicker"
                   class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary dark:text-primary-light text-xs font-semibold"
@@ -347,7 +380,20 @@ const handleSave = () => {
                   <Plus class="h-3.5 w-3.5" />
                   Add
                 </button>
+                <span
+                  v-else
+                  class="text-[11px] font-semibold uppercase tracking-wide text-gray-400"
+                >
+                  Set by the worship head
+                </span>
               </div>
+
+              <p
+                v-if="!canEditRoster && !teamMembers.length"
+                class="mb-2 text-xs text-gray-400 dark:text-gray-500"
+              >
+                Nobody on the band yet.
+              </p>
 
               <div v-if="teamMembers.length" class="flex flex-wrap gap-1.5 mb-2">
                 <span
@@ -363,6 +409,7 @@ const handleSave = () => {
                   />
                   {{ row.member ? getFullName(row.member) : 'Former member' }}
                   <button
+                    v-if="canEditRoster"
                     type="button"
                     @click="removeFromTeam(row.id)"
                     class="text-gray-400 hover:text-red-600"
@@ -373,7 +420,7 @@ const handleSave = () => {
                 </span>
               </div>
 
-              <div v-if="showTeamPicker" class="rounded-xl border border-gray-200 dark:border-gray-700 p-2 space-y-1">
+              <div v-if="showTeamPicker && canEditRoster" class="rounded-xl border border-gray-200 dark:border-gray-700 p-2 space-y-1">
                 <div class="relative">
                   <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
@@ -418,7 +465,10 @@ const handleSave = () => {
 
           <!-- Footer -->
           <div class="shrink-0 border-t border-gray-200 dark:border-gray-700 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center gap-2">
+            <!-- Clearing wipes the leader and the band along with the songs,
+                 so it stays with whoever assigned them. -->
             <button
+              v-if="canEditRoster"
               type="button"
               @click="emit('clear', form.date)"
               class="px-3 py-2.5 rounded-lg text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"

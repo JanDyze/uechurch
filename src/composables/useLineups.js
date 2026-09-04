@@ -27,9 +27,9 @@ export const isSundayPlanned = (sunday) =>
  * re-subscribes instead of leaking the previous listener.
  *
  * `sundays` is the calendar's Sundays overlaid with whatever has been saved,
- * plus any extra service date recorded for the month (Christmas Eve, a
- * midweek special). The month page therefore always shows the full shape of
- * the month, even before anyone has planned a single service.
+ * so the month page always shows its full shape even before anyone has planned
+ * a single service. Any off-Sunday date already stored is still listed — the
+ * page no longer offers a way to add one, but it will not hide one either.
  */
 export function useLineup(monthKey) {
   const { user } = useAuth()
@@ -96,11 +96,6 @@ export function useLineup(monthKey) {
   const clearSunday = (date) =>
     writeSundays((lineup.value?.sundays || []).filter((s) => s.date !== date))
 
-  const addServiceDate = (date) => {
-    if (!date || (lineup.value?.sundays || []).some((s) => s.date === date)) return Promise.resolve()
-    return saveSunday(blankSunday(date))
-  }
-
   const setStatus = (next) =>
     saveLineup(unref(monthKey), { status: next === 'published' ? 'published' : 'draft' }, user.value)
 
@@ -116,7 +111,6 @@ export function useLineup(monthKey) {
     isPublished,
     saveSunday,
     clearSunday,
-    addServiceDate,
     setStatus,
     setNotes,
     removeMonth,
