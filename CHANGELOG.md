@@ -11,6 +11,31 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.8.3] — 2026-09-04
+
+Lineups rebuilt around one service at a time.
+
+### Changed
+- **One service is open, the rest are a line each.** The page was a scrolling
+  stack of fully expanded Sunday cards — leader, theme, five songs with keys, a
+  band of ten, a note — so both the head and a leader scrolled past three
+  irrelevant services to reach the one they came for. The service you came for
+  opens by itself: the next one you are leading, else simply the next one.
+- **Planning happens in place and saves itself.** The full-screen drawer is
+  gone; so is the Save button. Editing no longer covers up the month you are
+  planning against.
+- **Past services fold away.** Mid-month they were costing half the scroll for
+  Sundays nobody can change.
+- **The roster is a line you can open**, not two wrapped rows of a dozen chips
+  on every visit. The month line itself now reads "3 of 4 planned · 2 still
+  need a leader", or "· you're leading 2".
+- Compact rows say leader, song count, band size and theme, and flag a missing
+  leader — to the head, who can act on it.
+
+### Removed
+- `LineupSundayCard.vue` and `SundayEditorDrawer.vue`, replaced by
+  `LineupServicePanel.vue` and `LineupServiceRow.vue`.
+
 ## [0.8.2] — 2026-09-04
 
 ### Changed

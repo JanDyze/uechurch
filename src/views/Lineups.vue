@@ -1,11 +1,32 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+/**
+ * The month's worship plan, built around one service at a time.
+ *
+ * This page was a scrolling stack of fully expanded Sunday cards. Nobody's
+ * visit is about a month, though: the worship ministry head arrives to staff
+ * the next service, and a song leader arrives to plan hers. Both had to scroll
+ * past three irrelevant services to reach the one they came for, and each card
+ * carried a leader, a theme, five songs with keys, a band of ten and a note —
+ * the densest possible presentation of the least urgent information.
+ *
+ * So one service is open and editable, and the rest of the month is a line
+ * each. Past services fold away entirely; mid-month they were costing half the
+ * scroll for services already run.
+ *
+ * The two jobs are still split the way they were: the head sets who serves,
+ * the named leader plans the songs. What changed is that neither now needs a
+ * drawer or a Save button to do it.
+ */
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Eye,
   EyeOff,
+  FileText,
   Mic2,
   Users,
   Play,
@@ -29,8 +50,8 @@ import {
 import { memberKey } from '../utils/sgUtils'
 import { copyText } from '../utils/clipboard'
 import { formatLyricsSheet, songLyricsText } from '../utils/songUtils'
-import LineupSundayCard from '../components/lineups/LineupSundayCard.vue'
-import SundayEditorDrawer from '../components/lineups/SundayEditorDrawer.vue'
+import LineupServicePanel from '../components/lineups/LineupServicePanel.vue'
+import LineupServiceRow from '../components/lineups/LineupServiceRow.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -67,7 +88,6 @@ const month = computed(() =>
 const goToMonth = (key) => router.replace(`/lineups/${key}`)
 
 const {
-  lineup,
   loading,
   sundays,
   isPublished,
@@ -85,7 +105,6 @@ onMounted(() => {
     songs.value = data
   })
 })
-onUnmounted(() => unsubscribeSongs?.())
 
 /** The services this account is leading this month. */
 const myServices = computed(() => sundays.value.filter(isMyService))
@@ -103,58 +122,178 @@ const isHiddenDraft = computed(
   () => !isPublished.value && !canPlan.value && !myServices.value.length
 )
 
-/** Sundays with nobody leading them — the head's outstanding work. */
-const unassignedCount = computed(() => sundays.value.filter((s) => !s.leaderId).length)
-
 const plannedCount = computed(() => sundays.value.filter(isSundayPlanned).length)
 
-const nextServiceDate = computed(() => {
-  const today = todayIso()
-  return sundays.value.find((s) => s.date >= today)?.date || null
-})
+/** Sundays with nobody leading them — the head's outstanding work. */
+const unassignedCount = computed(
+  () => sundays.value.filter((s) => !s.leaderId && s.date >= todayIso()).length
+)
 
 const load = computed(() => leaderLoad(sundays.value, members.value))
 // A lineup is a roster as much as a set list, so the month has to answer
 // "who is playing how often" and not only "who is leading how often".
 const band = computed(() => bandLoad(sundays.value, members.value))
 
-// Editor
-const showEditor = ref(false)
-const editingSunday = ref(null)
-const saving = ref(false)
+// The fairness check matters to whoever is assigning, and to nobody else every
+// time they open the page. It was two wrapped rows of a dozen chips; now it is
+// a line you can open.
+const showRoster = ref(false)
 
-const openEditor = (sunday) => {
-  if (!canEditSongs(sunday)) return
-  editingSunday.value = sunday
-  showEditor.value = true
+/* -------------------------------------------------------------------------
+ * Which service is open
+ * ---------------------------------------------------------------------- */
+
+const upcoming = computed(() => sundays.value.filter((s) => s.date >= todayIso()))
+const past = computed(() => sundays.value.filter((s) => s.date < todayIso()).reverse())
+
+const focusedDate = ref('')
+
+/**
+ * What to open on arrival, in order of what the visitor most likely came for:
+ * the next service they are leading themselves, then simply the next service,
+ * then the most recent one if the month is already over.
+ */
+const defaultFocus = computed(() => {
+  const mineUpcoming = myServices.value.find((s) => s.date >= todayIso())
+  if (mineUpcoming) return mineUpcoming.date
+  if (upcoming.value.length) return upcoming.value[0].date
+  return past.value[0]?.date || ''
+})
+
+watch(
+  [sundays, defaultFocus],
+  () => {
+    // Only choose for them while nothing is chosen, or when paging to a month
+    // that does not contain the open service.
+    const stillHere = sundays.value.some((s) => s.date === focusedDate.value)
+    if (!stillHere) focusedDate.value = defaultFocus.value
+  },
+  { immediate: true }
+)
+
+const focused = computed(
+  () => sundays.value.find((s) => s.date === focusedDate.value) || null
+)
+
+/** The other services still to come — the ones worth a row. */
+const otherUpcoming = computed(() => upcoming.value.filter((s) => s.date !== focusedDate.value))
+const otherPast = computed(() => past.value.filter((s) => s.date !== focusedDate.value))
+
+const showPast = ref(false)
+
+/**
+ * Forces the open panel to rebuild.
+ *
+ * The panel keeps a local copy of the service and deliberately does not
+ * re-seed when the same date changes underneath — that change is usually its
+ * own edit coming back, and replacing the form would move the cursor out of
+ * whatever is being typed. Clearing a service is the exception: the date does
+ * not change but everything in it just went, and without this the panel would
+ * go on showing the songs it no longer has.
+ */
+const panelNonce = ref(0)
+
+const focus = (date) => {
+  focusedDate.value = date
+  // Opening a service from the past list should not then hide it again.
+  if (date < todayIso()) showPast.value = true
 }
 
-const handleSave = async (edited) => {
+/* -------------------------------------------------------------------------
+ * Saving
+ * The panel has no Save button. Edits arrive here as they are made and are
+ * written a beat later, the way the presenter's run sheet works — a Sunday
+ * morning is no time to remember to press something.
+ * ---------------------------------------------------------------------- */
+
+const saving = ref(false)
+
+/** What is stored, as a string, so a write that would change nothing is not
+ *  sent — including this page's own write arriving back from Firestore. */
+const signatureOf = (sunday) => JSON.stringify(sunday || null)
+
+let savedSignature = ''
+let saveTimer = null
+/** The edit waiting to be written, held out of `sundays` so the panel is never
+ *  re-seeded from a half-typed value. */
+let pending = null
+
+const persistNow = async () => {
+  const edited = pending
+  if (!edited) return
+
+  // A leader writes back only what is hers to write, merged onto what is
+  // stored right now — so saving her songs cannot overwrite a band the head
+  // reassigned while her panel sat open.
+  const live = sundays.value.find((s) => s.date === edited.date) || edited
+  const next = canPlan.value
+    ? edited
+    : { ...live, songs: edited.songs, theme: edited.theme, notes: edited.notes }
+
+  const signature = signatureOf(next)
+  if (signature === savedSignature) {
+    pending = null
+    return
+  }
+
   saving.value = true
   try {
-    // A leader writes back only what is hers to write, merged onto what is
-    // stored right now — so saving her songs cannot overwrite a band the head
-    // reassigned while her drawer sat open.
-    const live = sundays.value.find((s) => s.date === edited.date) || edited
-    const sunday = canPlan.value
-      ? edited
-      : { ...live, songs: edited.songs, theme: edited.theme, notes: edited.notes }
-    await saveSunday(sunday)
-    showEditor.value = false
-    toast.success('Service saved')
+    await saveSunday(next)
+    savedSignature = signature
+    pending = null
   } catch (error) {
+    // Left pending on purpose: the next edit retries the whole service rather
+    // than leaving a gap in it.
     console.error('Error saving lineup service:', error)
-    toast.error('Could not save the service. Please try again.')
+    toast.error('Could not save. Your next change will try again.')
   } finally {
     saving.value = false
   }
 }
 
+/**
+ * Called by the panel on every change.
+ *
+ * Debounced hard enough to cover typing a theme or a key, which would
+ * otherwise be a write per keystroke.
+ */
+const onPanelChange = (edited) => {
+  if (!canEditSongs(edited)) return
+  pending = edited
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    saveTimer = null
+    persistNow()
+  }, 800)
+}
+
+// Switching service or leaving the page must not drop what was just typed.
+watch(focusedDate, () => {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+    persistNow()
+  }
+  savedSignature = ''
+})
+
+onUnmounted(() => {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    persistNow()
+  }
+  unsubscribeSongs?.()
+})
+
 const handleClear = async (date) => {
+  clearTimeout(saveTimer)
+  saveTimer = null
+  pending = null
   saving.value = true
   try {
     await clearSunday(date)
-    showEditor.value = false
+    savedSignature = ''
+    panelNonce.value += 1
     toast.success('Service cleared')
   } catch (error) {
     console.error('Error clearing lineup service:', error)
@@ -218,16 +357,15 @@ const copySundayLyrics = async (sunday) => {
     toast.success(`Lyrics copied — ${entries.length} song${entries.length > 1 ? 's' : ''}`)
   }
 }
-
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
+  <div class="mx-auto flex h-full max-w-2xl flex-col">
     <!-- Month navigator -->
-    <div class="shrink-0 flex items-center gap-2 pb-3">
+    <div class="flex shrink-0 items-center gap-1 pb-3">
       <button
         @click="goToMonth(shiftMonth(month, -1))"
-        class="shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        class="shrink-0 rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
         aria-label="Previous month"
       >
         <ChevronLeft class="h-5 w-5" />
@@ -238,7 +376,7 @@ const copySundayLyrics = async (sunday) => {
         class="min-w-0 flex-1 text-center"
         :title="month === monthKeyOf() ? 'Current month' : 'Back to this month'"
       >
-        <span class="block text-base sm:text-lg font-bold text-gray-900 dark:text-white truncate">
+        <span class="block truncate text-base font-bold text-gray-900 dark:text-white sm:text-lg">
           {{ formatMonthLabel(month) }}
         </span>
         <span
@@ -251,7 +389,7 @@ const copySundayLyrics = async (sunday) => {
 
       <button
         @click="goToMonth(shiftMonth(month, 1))"
-        class="shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        class="shrink-0 rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
         aria-label="Next month"
       >
         <ChevronRight class="h-5 w-5" />
@@ -261,7 +399,7 @@ const copySundayLyrics = async (sunday) => {
            worship team planned, it does not change it. -->
       <button
         @click="router.push('/present')"
-        class="shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
+        class="shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
         title="Open the presenter"
       >
         <Play class="h-4 w-4" />
@@ -272,10 +410,10 @@ const copySundayLyrics = async (sunday) => {
         v-if="canPlan"
         @click="togglePublished"
         :class="[
-          'shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors',
+          'shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold transition-colors',
           isPublished
-            ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
-            : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',
+            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+            : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
         ]"
       >
         <component :is="isPublished ? Eye : EyeOff" class="h-4 w-4" />
@@ -283,150 +421,169 @@ const copySundayLyrics = async (sunday) => {
       </button>
     </div>
 
-    <div class="flex-1 overflow-hidden flex relative">
-      <div class="flex-1 overflow-y-auto pb-4 space-y-3">
-        <!-- Loading -->
-        <div v-if="loading" class="space-y-3">
-          <div
-            v-for="i in 4"
-            :key="`skeleton-${i}`"
-            class="h-28 rounded-2xl bg-gray-100 dark:bg-gray-800 animate-pulse"
-          />
-        </div>
+    <div class="custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto pb-4">
+      <!-- Loading -->
+      <div v-if="loading" class="space-y-3">
+        <div class="h-64 animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+        <div v-for="i in 3" :key="i" class="h-14 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+      </div>
 
-        <!-- Nothing to show a non-planner while the month is still a draft -->
-        <div
-          v-else-if="isHiddenDraft"
-          class="p-8 text-center text-gray-500 dark:text-gray-400"
-        >
-          <EyeOff class="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-          <p class="font-medium text-gray-700 dark:text-gray-300">Not published yet</p>
-          <p class="text-sm mt-1">
-            The worship team is still putting {{ formatMonthLabel(month) }} together.
-          </p>
-        </div>
+      <!-- Nothing to show a non-planner while the month is still a draft -->
+      <div v-else-if="isHiddenDraft" class="p-8 text-center text-gray-500 dark:text-gray-400">
+        <EyeOff class="mx-auto mb-4 h-12 w-12 text-gray-300 dark:text-gray-600" />
+        <p class="font-medium text-gray-700 dark:text-gray-300">Not published yet</p>
+        <p class="mt-1 text-sm">
+          The worship team is still putting {{ formatMonthLabel(month) }} together.
+        </p>
+      </div>
 
-        <template v-else>
-          <!-- Month summary -->
-          <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-4">
-            <div class="flex items-center justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                  {{ plannedCount }} of {{ sundays.length }} service{{ sundays.length === 1 ? '' : 's' }} planned
-                </p>
-                <!-- What is left to do, addressed to whoever is reading. The
-                     head is short of leaders; a leader is short of songs. -->
-                <p
-                  v-if="canPlan && unassignedCount"
-                  class="mt-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
-                >
-                  {{ unassignedCount }} still
+      <template v-else>
+        <!-- One line about the month, addressed to whoever is reading: the head
+             is short of leaders, a leader is looking for her own Sundays. The
+             roster behind it is the fairness check, which matters when
+             assigning and not on every visit. -->
+        <div class="rounded-xl bg-gray-50 px-3 py-2 dark:bg-gray-800/60">
+          <div class="flex items-center justify-between gap-2">
+            <p class="min-w-0 truncate text-xs font-semibold text-gray-600 dark:text-gray-300">
+              {{ plannedCount }} of {{ sundays.length }} planned
+              <template v-if="canPlan && unassignedCount">
+                <span class="text-amber-600 dark:text-amber-400">
+                  · {{ unassignedCount }} still
                   {{ unassignedCount === 1 ? 'needs a leader' : 'need a leader' }}
-                </p>
-                <p
-                  v-else-if="myServices.length"
-                  class="mt-0.5 text-xs font-medium text-primary dark:text-primary-light"
-                >
-                  You&rsquo;re leading {{ myServices.length }}
-                  {{ myServices.length === 1 ? 'service' : 'services' }} this month
-                </p>
-              </div>
-              <span
-                v-if="canPlan && !isPublished"
-                class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400"
-              >
-                Team can&rsquo;t see this yet
-              </span>
-            </div>
+                </span>
+              </template>
+              <template v-else-if="myServices.length">
+                <span class="text-primary dark:text-primary-light">
+                  · you&rsquo;re leading {{ myServices.length }}
+                </span>
+              </template>
+            </p>
+            <button
+              v-if="load.length || band.length"
+              @click="showRoster = !showRoster"
+              class="flex shrink-0 items-center gap-0.5 text-[11px] font-bold text-gray-400 transition-colors hover:text-primary"
+            >
+              Roster
+              <ChevronDown :class="['h-3.5 w-3.5 transition-transform', showRoster ? 'rotate-180' : '']" />
+            </button>
+          </div>
 
-            <!-- Who is carrying the month, both halves of it. Leading and
-                 playing are counted apart because they are different asks:
-                 four Sundays on the drums is not four Sundays out front. -->
-            <div v-if="load.length" class="mt-3">
-              <p class="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+          <div v-if="showRoster" class="mt-2 space-y-2 border-t border-gray-200 pt-2 dark:border-gray-700">
+            <div v-if="load.length">
+              <p class="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
                 <Mic2 class="h-3 w-3" /> Leading
               </p>
-              <div class="flex flex-wrap gap-1.5">
+              <div class="flex flex-wrap gap-1">
                 <span
                   v-for="row in load"
                   :key="row.id"
-                  class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 py-1 pl-1 pr-2.5 text-xs font-medium text-gray-700 dark:text-gray-200"
+                  class="inline-flex items-center gap-1 rounded-full bg-primary/10 py-0.5 pl-0.5 pr-2 text-[11px] font-medium text-gray-700 dark:text-gray-200"
                 >
-                  <img
-                    v-if="row.member"
-                    :src="getAvatarUrl(row.member)"
-                    alt=""
-                    class="h-5 w-5 rounded-full object-cover"
-                  />
+                  <img v-if="row.member" :src="getAvatarUrl(row.member)" alt="" class="h-4 w-4 rounded-full object-cover" />
                   {{ row.name }}
-                  <span class="text-gray-400 dark:text-gray-500">×{{ row.count }}</span>
+                  <span class="text-gray-400">×{{ row.count }}</span>
                 </span>
               </div>
             </div>
-            <p v-else class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              No leaders assigned this month yet.
-            </p>
 
-            <div v-if="band.length" class="mt-3">
-              <p class="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+            <div v-if="band.length">
+              <p class="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
                 <Users class="h-3 w-3" /> On the band
               </p>
-              <div class="flex flex-wrap gap-1.5">
+              <div class="flex flex-wrap gap-1">
                 <span
                   v-for="row in band"
                   :key="row.id"
-                  class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 py-1 pl-1 pr-2.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                  class="inline-flex items-center gap-1 rounded-full bg-gray-100 py-0.5 pl-0.5 pr-2 text-[11px] font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200"
                 >
-                  <img
-                    v-if="row.member"
-                    :src="getAvatarUrl(row.member)"
-                    alt=""
-                    class="h-5 w-5 rounded-full object-cover"
-                  />
+                  <img v-if="row.member" :src="getAvatarUrl(row.member)" alt="" class="h-4 w-4 rounded-full object-cover" />
                   {{ row.name }}
-                  <span class="text-gray-400 dark:text-gray-500">×{{ row.count }}</span>
+                  <span class="text-gray-400">×{{ row.count }}</span>
                 </span>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Sundays -->
-          <LineupSundayCard
-            v-for="sunday in sundays"
+        <!-- The service you came for -->
+        <template v-if="focused">
+          <LineupServicePanel
+            :key="`${focused.date}-${panelNonce}`"
+            :sunday="focused"
+            :members="members"
+            :songs="songs"
+            :can-edit-roster="canPlan"
+            :can-edit-songs="canEditSongs(focused)"
+            :is-mine="isMyService(focused)"
+            :is-next="focused.date === upcoming[0]?.date"
+            :is-past="focused.date < todayIso()"
+            :saving="saving"
+            @change="onPanelChange"
+            @clear="handleClear"
+          />
+
+          <!-- Tech grabs the whole service's words in one go, in service order. -->
+          <div v-if="focused.songs?.length" class="flex justify-end">
+            <button
+              type="button"
+              @click="copySundayLyrics(focused)"
+              class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              <Check v-if="lyricsCopiedDate === focused.date" class="h-3.5 w-3.5 text-emerald-500" />
+              <FileText v-else class="h-3.5 w-3.5" />
+              {{ lyricsCopiedDate === focused.date ? 'Lyrics copied' : 'Copy lyrics' }}
+            </button>
+          </div>
+        </template>
+
+        <!-- The rest of the month, a line each -->
+        <div v-if="otherUpcoming.length" class="space-y-0.5 pt-1">
+          <p class="px-1 pb-0.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">
+            Rest of the month
+          </p>
+          <LineupServiceRow
+            v-for="sunday in otherUpcoming"
             :key="sunday.date"
             :sunday="sunday"
             :members="members"
-            :can-manage="canPlan"
-            :can-edit-songs="canEditSongs(sunday)"
             :is-mine="isMyService(sunday)"
-            :is-next="sunday.date === nextServiceDate"
-            :is-past="sunday.date < todayIso()"
-            :lyrics-copied="lyricsCopiedDate === sunday.date"
-            @edit="openEditor"
-            @copy-lyrics="copySundayLyrics"
+            :show-gaps="canPlan"
+            @focus="focus"
           />
+        </div>
 
-          <!-- Nothing at all, and nobody able to fix it here -->
-          <p
-            v-if="!canPlan && plannedCount === 0"
-            class="p-8 text-center text-gray-500 dark:text-gray-400"
+        <!-- Services already run. Folded away: mid-month they were costing
+             half the scroll for Sundays nobody can change. -->
+        <div v-if="otherPast.length" class="pt-1">
+          <button
+            @click="showPast = !showPast"
+            class="flex w-full items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400 transition-colors hover:text-primary"
           >
-            <Mic2 class="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-            No services have been planned for this month yet.
-          </p>
-        </template>
-      </div>
+            <ChevronDown :class="['h-3.5 w-3.5 transition-transform', showPast ? 'rotate-180' : '-rotate-90']" />
+            Past services ({{ otherPast.length }})
+          </button>
+          <div v-if="showPast" class="space-y-0.5">
+            <LineupServiceRow
+              v-for="sunday in otherPast"
+              :key="sunday.date"
+              :sunday="sunday"
+              :members="members"
+              :is-mine="isMyService(sunday)"
+              is-past
+              @focus="focus"
+            />
+          </div>
+        </div>
 
-      <SundayEditorDrawer
-        v-model:show="showEditor"
-        :sunday="editingSunday"
-        :members="members"
-        :songs="songs"
-          :saving="saving"
-        :can-edit-roster="canPlan"
-        @save="handleSave"
-        @clear="handleClear"
-      />
+        <!-- Nothing at all, and nobody able to fix it here -->
+        <p
+          v-if="!canPlan && plannedCount === 0"
+          class="p-8 text-center text-gray-500 dark:text-gray-400"
+        >
+          <Mic2 class="mx-auto mb-4 h-12 w-12 text-gray-300 dark:text-gray-600" />
+          No services have been planned for this month yet.
+        </p>
+      </template>
     </div>
   </div>
 </template>
