@@ -24,8 +24,21 @@ const normalizeItem = (item, index) => ({
   // Songs are stored by reference so a lyric edit reaches every service that
   // sings it, rather than freezing a copy into each Sunday.
   songId: item?.songId || '',
-  // Everything typed in here: a reading, a notice, a welcome slide.
+  // Everything typed in here: a notice, a welcome slide.
   body: item?.body || '',
+  // Scripture, by contrast, is stored resolved: the reference it was looked up
+  // by, and the verses as they came back. A verse is not going to be revised
+  // the way a lyric is, so there is nothing to gain from looking it up again —
+  // and a run sheet that carries its own words is one that still projects when
+  // the church wifi is down mid-service.
+  reference: item?.reference || '',
+  verses: Array.isArray(item?.verses)
+    ? item.verses.map((verse) => ({
+        chapter: Number(verse?.chapter) || 0,
+        verse: Number(verse?.verse) || 0,
+        text: verse?.text || '',
+      }))
+    : [],
   // Where a video or a deck lives, for the operator to open.
   source: item?.source || '',
 })

@@ -17,7 +17,7 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Play, X, Cards, Music2, Menu } from '../icons'
+import { ArrowLeft, Play, X, Cards, Music2, Menu, BookOpen } from '../icons'
 import { subscribeToSongs } from '../api/songsService'
 import { subscribeToLineups } from '../api/lineupsService'
 import {
@@ -25,6 +25,7 @@ import {
   saveServicePlan,
   deleteServicePlan,
 } from '../api/servicePlansService'
+import { lookupReference } from '../api/bibleService'
 import { auth } from '../api/firebase'
 import { useToast } from '../composables/useToast'
 import { usePermissions } from '../composables/usePermissions'
@@ -398,12 +399,66 @@ const startAdding = (type) => {
     body: '',
     source: '',
     songId: '',
+    reference: '',
+    verses: [],
   }
+  resetLookup()
 }
 
 const cancelDraft = () => {
   draftItem.value = null
+  resetLookup()
 }
+
+// --- Looking up a reading --------------------------------------------------
+// Scripture is the one text item nobody should have to type. The operator gives
+// a reference and the verses are read out of the translation in public/bible/,
+// so what goes on the wall is neither retyped nor mis-transcribed.
+
+const lookup = ref({ loading: false, error: '', reference: '', verses: [] })
+
+const resetLookup = () => {
+  clearTimeout(lookupTimer)
+  lookup.value = { loading: false, error: '', reference: '', verses: [] }
+}
+
+let lookupTimer = null
+// Every lookup gets a number, and only the newest may write its result. Typing
+// "Juan 3:16" fires several, they can finish out of order, and the wrong one
+// landing last would leave a reference showing verses that are not its own.
+let lookupToken = 0
+
+const runLookup = async (input) => {
+  const typed = String(input || '').trim()
+  if (!typed) {
+    resetLookup()
+    return
+  }
+
+  const token = (lookupToken += 1)
+  lookup.value = { loading: true, error: '', reference: '', verses: [] }
+
+  const result = await lookupReference(typed)
+  if (token !== lookupToken) return
+
+  lookup.value = result.error
+    ? { loading: false, error: result.error, reference: '', verses: [] }
+    : { loading: false, error: '', reference: result.reference, verses: result.verses }
+}
+
+// Debounced rather than looked up on every keystroke: "Genesis 1" is a valid
+// reference on the way to typing "Genesis 1:1-5", and flashing the whole first
+// chapter up in the preview on the way past is just noise.
+watch(
+  () => draftItem.value?.reference,
+  (typed) => {
+    if (draftItem.value?.type !== 'scripture') return
+    clearTimeout(lookupTimer)
+    lookupTimer = setTimeout(() => runLookup(typed), 350)
+  }
+)
+
+onUnmounted(() => clearTimeout(lookupTimer))
 
 const commitDraft = () => {
   const draft = draftItem.value
@@ -418,6 +473,29 @@ const commitDraft = () => {
     }
     items.value = [...items.value, { ...draft }]
     draftItem.value = null
+    return
+  }
+
+  // A reading is added only once its reference has actually resolved, so the
+  // run sheet can never hold a passage that was mistyped. The verses come with
+  // it; the reference becomes the title, which is what the run sheet should
+  // show and what goes under the words on the wall.
+  if (draft.type === 'scripture') {
+    if (!lookup.value.verses.length) {
+      toast.warning(lookup.value.error || 'Find the passage first.')
+      return
+    }
+    items.value = [
+      ...items.value,
+      {
+        ...draft,
+        title: lookup.value.reference,
+        reference: lookup.value.reference,
+        verses: lookup.value.verses,
+      },
+    ]
+    draftItem.value = null
+    resetLookup()
     return
   }
 
@@ -974,6 +1052,7 @@ onUnmounted(() => {
             </span>
 
             <Music2 v-if="item.type === 'song'" class="h-3.5 w-3.5 shrink-0" />
+            <BookOpen v-else-if="item.type === 'scripture'" class="h-3.5 w-3.5 shrink-0" />
             <Cards v-else class="h-3.5 w-3.5 shrink-0" />
 
             <button
@@ -1044,6 +1123,54 @@ onUnmounted(() => {
               </option>
             </select>
 
+            <!-- A reading is found, not typed: a reference, and the verses come
+                 out of the translation. No title field, because the reference
+                 is the title. -->
+            <template v-else-if="draftItem.type === 'scripture'">
+              <input
+                v-model="draftItem.reference"
+                type="text"
+                placeholder="Juan 3:16-18"
+                autocapitalize="words"
+                @keydown.enter.prevent="runLookup(draftItem.reference)"
+                class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              />
+
+              <p v-if="lookup.loading" class="text-[11px] font-semibold text-gray-400">
+                Looking it up…
+              </p>
+
+              <!-- The reason it did not resolve, in the words the parser used:
+                   an ambiguous abbreviation names its candidates, so the fix is
+                   usually one keystroke. -->
+              <p v-else-if="lookup.error" class="text-[11px] font-semibold text-red-500">
+                {{ lookup.error }}
+              </p>
+
+              <!-- What was found, before it is committed. Nobody should have to
+                   put a passage on the wall to discover it was the wrong one. -->
+              <div
+                v-else-if="lookup.verses.length"
+                class="rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900"
+              >
+                <div class="flex items-baseline justify-between gap-2">
+                  <p class="text-[11px] font-bold text-primary">{{ lookup.reference }}</p>
+                  <p class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    {{ lookup.verses.length }}
+                    {{ lookup.verses.length === 1 ? 'verse' : 'verses' }}
+                  </p>
+                </div>
+                <p
+                  class="mt-1 max-h-24 overflow-y-auto text-[11px] leading-relaxed text-gray-600 dark:text-gray-300"
+                >
+                  <span v-for="verse in lookup.verses" :key="`${verse.chapter}-${verse.verse}`">
+                    <span class="font-bold text-gray-400">{{ verse.verse }}</span>
+                    {{ verse.text }}
+                  </span>
+                </p>
+              </div>
+            </template>
+
             <input
               v-else
               v-model="draftItem.title"
@@ -1053,7 +1180,11 @@ onUnmounted(() => {
             />
 
             <textarea
-              v-if="ITEM_TYPES[draftItem.type]?.renders === 'text' && draftItem.type !== 'song'"
+              v-if="
+                ITEM_TYPES[draftItem.type]?.renders === 'text' &&
+                draftItem.type !== 'song' &&
+                draftItem.type !== 'scripture'
+              "
               v-model="draftItem.body"
               rows="4"
               placeholder="The words to project. A blank line starts a new slide."

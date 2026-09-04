@@ -1,7 +1,7 @@
 {
   "name": "uec-app",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.7.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,8 @@
     "build": "npm run build:icons && vite build",
     "preview": "vite preview",
     "deploy": "node scripts/deploy.mjs",
-    "build:icons": "node scripts/build-ui-icons.mjs && node scripts/build-event-icons.mjs"
+    "build:icons": "node scripts/build-ui-icons.mjs && node scripts/build-event-icons.mjs",
+    "sync:bible": "node scripts/sync-bible.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

@@ -11,6 +11,25 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.7.1] — 2026-09-04
+
+Scripture on the wall. A reading is now found rather than typed: the operator
+gives a reference and the verses come out of the translation.
+
+### Added
+- **Bible readings in the run sheet.** The scripture item type, which already
+  existed, now takes a reference instead of pasted text. `Juan 3:16`,
+  `jn 3.16`, `1 Cor 13`, `Mga Awit 23`, `Gen 1:1-2:3` all resolve; an
+  ambiguous abbreviation is refused by name rather than guessed at.
+- The translation ships as static JSON in `public/bible/MBBTAG/`, one file per
+  book, fetched on demand (2-89 KB gzipped) and cache-first thereafter, so a
+  service whose passages have been looked up once projects with the wifi down.
+- Verses break into slides a whole verse at a time and never mid-sentence, six
+  lines of forty characters, with the reference captioned under the words on
+  every slide of a reading.
+- `npm run sync:bible` turns a scrape in `data/bible/` into the shipped JSON
+  and the generated book table.
+
 ## [0.7.0] — 2026-09-04
 
 The worship-and-work release: songs became a real module with a projector

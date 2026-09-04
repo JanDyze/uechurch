@@ -136,6 +136,24 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // The Bible is 4.7 MB across 66 files and is deliberately not
+        // precached — globPatterns above does not list json, so it stays out of
+        // the install. A church does not need Habakkuk on every phone.
+        //
+        // It is cached once fetched, though, and cache-first forever after: a
+        // verse is not going to be revised, and the service a passage was
+        // looked up for has to survive the hall's wifi giving out mid-reading.
+        runtimeCaching: [
+          {
+            urlPattern: /\/bible\/[^/]+\/[^/]+\.json$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'bible-books',
+              expiration: { maxEntries: 70 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
   ],

@@ -37,6 +37,12 @@ const fontSize = (lineCount) => {
   return `${(size * scale.value) / 100}vw`
 }
 
+// The scripture reference. Fixed rather than sized with the verse, because it
+// is a caption: it should look the same on every slide of a reading whether
+// that slide holds two lines or six, and it follows the operator's scale so it
+// does not drift out of proportion when they resize everything else.
+const captionSize = computed(() => `${(1.5 * scale.value) / 100}vw`)
+
 /**
  * Goes fullscreen, and says whether it worked.
  *
@@ -167,12 +173,25 @@ onUnmounted(() => {
          black — the room never goes dark between two lines of the same song. -->
     <Transition name="slide">
       <div :key="slideKey" class="absolute inset-0 flex items-center justify-center p-[4vw]">
-        <div
-          v-if="slide.kind === 'text' && slide.lines?.length"
-          class="w-full text-center font-bold leading-tight text-white"
-          :style="{ fontSize: fontSize(slide.lines.length) }"
-        >
-          <div v-for="(line, index) in slide.lines" :key="index">{{ line }}</div>
+        <div v-if="slide.kind === 'text' && slide.lines?.length" class="w-full">
+          <div
+            class="text-center font-bold leading-tight text-white"
+            :style="{ fontSize: fontSize(slide.lines.length) }"
+          >
+            <div v-for="(line, index) in slide.lines" :key="index">{{ line }}</div>
+          </div>
+
+          <!-- The reference, for scripture only. Small, dimmed and below the
+               words: it is there for anyone following in their own Bible, and
+               should never compete with the verse for attention. Songs set no
+               caption, so nothing appears for them. -->
+          <p
+            v-if="slide.caption"
+            class="mt-[2vh] text-center font-semibold uppercase tracking-widest text-white/45"
+            :style="{ fontSize: captionSize }"
+          >
+            {{ slide.caption }}
+          </p>
         </div>
 
         <!-- A video plays here, filling the screen. contain, not cover: a
