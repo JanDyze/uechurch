@@ -11,10 +11,10 @@ deploy automatically. The whole flow is wrapped in `scripts/deploy.mjs`.
 ## Steps
 
 1. Check for uncommitted changes with `git status --porcelain`.
-   - If there are changes, commit them first on the current branch with a
-     clear conventional-commit message summarizing the actual changes
-     (e.g. `feat: ...`, `fix: ...`). Do not commit unrelated or generated
-     files (`dist/`, `node_modules/` must never be committed).
+   - If there are changes, commit them first with the `commit` skill, which
+     also decides whether the release needs a version bump and a CHANGELOG
+     entry. Never commit generated or private files (`dist/`,
+     `node_modules/`, `data/bible/`, `backups/`).
 2. Run the deploy script:
    ```
    npm run deploy
