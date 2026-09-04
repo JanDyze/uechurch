@@ -9,6 +9,7 @@ import {
   EyeOff,
   Mic2,
   Music4,
+  Users,
   Play,
 } from '../icons'
 import { useLineup, isSundayPlanned } from '../composables/useLineups'
@@ -23,6 +24,7 @@ import {
   isValidMonthKey,
   monthKeyOf,
   monthKeyOfIso,
+  bandLoad,
   leaderLoad,
   shiftMonth,
   todayIso,
@@ -81,6 +83,9 @@ const nextServiceDate = computed(() => {
 })
 
 const load = computed(() => leaderLoad(sundays.value, members.value))
+// A lineup is a roster as much as a set list, so the month has to answer
+// "who is playing how often" and not only "who is leading how often".
+const band = computed(() => bandLoad(sundays.value, members.value))
 
 // Editor
 const showEditor = ref(false)
@@ -324,25 +329,55 @@ const saveMonthNotes = async () => {
               </span>
             </div>
 
-            <div v-if="load.length" class="mt-3 flex flex-wrap gap-1.5">
-              <span
-                v-for="row in load"
-                :key="row.id"
-                class="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-700 dark:text-gray-200"
-              >
-                <img
-                  v-if="row.member"
-                  :src="getAvatarUrl(row.member)"
-                  alt=""
-                  class="h-5 w-5 rounded-full object-cover"
-                />
-                {{ row.name }}
-                <span class="text-gray-400 dark:text-gray-500">×{{ row.count }}</span>
-              </span>
+            <!-- Who is carrying the month, both halves of it. Leading and
+                 playing are counted apart because they are different asks:
+                 four Sundays on the drums is not four Sundays out front. -->
+            <div v-if="load.length" class="mt-3">
+              <p class="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <Mic2 class="h-3 w-3" /> Leading
+              </p>
+              <div class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="row in load"
+                  :key="row.id"
+                  class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 py-1 pl-1 pr-2.5 text-xs font-medium text-gray-700 dark:text-gray-200"
+                >
+                  <img
+                    v-if="row.member"
+                    :src="getAvatarUrl(row.member)"
+                    alt=""
+                    class="h-5 w-5 rounded-full object-cover"
+                  />
+                  {{ row.name }}
+                  <span class="text-gray-400 dark:text-gray-500">×{{ row.count }}</span>
+                </span>
+              </div>
             </div>
             <p v-else class="mt-2 text-xs text-gray-500 dark:text-gray-400">
               No leaders assigned this month yet.
             </p>
+
+            <div v-if="band.length" class="mt-3">
+              <p class="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <Users class="h-3 w-3" /> On the band
+              </p>
+              <div class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="row in band"
+                  :key="row.id"
+                  class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 py-1 pl-1 pr-2.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                >
+                  <img
+                    v-if="row.member"
+                    :src="getAvatarUrl(row.member)"
+                    alt=""
+                    class="h-5 w-5 rounded-full object-cover"
+                  />
+                  {{ row.name }}
+                  <span class="text-gray-400 dark:text-gray-500">×{{ row.count }}</span>
+                </span>
+              </div>
+            </div>
           </div>
 
           <!-- Sundays -->

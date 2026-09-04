@@ -118,6 +118,15 @@ export const keyForLeader = (song, leaderId) => {
   return match ? match[1] : ''
 }
 
+/** Counted ids to named rows, busiest first. Shared by the two loads below. */
+const loadRows = (counts, members) =>
+  [...counts.entries()]
+    .map(([id, count]) => {
+      const member = members.find((m) => memberKey(m) === id || String(m.firestoreId) === id)
+      return { id, count, name: member ? getFullName(member) : 'Unknown', member }
+    })
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+
 /** How many Sundays each leader carries this month — the fairness check. */
 export const leaderLoad = (sundays = [], members = []) => {
   const counts = new Map()
@@ -126,10 +135,26 @@ export const leaderLoad = (sundays = [], members = []) => {
     if (!id) return
     counts.set(String(id), (counts.get(String(id)) || 0) + 1)
   })
-  return [...counts.entries()]
-    .map(([id, count]) => {
-      const member = members.find((m) => memberKey(m) === id || String(m.firestoreId) === id)
-      return { id, count, name: member ? getFullName(member) : 'Unknown', member }
+  return loadRows(counts, members)
+}
+
+/**
+ * How many Sundays each band member plays this month.
+ *
+ * The same fairness question as leaderLoad, asked of everyone who is not
+ * holding the microphone — a lineup is a roster of people as much as it is a
+ * list of songs, and the drummer playing four Sundays running is exactly the
+ * thing a planner needs to see before publishing.
+ *
+ * A leader who also plays appears in both loads, which is the truth of it.
+ */
+export const bandLoad = (sundays = [], members = []) => {
+  const counts = new Map()
+  sundays.forEach((sunday) => {
+    ;(sunday?.teamIds || []).forEach((id) => {
+      if (!id) return
+      counts.set(String(id), (counts.get(String(id)) || 0) + 1)
     })
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  })
+  return loadRows(counts, members)
 }

@@ -11,6 +11,27 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.7.4] — 2026-09-04
+
+The band half of a lineup, and a shorter road from a missing song to YouTube.
+
+### Changed
+- **Lineups shows the band by name.** A Sunday card used to reduce the players
+  to four 20px avatars and a "+2" — it told you a lineup had people in it
+  without telling you who. They are now named chips under a Band heading, with
+  "No band assigned yet" when the roster is still empty, and the songs above
+  them got a heading of their own so the card reads as the two things a lineup
+  actually is.
+- **The month summary counts playing as well as leading.** Leading and On the
+  band are listed apart, because four Sundays on the drums is not four Sundays
+  out front, and the drummer playing every week is what a planner needs to see
+  before publishing. Adds `bandLoad` alongside `leaderLoad`.
+- **Search YouTube now sits next to Clear filters** when a song search comes up
+  empty. The offer already existed but was stranded below a screenful of empty
+  state; the songbook not having a song is the usual reason to reach for
+  YouTube, so the two moves belong together. Listed first, since the song
+  usually exists and simply is not saved yet.
+
 ## [0.7.3] — 2026-09-04
 
 Choosing a service became a list instead of a column.

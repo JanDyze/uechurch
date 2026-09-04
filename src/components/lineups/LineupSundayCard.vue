@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Check, FileText, Mic2, Pencil, StickyNote, Users } from '../../icons'
+import { Check, FileText, Mic2, Music4, Pencil, StickyNote, Users } from '../../icons'
 import { getAvatarUrl, getFullName } from '../../utils/memberUtils'
 import MemberAvatar from '../members/MemberAvatar.vue'
 import { memberKey } from '../../utils/sgUtils'
@@ -100,7 +100,14 @@ const isEmpty = computed(
           </p>
 
           <!-- Service order -->
-          <ol v-if="sunday.songs?.length" class="mt-2 space-y-1">
+          <p
+            v-if="sunday.songs?.length"
+            class="mt-2.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-400"
+          >
+            <Music4 class="h-3 w-3" />
+            {{ sunday.songs.length }} {{ sunday.songs.length === 1 ? 'song' : 'songs' }}
+          </p>
+          <ol v-if="sunday.songs?.length" class="mt-1 space-y-1">
             <li
               v-for="(song, index) in sunday.songs"
               :key="`${song.songId}-${index}`"
@@ -131,27 +138,43 @@ const isEmpty = computed(
             Songs not chosen yet
           </p>
 
-          <!-- Team + notes -->
-          <div v-if="team.length || sunday.notes" class="mt-2.5 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-            <span v-if="team.length" class="flex items-center gap-1.5 min-w-0">
-              <Users class="h-3.5 w-3.5 shrink-0" />
-              <span class="flex -space-x-1.5 shrink-0">
+          <!-- The band. Named, not a row of anonymous dots: who is playing is
+               half of what a lineup is, and a player checking whether they are
+               on this Sunday should not have to open the editor to find out. -->
+          <template v-if="team.length">
+            <p class="mt-2.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+              <Users class="h-3 w-3" /> Band
+            </p>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <span
+                v-for="member in team"
+                :key="memberKey(member)"
+                class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 py-0.5 pl-0.5 pr-2 text-[11px] font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+              >
                 <img
-                  v-for="member in team.slice(0, 4)"
-                  :key="memberKey(member)"
                   :src="getAvatarUrl(member)"
                   :alt="getFullName(member)"
-                  :title="getFullName(member)"
-                  class="h-5 w-5 rounded-full object-cover ring-2 ring-white dark:ring-gray-800"
+                  class="h-4 w-4 rounded-full object-cover"
                 />
+                {{ getFullName(member) }}
               </span>
-              <span v-if="team.length > 4">+{{ team.length - 4 }}</span>
-            </span>
-            <span v-if="sunday.notes" class="flex items-center gap-1 min-w-0">
-              <StickyNote class="h-3.5 w-3.5 shrink-0" />
-              <span class="truncate">{{ sunday.notes }}</span>
-            </span>
-          </div>
+            </div>
+          </template>
+
+          <p
+            v-else-if="!isEmpty"
+            class="mt-2.5 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500"
+          >
+            <Users class="h-3.5 w-3.5 shrink-0" /> No band assigned yet
+          </p>
+
+          <p
+            v-if="sunday.notes"
+            class="mt-2 flex items-start gap-1 text-xs text-gray-500 dark:text-gray-400"
+          >
+            <StickyNote class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span class="min-w-0">{{ sunday.notes }}</span>
+          </p>
 
           <!-- Empty slot call to action -->
           <p

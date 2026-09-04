@@ -493,7 +493,7 @@ const copyLyrics = async (song) => {
           </div>
 
           <!-- Nothing matches the search or filter -->
-          <div v-else-if="filteredSongs.length === 0 && hasFilters" class="flex flex-col items-center justify-center py-24 px-6 text-center">
+          <div v-else-if="filteredSongs.length === 0 && hasFilters" class="flex flex-col items-center justify-center px-6 py-12 text-center">
             <SearchX class="h-10 w-10 text-gray-300 dark:text-gray-600" />
             <p class="mt-3 text-sm font-semibold text-gray-900 dark:text-white">No songs match</p>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -502,12 +502,29 @@ const copyLyrics = async (song) => {
               <span v-if="searchQuery.trim() && selectedCategory !== 'All'"> in </span>
               <span v-if="selectedCategory !== 'All'" class="font-medium">{{ selectedCategory }}</span>.
             </p>
-            <button
-              @click="clearFilters"
-              class="mt-4 rounded-lg bg-gray-100 dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              Clear filters
-            </button>
+
+            <!-- The songbook not having it is the usual reason to reach for
+                 YouTube, so the two moves sit together: look it up, or widen
+                 the search back out. Listed first because it is the one more
+                 often wanted — the song exists, it just is not saved yet. -->
+            <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <button
+                v-if="canManage('songs') && searchQuery.trim() && youtubeQuery !== searchQuery.trim()"
+                @click="runYoutubeSearch"
+                :disabled="isSearchingYoutube"
+                class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-60"
+              >
+                <Loader2 v-if="isSearchingYoutube" class="h-4 w-4 animate-spin" />
+                <Youtube v-else class="h-4 w-4" />
+                {{ isSearchingYoutube ? 'Searching YouTube…' : 'Search YouTube' }}
+              </button>
+              <button
+                @click="clearFilters"
+                class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              >
+                Clear filters
+              </button>
+            </div>
           </div>
 
           <!-- Nothing saved yet -->
@@ -596,7 +613,7 @@ const copyLyrics = async (song) => {
                from the result without leaving the page. -->
           <div v-if="!isLoading && canManage('songs') && searchQuery.trim()" class="pt-2">
             <button
-              v-if="youtubeQuery !== searchQuery.trim()"
+              v-if="youtubeQuery !== searchQuery.trim() && filteredSongs.length > 0"
               @click="runYoutubeSearch"
               :disabled="isSearchingYoutube"
               class="flex w-full items-center gap-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 px-2 py-2.5 text-left transition-colors hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-60 sm:px-3"
@@ -615,7 +632,7 @@ const copyLyrics = async (song) => {
               </span>
             </button>
 
-            <section v-else>
+            <section v-else-if="youtubeQuery === searchQuery.trim()">
               <div class="sticky top-0 z-10 flex items-center gap-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur py-2">
                 <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-red-600 dark:bg-red-500/10 dark:text-red-400">
                   <Youtube class="h-3 w-3" /> From YouTube
