@@ -14,13 +14,12 @@ export const blankSunday = (date) => ({
   leaderId: null,
   teamIds: [],
   theme: '',
-  notes: '',
   songs: [],
 })
 
 /** True once anything has actually been filled in for a service. */
 export const isSundayPlanned = (sunday) =>
-  Boolean(sunday?.leaderId || sunday?.songs?.length || sunday?.theme || sunday?.notes?.trim() || sunday?.teamIds?.length)
+  Boolean(sunday?.leaderId || sunday?.songs?.length || sunday?.theme || sunday?.teamIds?.length)
 
 /**
  * The month's plan. `monthKey` may be a ref, so paging between months

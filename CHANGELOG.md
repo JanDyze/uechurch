@@ -11,6 +11,15 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.9.3] — 2026-09-04
+
+### Removed
+- **"Notes for the team" on a service.** The textarea in the drawer, the block
+  on the panel, and `notes` on the service itself. A Sunday having notes no
+  longer counts towards it being planned.
+- The per-song note — "opener", "key change on last chorus" — is untouched;
+  that one belongs to a song in the order, not to the service.
+
 ## [0.9.2] — 2026-09-04
 
 ### Changed

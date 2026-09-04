@@ -28,7 +28,6 @@ const normalizeSunday = (data = {}) => ({
   // Musicians, backup singers, anyone else rostered for the service.
   teamIds: Array.isArray(data.teamIds) ? data.teamIds.map(String) : [],
   theme: data.theme || '',
-  notes: data.notes || '',
   songs: Array.isArray(data.songs) ? data.songs.map(normalizeSong) : [],
 })
 

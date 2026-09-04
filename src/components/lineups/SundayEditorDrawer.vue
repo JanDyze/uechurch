@@ -162,7 +162,6 @@ const handleSave = () => {
   emit('save', {
     ...form.value,
     theme: form.value.theme.trim(),
-    notes: form.value.notes.trim(),
     songs: form.value.songs.map((s) => ({ ...s, key: (s.key || '').trim(), note: (s.note || '').trim() })),
   })
 }
@@ -444,20 +443,6 @@ const handleSave = () => {
                   }}
                 </p>
               </div>
-            </div>
-
-            <!-- Notes -->
-            <div>
-              <label for="lineup-notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Notes for the team
-              </label>
-              <textarea
-                id="lineup-notes"
-                v-model="form.notes"
-                rows="3"
-                placeholder="Practice schedule, reminders, anything the team should know"
-                class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
             </div>
           </div>
 

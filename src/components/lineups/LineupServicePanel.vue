@@ -4,7 +4,7 @@
  *
  * Reading and editing are separate jobs and this does the first. The month is a
  * list of lines with one service opened out of it, and this panel is what
- * "opened out" means: leader, band, the order with its keys, notes — everything
+ * "opened out" means: leader, band and the order with its keys — everything
  * about a service, laid out to be read rather than filled in.
  *
  * Editing happens in SundayEditorDrawer, which this hands off to. Anyone
@@ -16,7 +16,7 @@
  * whether the songs are picked and who is playing.
  */
 import { computed } from 'vue'
-import { ListMusic, Mic2, Pencil, StickyNote, Users } from '../../icons'
+import { ListMusic, Mic2, Pencil, Users } from '../../icons'
 import { getAvatarUrl, getFullName } from '../../utils/memberUtils'
 import { memberKey } from '../../utils/sgUtils'
 import MemberAvatar from '../members/MemberAvatar.vue'
@@ -232,18 +232,6 @@ const readiness = computed(() => {
         >
           <ListMusic class="mx-auto mb-1.5 h-7 w-7 text-gray-300 dark:text-gray-600" />
           No songs chosen yet.
-        </p>
-      </div>
-
-      <!-- Notes -->
-      <div v-if="sunday.notes">
-        <p
-          class="mb-1 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-gray-400"
-        >
-          <StickyNote class="h-3 w-3" /> Notes for the team
-        </p>
-        <p class="whitespace-pre-line text-xs text-gray-600 dark:text-gray-300">
-          {{ sunday.notes }}
         </p>
       </div>
     </div>
