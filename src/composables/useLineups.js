@@ -99,8 +99,6 @@ export function useLineup(monthKey) {
   const setStatus = (next) =>
     saveLineup(unref(monthKey), { status: next === 'published' ? 'published' : 'draft' }, user.value)
 
-  const setNotes = (notes) => saveLineup(unref(monthKey), { notes }, user.value)
-
   const removeMonth = () => deleteLineup(unref(monthKey))
 
   return {
@@ -112,7 +110,6 @@ export function useLineup(monthKey) {
     saveSunday,
     clearSunday,
     setStatus,
-    setNotes,
     removeMonth,
   }
 }

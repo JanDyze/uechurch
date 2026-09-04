@@ -11,6 +11,14 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.8.1] — 2026-09-04
+
+### Removed
+- **Month notes.** The whole-month notes box, its save button and `setNotes`
+  are gone, and `notes` is no longer part of the month's shape. Per-service
+  "Notes for the team" is untouched — that is the one attached to a Sunday
+  someone is actually playing.
+
 ## [0.8.0] — 2026-09-04
 
 Lineups now has two people in mind instead of one: the worship ministry head

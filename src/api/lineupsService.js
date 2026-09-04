@@ -38,7 +38,6 @@ const normalizeLineup = (data, docId) => ({
   // Drafts are visible only to whoever can manage lineups, so a half-built
   // month never reaches the team before it is settled.
   status: data.status === 'published' ? 'published' : 'draft',
-  notes: data.notes || '',
   sundays: (Array.isArray(data.sundays) ? data.sundays : [])
     .map(normalizeSunday)
     .sort((a, b) => a.date.localeCompare(b.date)),

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ChevronLeft,
@@ -7,7 +7,6 @@ import {
   Eye,
   EyeOff,
   Mic2,
-  Music4,
   Users,
   Play,
 } from '../icons'
@@ -75,7 +74,6 @@ const {
   saveSunday,
   clearSunday,
   setStatus,
-  setNotes,
 } = useLineup(month)
 
 // Songs are read straight from the song list, so a lineup always offers what
@@ -221,26 +219,6 @@ const copySundayLyrics = async (sunday) => {
   }
 }
 
-// Month notes
-const notesDraft = ref('')
-watch(
-  () => lineup.value?.notes,
-  (notes) => {
-    notesDraft.value = notes || ''
-  },
-  { immediate: true }
-)
-const notesDirty = computed(() => notesDraft.value !== (lineup.value?.notes || ''))
-
-const saveMonthNotes = async () => {
-  try {
-    await setNotes(notesDraft.value.trim())
-    toast.success('Notes saved')
-  } catch (error) {
-    console.error('Error saving lineup notes:', error)
-    toast.error('Could not save the notes.')
-  }
-}
 </script>
 
 <template>
@@ -428,34 +406,6 @@ const saveMonthNotes = async () => {
             @copy-lyrics="copySundayLyrics"
           />
 
-          <!-- Month notes -->
-          <div
-            v-if="canPlan || lineup?.notes"
-            class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 sm:p-4"
-          >
-            <div class="flex items-center gap-2 mb-2">
-              <Music4 class="h-4 w-4 text-gray-400" />
-              <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Month notes</h3>
-            </div>
-            <textarea
-              v-if="canPlan"
-              v-model="notesDraft"
-              rows="2"
-              placeholder="Rehearsal nights, series theme, anything for the whole month"
-              class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-            <p v-else class="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line">
-              {{ lineup.notes }}
-            </p>
-            <button
-              v-if="canPlan && notesDirty"
-              @click="saveMonthNotes"
-              class="mt-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover transition-colors"
-            >
-              Save notes
-            </button>
-          </div>
-
           <!-- Nothing at all, and nobody able to fix it here -->
           <p
             v-if="!canPlan && plannedCount === 0"
@@ -472,8 +422,8 @@ const saveMonthNotes = async () => {
         :sunday="editingSunday"
         :members="members"
         :songs="songs"
-        :saving="saving"
-      :can-edit-roster="canPlan"
+          :saving="saving"
+        :can-edit-roster="canPlan"
         @save="handleSave"
         @clear="handleClear"
       />
