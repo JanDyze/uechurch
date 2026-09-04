@@ -1018,7 +1018,7 @@ onUnmounted(() => {
     >
       <div class="flex flex-wrap items-center gap-3">
         <button
-          @click="router.push('/lineups')"
+          @click="router.push({ name: 'Services' })"
           aria-label="Back to lineups"
           class="shrink-0 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-primary dark:hover:bg-gray-700"
         >
@@ -1026,7 +1026,9 @@ onUnmounted(() => {
         </button>
 
         <div class="min-w-0">
-          <h1 class="text-sm font-bold text-gray-900 dark:text-white">Presenter</h1>
+          <h1 class="truncate text-sm font-bold text-gray-900 dark:text-white">
+            {{ selectedDate ? formatServiceDate(selectedDate) : 'Presenter' }}
+          </h1>
           <p class="text-xs font-medium text-gray-400">
             {{ deck.length }} slide{{ deck.length === 1 ? '' : 's' }}
             <span v-if="screenCount > 1">· {{ screenCount }} screens</span>
@@ -1080,53 +1082,6 @@ onUnmounted(() => {
     </div>
 
     <div class="flex min-h-0 flex-1 flex-col lg:flex-row">
-      <!-- Presentation's own sidebar: which service is being run.
-           Its own column rather than a dropdown in the header, because
-           choosing the Sunday is the first thing done here and the header is
-           already full of things needed mid-service.
-
-           A strip across the top on a phone and a column on a wide screen: the
-           booth laptop has room for it, a phone has none to spare, and the
-           dates are short enough to scroll sideways. -->
-      <div
-        class="custom-scrollbar shrink-0 overflow-x-auto border-b border-gray-200 p-3 dark:border-gray-700 lg:w-52 lg:overflow-x-hidden lg:overflow-y-auto lg:border-b-0 lg:border-r"
-      >
-        <p class="mb-2 hidden px-1 text-xs font-bold uppercase tracking-wide text-gray-400 lg:block">
-          Services
-        </p>
-
-        <p v-if="!sundays.length" class="px-1 text-xs text-gray-400">
-          No lineups yet. The worship team plans a Sunday and it appears here.
-        </p>
-
-        <div class="flex gap-1.5 lg:flex-col">
-          <button
-            v-for="entry in sundays"
-            :key="entry.date"
-            @click="selectedDate = entry.date"
-            :class="[
-              'shrink-0 rounded-lg px-2.5 py-2 text-left transition-colors lg:w-full',
-              entry.date === selectedDate
-                ? 'bg-primary/12 text-primary'
-                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/60',
-            ]"
-          >
-            <span class="block whitespace-nowrap text-xs font-bold">
-              {{ formatServiceDate(entry.date) }}
-            </span>
-            <span
-              :class="[
-                'block whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide',
-                entry.date === selectedDate ? 'text-primary/70' : 'text-gray-400',
-              ]"
-            >
-              {{ (entry.songs || []).length }}
-              {{ (entry.songs || []).length === 1 ? 'song' : 'songs' }}
-            </span>
-          </button>
-        </div>
-      </div>
-
       <!-- The run sheet: what is being run, in order. Songs arrive from the
            worship team's lineup; everything else is added here, because a
            reading or a notice is the tech team's to plan and was never on the

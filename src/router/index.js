@@ -114,11 +114,19 @@ const routes = [
         component: () => import('../views/SongDetails.vue')
       },
       {
-        // The tech booth. Keyed by service date rather than month, because a
-        // service is what gets run; without one it opens the latest Sunday.
-        // Read-only access is enough — presenting shows what the worship team
-        // planned, it does not change it.
-        path: 'present/:date?',
+        // What Presentation opens on: every service there is to run. A church
+        // holds one a week, so choosing happens once, here, rather than from a
+        // switcher the presenter had to carry.
+        path: 'present',
+        name: 'Services',
+        meta: { capability: 'lineups.view' },
+        component: () => import('../views/Services.vue')
+      },
+      {
+        // The tech booth, for one service. Keyed by date rather than month,
+        // because a service is what gets run. Read-only access is enough —
+        // presenting shows what the worship team planned, it does not change it.
+        path: 'present/:date',
         name: 'Present',
         meta: { capability: 'lineups.view' },
         component: () => import('../views/Present.vue')

@@ -11,6 +11,24 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.7.3] — 2026-09-04
+
+Choosing a service became a list instead of a column.
+
+### Added
+- **A services list at `/present`** — the next service as a card of its own,
+  then what is coming up, then past services. Each row says how many songs the
+  lineup holds and whether a run sheet has been prepared or the Sunday is still
+  following the lineup alone.
+- `subscribeToServicePlans` — the whole plans collection, so the list can say
+  which Sundays are prepared.
+
+### Changed
+- **The presenter's service sidebar is gone.** A church runs one service a
+  week; nobody switches mid-Sunday, and the column cost space the run sheet
+  wanted. The presenter is now about one service, named in its header, reached
+  from the list at `/present/<date>`.
+
 ## [0.7.2] — 2026-09-04
 
 Presentation became a place of its own, and the run sheet stopped needing to be

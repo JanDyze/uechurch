@@ -1,5 +1,12 @@
 import { db } from './firebase'
-import { doc, onSnapshot, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  onSnapshot,
+  setDoc,
+  deleteDoc,
+  serverTimestamp,
+} from 'firebase/firestore'
 
 // What the tech team is actually running on a given Sunday.
 //
@@ -64,6 +71,37 @@ export const subscribeToServicePlan = (date, callback) => {
       updatedAt: data.updatedAt?.toDate?.() || null,
     })
   })
+}
+
+/**
+ * Every service that has a run sheet, keyed by date.
+ *
+ * One document per Sunday, so this stays a short list — a year of services is
+ * fifty-odd documents. The services list uses it to say which Sundays have been
+ * prepared and which are still following the lineup alone, which is the whole
+ * question that list is opened to answer.
+ */
+export const subscribeToServicePlans = (callback) => {
+  return onSnapshot(
+    collection(db, PLANS_COLLECTION),
+    (snapshot) => {
+      const plans = {}
+      snapshot.docs.forEach((entry) => {
+        const data = entry.data() || {}
+        plans[entry.id] = {
+          date: entry.id,
+          items: Array.isArray(data.items) ? data.items.map(normalizeItem) : [],
+          updatedBy: data.updatedBy || '',
+          updatedAt: data.updatedAt?.toDate?.() || null,
+        }
+      })
+      callback(plans)
+    },
+    (error) => {
+      console.error('Error subscribing to service plans:', error)
+      callback({})
+    }
+  )
 }
 
 /**
