@@ -7,10 +7,10 @@
  * one more thing to forget on a Sunday morning. Edits here go straight up to
  * the page, which persists them by itself.
  *
- * Two people use this panel and they get different halves of it. The worship
- * ministry head sets who serves — the leader and the band. The leader named on
- * the service plans its songs, sees the roster she is playing with, and cannot
- * change it. `canEditRoster` is the whole of that distinction.
+ * One permission governs all of it: whoever Settings has granted Worship
+ * lineups plans people and songs alike, and administrators bypass the check.
+ * Leading this Sunday grants nothing extra — it changes what the panel shows,
+ * not what it lets you do. `isMine` is a lens, `canEdit` is the gate.
  */
 import { computed, ref, watch } from 'vue'
 import {
@@ -39,8 +39,7 @@ const props = defineProps({
   sunday: { type: Object, required: true },
   members: { type: Array, default: () => [] },
   songs: { type: Array, default: () => [] },
-  canEditRoster: { type: Boolean, default: false },
-  canEditSongs: { type: Boolean, default: false },
+  canEdit: { type: Boolean, default: false },
   isMine: { type: Boolean, default: false },
   isNext: { type: Boolean, default: false },
   isPast: { type: Boolean, default: false },
@@ -174,6 +173,25 @@ const removeFromTeam = (id) => {
 }
 
 const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.songId))
+
+/**
+ * The week's leader gets told where her service stands, in one line.
+ *
+ * Not a permission — she can change no more than anyone else with lineups
+ * granted. It is simply that the person standing up front on Sunday is the one
+ * who most needs to know whether the songs are picked and who is playing, and
+ * she should not have to count the list to find out.
+ */
+const bandNames = computed(() =>
+  teamMembers.value.map((row) => (row.member ? getFullName(row.member) : 'Former member'))
+)
+
+const readiness = computed(() => {
+  const missing = []
+  if (!form.value?.songs?.length) missing.push('no songs picked yet')
+  if (!form.value?.teamIds?.length) missing.push('no band yet')
+  return missing
+})
 </script>
 
 <template>
@@ -216,16 +234,15 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
              and the only thing anyone needs to know is that they landed. -->
         <p class="mt-0.5 text-[11px] font-medium text-gray-400">
           <template v-if="saving">Saving…</template>
-          <template v-else-if="!canEditSongs">
+          <template v-else-if="canEdit">Changes save themselves</template>
+          <template v-else>
             {{ form.songs.length }} {{ form.songs.length === 1 ? 'song' : 'songs' }}
           </template>
-          <template v-else-if="canEditRoster">Changes save themselves</template>
-          <template v-else>Your service &mdash; changes save themselves</template>
         </p>
       </div>
 
       <button
-        v-if="canEditRoster"
+        v-if="canEdit"
         type="button"
         @click="$emit('clear', form.date)"
         class="shrink-0 rounded-lg px-2 py-1 text-[11px] font-bold text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
@@ -234,16 +251,36 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
       </button>
     </div>
 
+    <!-- Your own Sunday, summarised. Everyone can edit the same things; this
+         is the one who has to stand up and lead it, so she gets told at a
+         glance what is settled and what is not. -->
+    <div
+      v-if="isMine && !isPast"
+      class="border-b border-primary/20 bg-primary/5 px-4 py-2.5 text-xs"
+    >
+      <p class="font-semibold text-gray-700 dark:text-gray-200">
+        {{ form.songs.length }} {{ form.songs.length === 1 ? 'song' : 'songs' }}
+        <template v-if="bandNames.length">
+          · playing with {{ bandNames.join(', ') }}
+        </template>
+      </p>
+      <p v-if="readiness.length" class="mt-0.5 font-medium text-amber-600 dark:text-amber-400">
+        Still to sort: {{ readiness.join(' · ') }}
+      </p>
+      <p v-else class="mt-0.5 font-medium text-emerald-600 dark:text-emerald-400">
+        Ready to go
+      </p>
+    </div>
+
     <div class="space-y-4 p-4">
-      <!-- Leader. Read-only for the leader herself: being named here is what
-           gave her this panel, so it is not hers to change. -->
+      <!-- Leader -->
       <div>
         <div class="mb-1 flex items-center justify-between gap-2">
           <label for="panel-leader" class="text-[11px] font-bold uppercase tracking-wide text-gray-400">
             Song leader
           </label>
           <button
-            v-if="canEditRoster && !noLeadersAssigned"
+            v-if="canEdit && !noLeadersAssigned"
             type="button"
             @click="showAllLeaders = !showAllLeaders"
             class="text-[11px] font-semibold text-primary dark:text-primary-light"
@@ -253,7 +290,7 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
         </div>
 
         <select
-          v-if="canEditRoster"
+          v-if="canEdit"
           id="panel-leader"
           :value="form.leaderId ?? ''"
           @change="onLeaderChange($event.target.value)"
@@ -276,13 +313,13 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
           </span>
         </div>
 
-        <p v-if="canEditRoster && noLeadersAssigned" class="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+        <p v-if="canEdit && noLeadersAssigned" class="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
           No one serves in the Song Leader ministry yet, so every member is listed.
         </p>
       </div>
 
       <!-- Theme -->
-      <div v-if="canEditSongs">
+      <div v-if="canEdit">
         <label for="panel-theme" class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-gray-400">
           Theme or occasion
         </label>
@@ -306,7 +343,7 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
             Service order
           </label>
           <button
-            v-if="canEditSongs"
+            v-if="canEdit"
             type="button"
             @click="showSongPicker = true"
             class="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[11px] font-bold text-primary dark:text-primary-light"
@@ -321,12 +358,12 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
           class="rounded-xl border border-dashed border-gray-300 p-5 text-center text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400"
         >
           <ListMusic class="mx-auto mb-1.5 h-7 w-7 text-gray-300 dark:text-gray-600" />
-          {{ canEditSongs ? 'No songs yet. Pull them from the song list.' : 'No songs chosen yet.' }}
+          {{ canEdit ? 'No songs yet. Pull them from the song list.' : 'No songs chosen yet.' }}
         </p>
 
         <!-- Read-only for anyone who is not planning this service: the tech
              team and the rest of the band still need to read the order. -->
-        <ol v-else-if="!canEditSongs" class="space-y-1">
+        <ol v-else-if="!canEdit" class="space-y-1">
           <li
             v-for="(entry, index) in form.songs"
             :key="`${entry.songId}-${index}`"
@@ -427,7 +464,7 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
             <Users class="h-3 w-3" /> Band
           </label>
           <button
-            v-if="canEditRoster"
+            v-if="canEdit"
             type="button"
             @click="showTeamPicker = !showTeamPicker"
             class="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[11px] font-bold text-primary dark:text-primary-light"
@@ -435,9 +472,7 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
             <Plus class="h-3.5 w-3.5" />
             Add
           </button>
-          <span v-else class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-            Set by the worship head
-          </span>
+
         </div>
 
         <div v-if="teamMembers.length" class="flex flex-wrap gap-1.5">
@@ -454,7 +489,7 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
             />
             {{ row.member ? getFullName(row.member) : 'Former member' }}
             <button
-              v-if="canEditRoster"
+              v-if="canEdit"
               type="button"
               @click="removeFromTeam(row.id)"
               class="text-gray-400 hover:text-red-600"
@@ -467,7 +502,7 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
         <p v-else class="text-xs text-gray-400 dark:text-gray-500">Nobody on the band yet.</p>
 
         <div
-          v-if="showTeamPicker && canEditRoster"
+          v-if="showTeamPicker && canEdit"
           class="mt-2 space-y-1 rounded-xl border border-gray-200 p-2 dark:border-gray-700"
         >
           <div class="flex items-center justify-between gap-2 px-1">
@@ -522,7 +557,7 @@ const chosenSongIds = computed(() => (form.value?.songs || []).map((s) => s.song
       </div>
 
       <!-- Notes for the team -->
-      <div v-if="canEditSongs">
+      <div v-if="canEdit">
         <label for="panel-notes" class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-gray-400">
           Notes for the team
         </label>

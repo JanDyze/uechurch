@@ -59,26 +59,25 @@ const toast = useToast()
 const { canManage, myMember } = usePermissions()
 const { members } = useMembers()
 
-// Two jobs on one page, and they belong to two different people.
-//
-// The worship ministry head decides who serves: who leads a Sunday and who is
-// on the band with them. That is the whole month's shape and it is theirs.
-//
-// The leader of a given Sunday then chooses that Sunday's songs. She does not
-// need — and should not have — the run of the month to do it, so being named as
-// its leader is what grants it. She can see the band she is playing with, and
-// cannot change it.
+// One permission for the whole page: whoever is granted Worship lineups in
+// Settings plans it, people and songs alike, and administrators bypass the
+// check entirely. There is deliberately no second tier — leading a service
+// this week is not a permission, it is just which Sunday is yours.
 const canPlan = computed(() => canManage('lineups'))
 
-/** Whether this account is the person leading a given service. */
+/**
+ * Whether this account is the person leading a given service.
+ *
+ * Used only to decide what the page shows and where it opens — never what
+ * anyone is allowed to change. Leading Sunday's worship earns a better view of
+ * that Sunday, not more rights than the rest of the team.
+ */
 const isMyService = (sunday) => {
   const mine = myMember.value
   if (!mine || !sunday?.leaderId) return false
   const id = String(sunday.leaderId)
   return memberKey(mine) === id || String(mine.firestoreId) === id
 }
-
-const canEditSongs = (sunday) => canPlan.value || isMyService(sunday)
 
 // The month lives in the URL so a lineup can be linked to and shared.
 const month = computed(() =>
@@ -109,18 +108,8 @@ onMounted(() => {
 /** The services this account is leading this month. */
 const myServices = computed(() => sundays.value.filter(isMyService))
 
-/**
- * A draft is the planners' workspace; everyone else sees it as unpublished.
- *
- * Except a leader who has been given a service in it. The head staffs the
- * month first and publishes it once it is settled, which would otherwise leave
- * the leaders unable to choose their songs until the congregation could already
- * read the lineup. Being named on a service is what lets her in early — the
- * same thing that lets her edit it.
- */
-const isHiddenDraft = computed(
-  () => !isPublished.value && !canPlan.value && !myServices.value.length
-)
+/** A draft is the planners' workspace; everyone else sees it as unpublished. */
+const isHiddenDraft = computed(() => !isPublished.value && !canPlan.value)
 
 const plannedCount = computed(() => sundays.value.filter(isSundayPlanned).length)
 
@@ -219,16 +208,8 @@ let saveTimer = null
 let pending = null
 
 const persistNow = async () => {
-  const edited = pending
-  if (!edited) return
-
-  // A leader writes back only what is hers to write, merged onto what is
-  // stored right now — so saving her songs cannot overwrite a band the head
-  // reassigned while her panel sat open.
-  const live = sundays.value.find((s) => s.date === edited.date) || edited
-  const next = canPlan.value
-    ? edited
-    : { ...live, songs: edited.songs, theme: edited.theme, notes: edited.notes }
+  const next = pending
+  if (!next) return
 
   const signature = signatureOf(next)
   if (signature === savedSignature) {
@@ -258,7 +239,7 @@ const persistNow = async () => {
  * otherwise be a write per keystroke.
  */
 const onPanelChange = (edited) => {
-  if (!canEditSongs(edited)) return
+  if (!canPlan.value) return
   pending = edited
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
@@ -512,8 +493,7 @@ const copySundayLyrics = async (sunday) => {
             :sunday="focused"
             :members="members"
             :songs="songs"
-            :can-edit-roster="canPlan"
-            :can-edit-songs="canEditSongs(focused)"
+            :can-edit="canPlan"
             :is-mine="isMyService(focused)"
             :is-next="focused.date === upcoming[0]?.date"
             :is-past="focused.date < todayIso()"

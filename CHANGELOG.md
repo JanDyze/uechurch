@@ -11,6 +11,25 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.9.0] — 2026-09-04
+
+Lineups goes back to one permission. Leading a Sunday is a view, not a rank.
+
+### Changed
+- **One gate for the whole page.** Anyone granted Worship lineups in Settings
+  edits all of it — who leads, who is on the band, and which songs they use.
+  Administrators bypass the check as they always did. The two-tier split from
+  0.8.0, where only a Sunday's named leader could touch its songs, is gone.
+- **Leading this week changes what you see, not what you may do.** Your service
+  opens first, carries a "You're leading" badge, and gains a summary line: how
+  many songs, who you are playing with by name, and what is still unsettled —
+  "no band yet", or "Ready to go".
+- A draft month is again visible only to those who can plan it.
+
+### Removed
+- `canEditRoster` / `canEditSongs` and the merge-on-save that existed to stop
+  one tier overwriting the other. A single `canEdit` replaces both.
+
 ## [0.8.3] — 2026-09-04
 
 Lineups rebuilt around one service at a time.
