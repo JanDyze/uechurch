@@ -1,21 +1,8 @@
 import { computed } from "vue";
-import { calculateAgeFromDate } from "../utils/memberUtils";
-
-// The bands ministries actually plan around, not even decades.
-const AGE_BANDS = [
-  { key: "kids", label: "Kids", upTo: 12, barClass: "bg-sky-400 dark:bg-sky-500", dotClass: "bg-sky-400 dark:bg-sky-500" },
-  { key: "youth", label: "Youth", upTo: 25, barClass: "bg-emerald-400 dark:bg-emerald-500", dotClass: "bg-emerald-400 dark:bg-emerald-500" },
-  { key: "adults", label: "Adults", upTo: 59, barClass: "bg-amber-400 dark:bg-amber-500", dotClass: "bg-amber-400 dark:bg-amber-500" },
-  { key: "seniors", label: "Seniors", upTo: Infinity, barClass: "bg-violet-400 dark:bg-violet-500", dotClass: "bg-violet-400 dark:bg-violet-500" },
-];
-
-// A stored age wins over the birth date: it is what the rest of the app shows,
-// and some records carry an age with no birth date at all.
-const ageOf = (member) => {
-  if (typeof member.age === "number" && Number.isFinite(member.age)) return member.age;
-  const derived = calculateAgeFromDate(member.dateOfBirth);
-  return Number.isFinite(derived) ? derived : null;
-};
+// The bands live in utils/ageBands.js because this page is no longer the only
+// screen that groups people by age — the attendance recorder checks people off
+// under the same headings, and the two have to agree.
+import { AGE_BANDS, ageOf } from "../utils/ageBands";
 
 const birthMonthOf = (member) => {
   if (!member.dateOfBirth) return null;

@@ -6,6 +6,7 @@ import {
   useRecurringSchedules,
   WEEKDAYS,
   OCCURRENCES,
+  sortOccurrences,
   SHOW_BEFORE_OPTIONS,
   DEFAULT_SHOW_BEFORE,
   showBeforeLabel,
@@ -13,6 +14,9 @@ import {
 import { useToast } from '../composables/useToast'
 import { useMediaQuery } from '../composables/useMediaQuery'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
+import AudiencePicker from '../components/common/AudiencePicker.vue'
+import { useMembers } from '../composables/useMembers'
+import { audienceLabel, expectedAttendance } from '../utils/audience'
 import MemberLinkAdmin from '../components/settings/MemberLinkAdmin.vue'
 import RolePermissionsAdmin from '../components/settings/RolePermissionsAdmin.vue'
 import MinistriesAdmin from '../components/settings/MinistriesAdmin.vue'
@@ -42,6 +46,12 @@ const TABS = [
   { key: 'email', label: 'Email' },
 ]
 
+// Stamped in from package.json by vite's define. Shown at the foot of
+// settings because the app is installed as a PWA: when someone reports a
+// bug from their phone, the first thing to establish is which build they
+// are actually running, and a cached service worker can be well behind.
+const appVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'
+
 const activeTab = ref(TABS.some((t) => t.key === route.query.tab) ? route.query.tab : 'schedule')
 
 watch(activeTab, (tab) => {
@@ -52,6 +62,12 @@ const toast = useToast()
 const isMobile = useMediaQuery('(max-width: 1023px)')
 const { schedules, loading, addSchedule, updateSchedule, removeSchedule } =
   useRecurringSchedules()
+
+// The roster the audience picker counts against: a service for the choir
+// expects however many people carry that tag today.
+const { members } = useMembers()
+
+const expectedFor = (schedule) => expectedAttendance(schedule, members.value)
 
 const blankSchedule = () => ({
   title: '',
@@ -64,6 +80,12 @@ const blankSchedule = () => ({
   icon: 'Calendar',
   enabled: true,
   showBefore: DEFAULT_SHOW_BEFORE,
+  // Empty means everyone, which is what a Sunday service is.
+  audienceTags: [],
+  excludeTags: [],
+  // What this gathering additionally is on certain weeks — communion on the
+  // first Sunday, the birthday bash on the last.
+  occasions: [],
 })
 
 const showEditor = ref(false)
@@ -92,13 +114,69 @@ const openEdit = (schedule) => {
     icon: schedule.icon,
     enabled: schedule.enabled,
     showBefore: schedule.showBefore ?? DEFAULT_SHOW_BEFORE,
+    audienceTags: [...(schedule.audienceTags || [])],
+    excludeTags: [...(schedule.excludeTags || [])],
+    occasions: (schedule.occasions || []).map((occasion) => ({
+      label: occasion.label,
+      occurrences: [...(occasion.occurrences || [])],
+    })),
   }
+  occasionDraft.value = blankOccasion()
   showEditor.value = true
 }
 
 const closeEditor = () => {
   showEditor.value = false
   editing.value = null
+  occasionDraft.value = blankOccasion()
+}
+
+/* Occasions — communion on the first Sunday, the birthday bash on the last.
+   Deliberately not separate schedules: they happen inside this gathering, and
+   a second schedule would put a second entry on the calendar and a second row
+   on the attendance page for the same room of people. */
+const blankOccasion = () => ({ label: '', occurrences: [] })
+const occasionDraft = ref(blankOccasion())
+
+const toggleDraftOccurrence = (value) => {
+  const list = [...occasionDraft.value.occurrences]
+  const index = list.indexOf(value)
+  if (index > -1) list.splice(index, 1)
+  else list.push(value)
+  occasionDraft.value.occurrences = sortOccurrences(list)
+}
+
+// A label with no weeks would mark every service, which is not an occasion —
+// it is just a different name for the gathering.
+const canAddOccasion = computed(
+  () => occasionDraft.value.label.trim().length > 0 && occasionDraft.value.occurrences.length > 0
+)
+
+const addOccasion = () => {
+  if (!canAddOccasion.value) return
+  form.value.occasions = [
+    ...form.value.occasions,
+    {
+      label: occasionDraft.value.label.trim(),
+      occurrences: [...occasionDraft.value.occurrences],
+    },
+  ]
+  occasionDraft.value = blankOccasion()
+}
+
+const removeOccasion = (index) => {
+  form.value.occasions = form.value.occasions.filter((_, i) => i !== index)
+}
+
+/** "1st Sunday" / "Last Sunday" / "1st, 3rd Sunday" */
+const describeOccasion = (occasion) => {
+  const day = weekdayLabel(form.value.weekday)
+  if (!occasion.occurrences?.length) return `Every ${day}`
+  const ordinals = sortOccurrences(occasion.occurrences)
+    .map((o) => OCCURRENCES.find((x) => x.value === o)?.label)
+    .filter(Boolean)
+    .join(', ')
+  return `${ordinals} ${day}`
 }
 
 // Empty selection means "every occurrence"
@@ -107,7 +185,10 @@ const toggleOccurrence = (value) => {
   const index = list.indexOf(value)
   if (index > -1) list.splice(index, 1)
   else list.push(value)
-  form.value.occurrences = list.sort((a, b) => a - b)
+  // Not a plain numeric sort any more: "Last" is a word, and subtracting it
+  // from a number gives NaN, which leaves the chips in whatever order they
+  // were tapped.
+  form.value.occurrences = sortOccurrences(list)
 }
 
 const handleSave = async () => {
@@ -176,7 +257,7 @@ const weekdayLabel = (value) =>
 const describe = (schedule) => {
   const day = weekdayLabel(schedule.weekday)
   if (!schedule.occurrences?.length) return `Every ${day}`
-  const ordinals = schedule.occurrences
+  const ordinals = sortOccurrences(schedule.occurrences)
     .map((o) => OCCURRENCES.find((x) => x.value === o)?.label)
     .filter(Boolean)
     .join(', ')
@@ -352,7 +433,9 @@ const formatTime = (time) => {
               <span v-if="schedule.location"> &middot; {{ schedule.location }}</span>
             </p>
             <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
-              Attendance: {{ showBeforeLabel(schedule.showBefore).toLowerCase() }}
+              {{ audienceLabel(schedule.audienceTags, schedule.excludeTags) }} &middot;
+              {{ expectedFor(schedule) }} expected &middot;
+              attendance {{ showBeforeLabel(schedule.showBefore).toLowerCase() }}
             </p>
           </div>
 
@@ -413,6 +496,12 @@ const formatTime = (time) => {
 
     <!-- Digest subscriptions, manual sends and the activity report -->
     <EmailDigestAdmin v-show="activeTab === 'email'" class="mb-4" />
+
+    <!-- Which build this is. Every tab, because a bug report can come from
+         any of them and the version is the first question asked. -->
+    <p class="pb-4 text-center text-xs text-gray-400 dark:text-gray-500">
+      UEC Church v{{ appVersion }}
+    </p>
 
     <!-- Editor -->
     <Teleport to="body">
@@ -507,6 +596,82 @@ const formatTime = (time) => {
                 </p>
               </div>
 
+              <!-- Occasions. Communion on the first Sunday is the Sunday
+                   service, so it renames that week rather than adding a second
+                   entry to the calendar and a second row to record. -->
+              <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  Occasions
+                </label>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">
+                  Something this gathering also is on certain weeks — communion,
+                  a birthday bash. It marks the same service; there is still one
+                  entry on the calendar and one attendance sheet.
+                </p>
+
+                <ul v-if="form.occasions.length" class="mb-2 space-y-1.5">
+                  <li
+                    v-for="(occasion, index) in form.occasions"
+                    :key="`${occasion.label}-${index}`"
+                    class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900"
+                  >
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+                        {{ occasion.label }}
+                      </p>
+                      <p class="text-xs text-gray-400 dark:text-gray-500">
+                        {{ describeOccasion(occasion) }}
+                      </p>
+                    </div>
+                    <button
+                      @click="removeOccasion(index)"
+                      :aria-label="`Remove ${occasion.label}`"
+                      class="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-700"
+                    >
+                      <Trash2 class="h-4 w-4" />
+                    </button>
+                  </li>
+                </ul>
+
+                <div
+                  class="space-y-2 rounded-lg border border-dashed border-gray-200 p-2 dark:border-gray-600"
+                >
+                  <input
+                    v-model="occasionDraft.label"
+                    type="text"
+                    placeholder="e.g. Communion"
+                    class="w-full h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
+                  />
+                  <div class="flex gap-1">
+                    <button
+                      v-for="occurrence in OCCURRENCES"
+                      :key="`occasion-${occurrence.value}`"
+                      @click="toggleDraftOccurrence(occurrence.value)"
+                      :class="[
+                        'h-10 flex-1 rounded-lg text-xs font-medium transition-colors',
+                        occasionDraft.occurrences.includes(occurrence.value)
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+                      ]"
+                    >
+                      {{ occurrence.label }}
+                    </button>
+                  </div>
+                  <button
+                    @click="addOccasion"
+                    :disabled="!canAddOccasion"
+                    :class="[
+                      'h-10 w-full rounded-lg text-xs font-semibold transition-colors',
+                      canAddOccasion
+                        ? 'bg-primary/10 text-primary hover:bg-primary/20 dark:bg-primary-light/15 dark:text-primary-light'
+                        : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500',
+                    ]"
+                  >
+                    Add occasion
+                  </button>
+                </div>
+              </div>
+
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
@@ -554,6 +719,13 @@ const formatTime = (time) => {
                   will not see it yet, and may record a separate event instead.
                 </p>
               </div>
+
+              <AudiencePicker
+                v-model="form.audienceTags"
+                v-model:exclude="form.excludeTags"
+                :members="members"
+                label-class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
+              />
 
               <div>
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">

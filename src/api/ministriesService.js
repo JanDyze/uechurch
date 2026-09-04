@@ -13,9 +13,12 @@ import {
   onSnapshot,
   orderBy,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore'
 
 import { DEFAULT_MINISTRIES } from '../utils/memberUtils'
+import { inBatches } from './batchWrite'
 
 // A ministry is what someone *does* in the church — Song Leader, Usher,
 // Preacher — and it is the only thing that grants access. Tags are separate
@@ -71,6 +74,73 @@ export const seedDefaultMinistriesIfEmpty = async () => {
   return DEFAULT_MINISTRIES.length
 }
 
+const refFor = (member) => doc(db, MEMBERS_COLLECTION, String(member.firestoreId || member.id))
+
+const same = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase()
+
+/**
+ * The one guard that makes this file's promise true rather than merely
+ * intended: a name that is not in the ministries collection is not a ministry,
+ * whatever the screen that called this believed. Assigning one hands out
+ * whatever rolePermissions grants it, so the check is worth a read.
+ */
+const assertKnownMinistry = async (name) => {
+  const snapshot = await getDocs(collection(db, MINISTRIES_COLLECTION))
+  const known = snapshot.docs.some((d) => same(d.data().name, name))
+  if (!known) {
+    throw new Error(`"${name}" is not a ministry. Add it in Settings first.`)
+  }
+}
+
+/**
+ * Puts everyone in `members` into `ministry`, in batches, skipping whoever is
+ * already in it so the count returned is what actually changed.
+ *
+ * This grants access — that is what a ministry is for — so the caller is
+ * expected to have said so plainly before calling. arrayUnion rather than a
+ * rewritten array, for the same reason as tags: the member form writes this
+ * field too, and a wholesale rewrite would drop a ministry added elsewhere
+ * while the batch was in flight.
+ *
+ * @returns how many people were added
+ */
+export const addMinistryToMembers = async (members, ministry) => {
+  const name = String(ministry || '').trim()
+  if (!name) return 0
+  await assertKnownMinistry(name)
+
+  const targets = (members || [])
+    .filter((member) => member?.firestoreId || member?.id)
+    .filter((member) => !(member.ministries || []).some((m) => same(m, name)))
+
+  await inBatches(targets, (batch, member) =>
+    batch.update(refFor(member), { ministries: arrayUnion(name) })
+  )
+  return targets.length
+}
+
+/**
+ * Takes everyone in `members` out of `ministry`, which takes away whatever it
+ * granted them. Every casing anyone is actually carrying goes, so a stray
+ * "usher" cannot keep handing out what "Usher" was supposed to stop granting.
+ *
+ * @returns how many people were removed
+ */
+export const removeMinistryFromMembers = async (members, ministry) => {
+  const name = String(ministry || '').trim()
+  if (!name) return 0
+
+  const targets = (members || [])
+    .filter((member) => member?.firestoreId || member?.id)
+    .filter((member) => (member.ministries || []).some((m) => same(m, name)))
+
+  await inBatches(targets, (batch, member) => {
+    const variants = [...new Set((member.ministries || []).filter((m) => same(m, name)))]
+    batch.update(refFor(member), { ministries: arrayRemove(...variants) })
+  })
+  return targets.length
+}
+
 /** Every member currently serving in a ministry. */
 const membersInMinistry = async (name) => {
   const snapshot = await getDocs(
@@ -88,12 +158,12 @@ const membersInMinistry = async (name) => {
  */
 export const renameMinistry = async (oldName, newName, ministryId = null) => {
   const docs = await membersInMinistry(oldName)
-  await Promise.all(
-    docs.map((d) => {
-      const ministries = (d.data().ministries || []).map((m) => (m === oldName ? newName : m))
-      return updateDoc(d.ref, { ministries })
-    })
-  )
+  // Rewritten per member rather than removed-and-added: Firestore allows only
+  // one array transform per field per write.
+  await inBatches(docs, (batch, d) => {
+    const ministries = (d.data().ministries || []).map((m) => (m === oldName ? newName : m))
+    batch.update(d.ref, { ministries })
+  })
 
   const roleDoc = await getDoc(doc(db, ROLES_COLLECTION, oldName))
   if (roleDoc.exists()) {
@@ -115,11 +185,8 @@ export const renameMinistry = async (oldName, newName, ministryId = null) => {
  */
 export const deleteMinistry = async (name, ministryId = null) => {
   const docs = await membersInMinistry(name)
-  await Promise.all(
-    docs.map((d) => {
-      const ministries = (d.data().ministries || []).filter((m) => m !== name)
-      return updateDoc(d.ref, { ministries })
-    })
+  await inBatches(docs, (batch, d) =>
+    batch.update(d.ref, { ministries: arrayRemove(name) })
   )
 
   await deleteDoc(doc(db, ROLES_COLLECTION, name)).catch(() => {

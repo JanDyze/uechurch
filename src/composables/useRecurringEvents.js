@@ -1,12 +1,8 @@
 import { computed } from 'vue';
 import { useRecurringSchedules } from './useRecurringSchedules';
 import { getVisibleFrom } from '../api/recurringSchedulesService';
-
-// Which occurrence of its weekday this date is within the month (1st, 2nd, ...)
-function getWeekdayOccurrence(date) {
-  const dayOfMonth = date.getDate();
-  return Math.ceil(dayOfMonth / 7);
-}
+import { expectedAttendance } from '../utils/audience';
+import { matchesOccurrence, occasionsOn, occurrenceTitle } from '../../lib/occurrences';
 
 function toDateString(date) {
   const year = date.getFullYear();
@@ -29,8 +25,11 @@ function virtualIdFor(schedule, dateString) {
 export function useRecurringEvents(firestoreEvents = { value: [] }, members = { value: [] }) {
   const { schedules, loading } = useRecurringSchedules();
 
-  // Expected attendees defaults to the size of the congregation
-  const expectedAttendees = computed(() => members.value?.length || 0);
+  // How many to expect at one occurrence: the people carrying the tags the
+  // schedule is for, or the whole roster when it names none. Counted here
+  // rather than stored, so tagging someone into the choir today changes what
+  // next Thursday's practice expects — see utils/audience.js.
+  const expectedFor = (schedule) => expectedAttendance(schedule, members.value);
 
   const recurringEvents = computed(() => {
     const currentYear = new Date().getFullYear();
@@ -47,9 +46,10 @@ export function useRecurringEvents(firestoreEvents = { value: [] }, members = { 
         }
 
         while (current <= endDate) {
-          const occurrence = getWeekdayOccurrence(current);
-          const wanted =
-            !schedule.occurrences?.length || schedule.occurrences.includes(occurrence);
+          // Which weeks of the month this schedule runs on, "Last" included.
+          // The rule lives in lib/occurrences.js so the emailed digest expands
+          // the calendar exactly the way this page draws it.
+          const wanted = matchesOccurrence(current, schedule.occurrences || []);
 
           if (wanted) {
             const dateString = toDateString(current);
@@ -61,16 +61,25 @@ export function useRecurringEvents(firestoreEvents = { value: [] }, members = { 
             );
 
             if (!hasOverride) {
+              // Communion on the first Sunday is the Sunday service, not a
+              // second thing at the same hour: the occasion renames this
+              // occurrence and leaves its id — and so its attendance record —
+              // exactly where it was.
+              const occasions = occasionsOn(schedule, current);
+
               events.push({
                 id: virtualId,
                 firestoreId: null, // Generated, not stored
-                title: schedule.title,
+                title: occurrenceTitle(schedule.title, occasions),
+                occasions,
                 type: schedule.type,
                 date: dateString,
                 time: schedule.time,
                 location: schedule.location,
                 description: schedule.description,
-                attendees: expectedAttendees.value,
+                attendees: expectedFor(schedule),
+                audienceTags: schedule.audienceTags || [],
+                excludeTags: schedule.excludeTags || [],
                 icon: schedule.icon,
                 isRecurring: true,
                 isVirtual: true,

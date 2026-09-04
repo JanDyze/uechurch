@@ -1,4 +1,5 @@
 import { ref, onMounted, onUnmounted } from "vue";
+import { LAST_OCCURRENCE } from "../../lib/occurrences";
 import {
   subscribeToRecurringSchedules,
   addRecurringSchedule,
@@ -23,13 +24,24 @@ export const WEEKDAYS = [
   { value: 6, label: "Saturday", short: "Sat" },
 ];
 
+// "Last" is not a number: it lands on the 5th in a month with five of that
+// weekday and the 4th in a month with four, which is how a church that meets
+// "on the last Sunday" actually meets. See lib/occurrences.js.
 export const OCCURRENCES = [
   { value: 1, label: "1st" },
   { value: 2, label: "2nd" },
   { value: 3, label: "3rd" },
   { value: 4, label: "4th" },
   { value: 5, label: "5th" },
+  { value: LAST_OCCURRENCE, label: "Last" },
 ];
+
+/** Numbers in order, with "Last" always at the end, where it reads right. */
+export const sortOccurrences = (values = []) =>
+  [...values].sort(
+    (a, b) =>
+      (a === LAST_OCCURRENCE ? 99 : Number(a)) - (b === LAST_OCCURRENCE ? 99 : Number(b))
+  );
 
 export function useRecurringSchedules() {
   const schedules = ref([]);

@@ -1,5 +1,6 @@
 import { db } from './firebase'
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'
+import { notify } from './notifyService'
 
 const MINUTES_COLLECTION = 'minutes'
 
@@ -55,6 +56,16 @@ export const addMinute = async (minuteData) => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     })
+
+    // Minutes record what was decided, and the decisions are what people are
+    // waiting on. Only the council can see them, and minutes.view says who
+    // that is. Later edits stay quiet — the document is written over days.
+    notify('minutes.published', {
+      title: 'Minutes posted',
+      body: [minuteData.title, minuteData.date].filter(Boolean).join(' — '),
+      url: `/minutes/${docRef.id}`,
+    })
+
     return docRef.id
   } catch (error) {
     console.error('Error adding minute:', error)

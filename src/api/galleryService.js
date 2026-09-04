@@ -11,6 +11,7 @@ import {
   onSnapshot,
   Timestamp
 } from 'firebase/firestore'
+import { notify } from './notifyService'
 
 const ALBUMS_COLLECTION = 'gallery_albums'
 const PHOTOS_COLLECTION = 'gallery_photos'
@@ -87,6 +88,15 @@ export const addAlbum = async (albumData) => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     })
+
+    // The album, once — not each photo. Photos arrive in a long upload and one
+    // notification per picture would be the worst thing this app could do.
+    notify('gallery.album', {
+      title: `New album: ${albumData.title || 'Untitled'}`,
+      body: [albumData.date, albumData.location].filter(Boolean).join(' · '),
+      url: `/gallery/${docRef.id}`,
+    })
+
     return docRef.id
   } catch (error) {
     console.error('Error adding album:', error)

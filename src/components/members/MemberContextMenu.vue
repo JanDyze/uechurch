@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from "vue";
-import { ExternalLink, Edit2, Trash2, Phone, Mail, Copy } from '../../icons';
+import { ExternalLink, Edit2, Trash2, Phone, Mail, Copy, CheckCircle } from '../../icons';
 
 const props = defineProps({
   show: Boolean,
@@ -9,7 +9,7 @@ const props = defineProps({
   member: Object,
 });
 
-const emit = defineEmits(["close", "view", "edit", "delete", "call", "email", "copy"]);
+const emit = defineEmits(["close", "view", "edit", "delete", "call", "email", "copy", "select"]);
 
 const menuRef = ref(null);
 const adjustedX = ref(0);
@@ -67,6 +67,9 @@ onUnmounted(() => {
 const menuItems = [
   { id: "view", label: "View Details", icon: ExternalLink, event: "view" },
   { id: "edit", label: "Edit", icon: Edit2, event: "edit" },
+  // Starts picking mode with this person already ticked — the way into
+  // tagging a group without opening anyone.
+  { id: "select", label: "Select people", icon: CheckCircle, event: "select" },
   { id: "divider1", divider: true },
   { id: "call", label: "Call", icon: Phone, event: "call", condition: (m) => m?.contactNumber },
   { id: "email", label: "Email", icon: Mail, event: "email", condition: (m) => m?.email },

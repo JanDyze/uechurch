@@ -1,9 +1,11 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { subscribeToAttendance, addAttendance, updateAttendance, deleteAttendance } from '../api/attendanceService'
 import { useEvents } from './useEvents'
+import { useMembers } from './useMembers'
 import { useMinutes } from './useMinutes'
 import { useRecurringEvents } from './useRecurringEvents'
-import { readProvenance, ATTENDANCE_START_DATE } from '../../lib/attendance'
+import { readProvenance, ATTENDANCE_START_DATE, ATTENDANCE_SOURCES } from '../../lib/attendance'
+import { readExpectedAttendance, audienceTagsOf, excludeTagsOf } from '../utils/audience'
 
 export function useAttendance() {
   const attendance = ref([])
@@ -18,8 +20,14 @@ export function useAttendance() {
 
   const { events } = useEvents()
   const { minutes } = useMinutes()
-  // Services configured in Settings, expanded into dated occurrences
-  const { recurringEvents } = useRecurringEvents(events)
+  // The roster every expected count is read off: a gathering names the tags it
+  // is for, and how many that is depends on who carries them today.
+  const { members } = useMembers()
+  // Services configured in Settings, expanded into dated occurrences. The
+  // schedules themselves are needed too: a recorded service has no event
+  // document behind it, so its schedule is the only thing still carrying the
+  // tags its expected head is counted off.
+  const { recurringEvents, schedules } = useRecurringEvents(events, members)
 
   onMounted(() => {
     unsubscribe = subscribeToAttendance((data) => {
@@ -91,13 +99,35 @@ export function useAttendance() {
         }
       }
 
+      // A service recorded against a Settings schedule points at no document
+      // in `events`, so the lookup above finds nothing and the schedule is
+      // what has to be asked for its tags.
+      const linkedSchedule =
+        record.source === ATTENDANCE_SOURCES.SCHEDULE && record.sourceId
+          ? schedules.value.find(s => s.id === record.sourceId) || null
+          : null
+
+      // What this record is for, asked of whatever still exists: the event or
+      // schedule it was recorded against first, then the tags copied onto the
+      // record itself when that source is gone. Only a gathering naming none
+      // is read as the whole church.
+      //
+      // Recounted here rather than trusted from the document, because the
+      // stored number is a snapshot of the day it was saved: tag ten people
+      // into the choir this morning and last month's practice has to report
+      // out of ten, not out of the hundred it was written with.
+      const audience = linkedEvent || linkedSchedule || record
+
       records.push({
         ...record,
         rowType: 'attendance',
         // Title/date belong to the event or meeting, so they are shown read-only
         linkedSource: linkedEvent ? 'event' : linkedMinute ? 'minute' : null,
-        // Include expected attendees from linked event
-        expectedAttendees: linkedEvent ? (linkedEvent.attendees || 0) : (record.expectedAttendees || 0)
+        expectedAttendees: readExpectedAttendance(audience, members.value),
+        // Who the gathering was for, so the recorder shows the same roll and
+        // the list the same denominator.
+        audienceTags: audienceTagsOf(audience),
+        excludeTags: excludeTagsOf(audience)
       })
     })
 
@@ -142,7 +172,10 @@ export function useAttendance() {
             time: event.time || '',
             location: event.location || '',
             attendees: [], // Events don't track individual members
-            expectedAttendees: event.attendees || 0, // Expected/planned attendees
+            // Counted from the event's tags, not the number stored on it
+            expectedAttendees: readExpectedAttendance(event, members.value),
+            audienceTags: event.audienceTags || [],
+            excludeTags: event.excludeTags || [],
             totalAttendees: 0, // Actual recorded attendance (0 for events)
             notes: event.description || '',
             rowType: 'event',
@@ -183,7 +216,9 @@ export function useAttendance() {
         time: event.time || '',
         location: event.location || '',
         attendees: [],
-        expectedAttendees: event.attendees || 0,
+        expectedAttendees: event.attendees || 0, // already counted from the schedule's tags
+        audienceTags: event.audienceTags || [],
+        excludeTags: event.excludeTags || [],
         totalAttendees: 0,
         notes: event.description || '',
         rowType: 'recurring',

@@ -16,7 +16,7 @@ import {
   Heart,
   Image,
   Link2,
-  DollarSign,
+  ListChecks,
   ListMusic,
   Mic2,
   Settings,
@@ -28,21 +28,33 @@ const router = useRouter()
 const { can, isAdmin } = usePermissions()
 const showMoreMenu = ref(false)
 
+// Four tabs plus More. Attendance sits out here rather than in the sheet
+// because it is recorded on a phone, week in week out, right after the
+// gathering it belongs to - two taps behind a menu is one too many for the
+// thing people open this app to do.
 const allPrimaryNav = [
   { name: 'Dashboard', path: '/dashboard', icon: Home, capability: 'dashboard.view' },
   { name: 'People', path: '/members', icon: Users, capability: 'members.view' },
   { name: 'Events', path: '/events', icon: Calendar, capability: 'events.view' },
+  { name: 'Attendance', path: '/attendance', icon: ClipboardCheck, capability: 'attendance.view' },
 ]
 
-// Same grouping as the desktop sidebar, minus the three primary tabs, so the
-// two navs teach the same map of the app.
+// Same grouping as the desktop sidebar, minus the primary tabs, so the two
+// navs teach the same map of the app.
 const MORE_GROUPS = [
+  {
+    // Its own group at the top rather than filed under Gatherings: a to-do
+    // list is not about a meeting, and burying it under one is how a shared
+    // list quietly stops being opened.
+    key: 'overview',
+    label: 'Overview',
+    items: [{ name: 'Tasks', path: '/tasks', icon: ListChecks, capability: 'tasks.view' }],
+  },
   {
     key: 'people',
     label: 'People',
     items: [
       { name: 'Small Groups', path: '/small-groups', icon: UsersRound, capability: 'smallgroups.view' },
-      { name: 'Attendance', path: '/attendance', icon: ClipboardCheck, capability: 'attendance.view' },
     ],
   },
   {
@@ -67,7 +79,6 @@ const MORE_GROUPS = [
     key: 'admin',
     label: 'Administration',
     items: [
-      { name: 'Finances', path: '/finances', icon: DollarSign, capability: 'finances.view' },
       { name: 'Accounts', path: '/accounts', icon: UserCog, adminOnly: true },
       { name: 'Settings', path: '/settings', icon: Settings, adminOnly: true },
     ],
@@ -189,27 +200,29 @@ useFocusTrap(moreMenuRef, showMoreMenu, closeMoreMenu)
   </Transition>
 
   <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 pb-[env(safe-area-inset-bottom)] no-print">
-    <div class="flex items-center justify-around h-16">
+    <div class="flex items-center h-16">
       <button
         v-for="item in primaryNav"
         :key="item.name"
         @click="navigate(item.path)"
         :class="[
-          'flex flex-col items-center justify-center flex-1 h-full transition-colors',
+          'flex min-w-0 flex-1 flex-col items-center justify-center h-full px-0.5 transition-colors',
           isActive(item.path)
             ? 'text-primary dark:text-primary-light'
             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
         ]"
         :aria-current="isActive(item.path) ? 'page' : undefined"
       >
-        <component :is="item.icon" class="h-6 w-6 mb-1" />
-        <span class="text-xs font-medium">{{ item.name }}</span>
+        <component :is="item.icon" class="h-6 w-6 mb-0.5 shrink-0" />
+        <span class="w-full truncate text-center text-[11px] font-medium leading-tight">
+          {{ item.name }}
+        </span>
       </button>
 
       <button
         @click="toggleMoreMenu"
         :class="[
-          'flex flex-col items-center justify-center flex-1 h-full transition-colors',
+          'flex min-w-0 flex-1 flex-col items-center justify-center h-full px-0.5 transition-colors',
           showMoreMenu || isMoreActive
             ? 'text-primary dark:text-primary-light'
             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
@@ -218,8 +231,8 @@ useFocusTrap(moreMenuRef, showMoreMenu, closeMoreMenu)
         aria-haspopup="dialog"
         :aria-expanded="showMoreMenu"
       >
-        <Menu class="h-6 w-6 mb-1" />
-        <span class="text-xs font-medium">More</span>
+        <Menu class="h-6 w-6 mb-0.5 shrink-0" />
+        <span class="w-full truncate text-center text-[11px] font-medium leading-tight">More</span>
       </button>
     </div>
   </nav>

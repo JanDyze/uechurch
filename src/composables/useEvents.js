@@ -30,11 +30,13 @@ export function useEvents() {
     }
   };
 
-  // Update an event in Firestore (uses Firestore document ID)
+  // Update an event in Firestore (uses Firestore document ID). The event as it
+  // stands is handed on so the service can tell a reschedule — which the
+  // church is told about — from a wording fix, which it is not.
   const updateEventInFirestore = async (event, eventData) => {
     try {
       const firestoreId = event.firestoreId || event.id;
-      await updateEvent(firestoreId, eventData);
+      await updateEvent(firestoreId, eventData, event);
     } catch (error) {
       console.error('Error updating event in Firestore:', error);
       throw error;
@@ -45,7 +47,7 @@ export function useEvents() {
   const removeEvent = async (event) => {
     try {
       const firestoreId = event.firestoreId || event.id;
-      await deleteEventDoc(firestoreId);
+      await deleteEventDoc(firestoreId, event);
     } catch (error) {
       console.error('Error deleting event from Firestore:', error);
       throw error;

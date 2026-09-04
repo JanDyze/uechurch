@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ArrowLeft, Calendar, Clock, MapPin, Users, Trash2, Edit2 } from '../../icons'
+import { readExpectedAttendance, audienceLabel } from '../../utils/audience'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import { getEventTypeColor } from '../../utils/eventColors'
 import { useMediaQuery } from '../../composables/useMediaQuery'
@@ -17,6 +18,10 @@ const props = defineProps({
     type: Object,
     default: null
   },
+  members: {
+    type: Array,
+    default: () => []
+  },
   isEditable: {
     type: Boolean,
     default: true
@@ -24,6 +29,17 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:show', 'edit', 'delete', 'back'])
+
+// Recounted from the roster every time this opens rather than read off the
+// event, so an event tagged for the choir reports the choir as it stands today.
+// An event saved before audiences existed has no tags and keeps the number it
+// was given; a birthday, which has neither and expects nobody, shows nothing.
+const audienceSummary = computed(() =>
+  audienceLabel(props.event?.audienceTags || [], props.event?.excludeTags || [])
+)
+const expectedCount = computed(() =>
+  props.event?.isBirthday ? 0 : readExpectedAttendance(props.event, props.members)
+)
 
 const dialogRef = ref(null)
 useFocusTrap(dialogRef, () => props.show, () => emit('back'))
@@ -142,15 +158,18 @@ const formatDate = (dateStr) => {
       </div>
 
       <!-- Attendees Card -->
-      <div v-if="event.attendees" class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+      <div v-if="expectedCount" class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
             <Users class="h-5 w-5 text-primary dark:text-primary-light" />
           </div>
-          <div>
+          <div class="min-w-0">
             <p class="text-xs text-gray-500 dark:text-gray-400">Expected Attendees</p>
             <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ event.attendees }} people
+              {{ expectedCount }} {{ expectedCount === 1 ? 'person' : 'people' }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+              {{ audienceSummary }}
             </p>
           </div>
         </div>

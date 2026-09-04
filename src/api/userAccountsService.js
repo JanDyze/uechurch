@@ -3,12 +3,14 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   serverTimestamp,
   setDoc,
   Timestamp,
 } from 'firebase/firestore'
 import { toDate } from '../utils/timeUtils'
+import { notify } from './notifyService'
 
 // One document per Firebase auth account, keyed by uid.
 //
@@ -74,6 +76,26 @@ const normalizeAccount = (docSnap) => {
  * Upserts the signed-in account's mirror document. Called on every auth state
  * change, so it doubles as the "last active" stamp for the visit.
  */
+/**
+ * Whether Firebase considers this the account's first-ever sign-in: it stamps
+ * both times at once when an account is created, and only `lastSignInTime`
+ * moves afterwards.
+ *
+ * Checked alongside the mirror being absent, never on its own. This stays true
+ * for the whole of that first session — a refresh does not re-sign-in — so on
+ * its own it would announce the same person on every page load. And the mirror
+ * being absent is not enough by itself either: an account made before this
+ * collection existed has no document, and is not news.
+ */
+const FIRST_SIGN_IN_WINDOW_MS = 5 * 60 * 1000
+
+const isFirstEverSignIn = (user) => {
+  const created = Date.parse(user?.metadata?.creationTime || '')
+  const lastSignIn = Date.parse(user?.metadata?.lastSignInTime || '')
+  if (!Number.isFinite(created) || !Number.isFinite(lastSignIn)) return false
+  return Math.abs(lastSignIn - created) < FIRST_SIGN_IN_WINDOW_MS
+}
+
 export const recordSignIn = async (user) => {
   if (!user?.uid) return
 
@@ -101,7 +123,27 @@ export const recordSignIn = async (user) => {
   const lastSignInAt = toTimestamp(user.metadata?.lastSignInTime)
   if (lastSignInAt) payload.lastSignInAt = lastSignInAt
 
-  await setDoc(doc(db, ACCOUNTS_COLLECTION, user.uid), payload, { merge: true })
+  const ref = doc(db, ACCOUNTS_COLLECTION, user.uid)
+
+  // Read before write, so "have we ever seen this account?" is still
+  // answerable a line later. One extra read per app load, which is the price
+  // of an administrator finding out a new person has arrived without watching
+  // the Accounts page.
+  const seenBefore = await getDoc(ref)
+    .then((snapshot) => snapshot.exists())
+    .catch(() => true) // A failed read must never turn into a false alarm.
+
+  await setDoc(ref, payload, { merge: true })
+
+  if (!seenBefore && isFirstEverSignIn(user)) {
+    const who = user.displayName || user.email || 'Someone'
+    notify('account.new', {
+      title: `New account: ${who}`,
+      body: `Signed in for the first time with ${
+        PROVIDER_LABELS[payload.primaryProvider] || payload.primaryProvider
+      }. No member record linked yet.`,
+    })
+  }
 }
 
 /**

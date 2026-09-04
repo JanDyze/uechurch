@@ -105,23 +105,30 @@ body {
   color: #22b8cf;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
+/* These three are element defaults, and they belong in @layer base.
+   Left unlayered — as they were, straight from the Vite starter — they beat
+   every Tailwind utility no matter how specific, because v4 emits utilities
+   inside a layer and unlayered rules outrank layered ones. `text-white
+   font-semibold` on a link lost to the anchor rule, so every anchor in the app
+   rendered starter-purple at weight 500, and `text-6xl` on a heading lost to
+   `font-size: 2em`. Inside the layer they are what they were meant to be:
+   defaults, which a class on the element overrides. */
+@layer base {
+  a {
+    font-weight: inherit;
+    color: inherit;
+    text-decoration: inherit;
+  }
 
-h1 {
-  font-size: 2em;
-  line-height: 1.2;
-}
+  h1 {
+    font-size: 2em;
+    line-height: 1.2;
+  }
 
-button {
-  cursor: pointer;
-  transition: all 0.2s;
+  button {
+    cursor: pointer;
+    transition: all 0.2s;
+  }
 }
 
 /* Consistent keyboard-focus indicator across every interactive element.

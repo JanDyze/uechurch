@@ -30,8 +30,23 @@ export const DEFAULT_LANDING = {
   tagline: 'A place to belong.',
   intro:
     'Wherever you are on your journey, there is room for you here. Come as you are — we would love to meet you this week.',
-  // Base64 webp uploaded from Settings. Empty means the bundled photo.
+  // Base64 webp uploaded from Settings. Empty means the bundled photo, and it
+  // is only the fallback: the hero rotates through the shared album photos
+  // below whenever there are any.
   heroImage: '',
+  // Whether the gallery feeds the public page at all. On, the hero rotates
+  // through photographs picked at random from every album and the "Life at
+  // church" strip fills itself; off, no gallery photo is reachable from the
+  // public page and the hero falls back to the one uploaded above.
+  showPhotos: true,
+  // The albums that stay behind the sign-in — the meeting minutes shot on
+  // somebody's phone, the album that was only ever a test. Everything not
+  // listed here is public, so this is the exception rather than the rule.
+  hiddenAlbums: [],
+  // Whether the "What's coming up" list is published. Titles and times only:
+  // the endpoint never publishes a gathering's location, because a small group
+  // meets at somebody's house.
+  showEvents: true,
   // [{ name, when, note }] — rendered in the order they are added.
   services: [],
   aboutTitle: 'Who we are',
@@ -42,6 +57,23 @@ export const DEFAULT_LANDING = {
   email: '',
   facebook: '',
 }
+
+/**
+ * Stored settings over the starting values above. Exported because two callers
+ * need the same merge: useAppSettings, reading Firestore as a signed-in member,
+ * and usePublicSite, reading what the server publishes to a visitor.
+ *
+ * `services` is a list, so it is replaced wholesale rather than merged — an
+ * admin who removes the last one means the section to disappear.
+ */
+export const withChurchDefaults = (church) => ({ ...DEFAULT_CHURCH, ...(church || {}) })
+
+export const withLandingDefaults = (landing) => ({
+  ...DEFAULT_LANDING,
+  ...(landing || {}),
+  services: Array.isArray(landing?.services) ? landing.services : DEFAULT_LANDING.services,
+  hiddenAlbums: Array.isArray(landing?.hiddenAlbums) ? landing.hiddenAlbums : [],
+})
 
 export const DEFAULT_CATEGORIES = {
   gallery: ['Worship', 'Outreach', 'Fellowship', 'Special Events', 'Minutes Photos'],

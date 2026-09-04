@@ -59,12 +59,12 @@ useFocusTrap(dialogRef, computed(() => props.show), close)
 
 const leaders = computed(() => songLeadersFrom(props.members))
 
-// Nobody tagged as a song leader yet, so the picker falls back to the whole
-// roster rather than being empty and unusable.
-const noLeadersTagged = computed(() => leaders.value.length === 0)
+// Nobody assigned to the Song Leader ministry yet, so the picker falls back to
+// the whole roster rather than being empty and unusable.
+const noLeadersAssigned = computed(() => leaders.value.length === 0)
 
 const leaderOptions = computed(() => {
-  if (showAllMembers.value || noLeadersTagged.value) {
+  if (showAllMembers.value || noLeadersAssigned.value) {
     return [...props.members].sort((a, b) => getFullName(a).localeCompare(getFullName(b)))
   }
   return leaders.value
@@ -157,7 +157,7 @@ const handleSave = () => {
         :class="[
           isMobile
             ? 'fixed inset-0 z-80 flex flex-col justify-end'
-            : 'lineup-drawer border-l-4 border-primary bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20',
+            : 'lineup-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 overflow-hidden shadow-xl shadow-primary/25 dark:shadow-primary-light/20',
         ]"
       >
         <div v-if="isMobile" class="absolute inset-0 bg-black/50" @click="close" />
@@ -203,12 +203,12 @@ const handleSave = () => {
                   Song leader
                 </label>
                 <button
-                  v-if="!noLeadersTagged"
+                  v-if="!noLeadersAssigned"
                   type="button"
                   @click="showAllMembers = !showAllMembers"
                   class="text-xs font-semibold text-primary dark:text-primary-light"
                 >
-                  {{ showAllMembers ? 'Tagged leaders only' : 'Show all members' }}
+                  {{ showAllMembers ? 'Song leaders only' : 'Show all members' }}
                 </button>
               </div>
               <select
@@ -222,8 +222,8 @@ const handleSave = () => {
                   {{ getFullName(member) }}
                 </option>
               </select>
-              <p v-if="noLeadersTagged" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                No one carries the &ldquo;Song Leader&rdquo; tag yet, so every member is listed.
+              <p v-if="noLeadersAssigned" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                No one serves in the Song Leader ministry yet, so every member is listed.
               </p>
             </div>
 
@@ -469,6 +469,8 @@ const handleSave = () => {
   max-width: 0;
   opacity: 0;
   overflow: hidden;
+  margin-left: 0;
+  margin-right: 0;
 }
 .modal-sheet-enter-active,
 .modal-sheet-leave-active {

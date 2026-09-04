@@ -1,6 +1,10 @@
 import { computed, ref } from 'vue'
 import { subscribeToAppSettings, saveAppSettings } from '../api/appSettingsService'
-import { DEFAULT_CHURCH, DEFAULT_CATEGORIES, DEFAULT_LANDING } from '../data/appDefaults'
+import {
+  DEFAULT_CATEGORIES,
+  withChurchDefaults,
+  withLandingDefaults,
+} from '../data/appDefaults'
 import bundledLogo from '../assets/uec-logo.png'
 import { useTheme } from './useTheme'
 
@@ -18,15 +22,12 @@ export const initAppSettings = () => {
   })
 }
 
-const churchOf = (data) => ({ ...DEFAULT_CHURCH, ...(data?.church || {}) })
+// The merges themselves live with the defaults, because the public page reads
+// the same settings through the server rather than through Firestore and has
+// to arrive at exactly the same object.
+const churchOf = (data) => withChurchDefaults(data?.church)
 const categoriesOf = (data) => ({ ...DEFAULT_CATEGORIES, ...(data?.categories || {}) })
-// `services` is a list, so it is replaced wholesale rather than merged — an
-// admin who removes the last one means the section to disappear.
-const landingOf = (data) => ({
-  ...DEFAULT_LANDING,
-  ...(data?.landing || {}),
-  services: Array.isArray(data?.landing?.services) ? data.landing.services : DEFAULT_LANDING.services,
-})
+const landingOf = (data) => withLandingDefaults(data?.landing)
 
 /**
  * Non-reactive read for modules outside the component tree — the xlsx

@@ -30,6 +30,15 @@ const routes = [
     meta: { guestOnly: true }
   },
   {
+    // The projector's own window. Registered outside the app shell on purpose:
+    // it is dragged onto a second screen and shown to a congregation, so it
+    // must carry no sidebar, no topbar and no theme — just the slide.
+    path: '/present-output',
+    name: 'PresentOutput',
+    component: () => import('../views/PresentOutput.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/',
     component: AdminLayout,
     meta: { requiresAuth: true },
@@ -95,6 +104,26 @@ const routes = [
         component: () => import('../views/SongList.vue')
       },
       {
+        // Typing out a song needs the whole screen, the way recording
+        // attendance does — the list's drawer is for checking a key or a link.
+        // Viewing is enough to reach it; the editor is read-only without
+        // songs.manage, so the worship team can read lyrics off it on a phone.
+        path: 'songs/:id',
+        name: 'SongDetails',
+        meta: { capability: 'songs.view' },
+        component: () => import('../views/SongDetails.vue')
+      },
+      {
+        // The tech booth. Keyed by service date rather than month, because a
+        // service is what gets run; without one it opens the latest Sunday.
+        // Read-only access is enough — presenting shows what the worship team
+        // planned, it does not change it.
+        path: 'present/:date?',
+        name: 'Present',
+        meta: { capability: 'lineups.view' },
+        component: () => import('../views/Present.vue')
+      },
+      {
         // The month is optional: /lineups opens the current one, and the
         // month-keyed form is what gets shared with the worship team.
         path: 'lineups/:month?',
@@ -132,22 +161,18 @@ const routes = [
         component: () => import('../views/RecordAttendance.vue')
       },
       {
+        // Between the dashboard and the pages it summarises: what the church
+        // still has to do is the second thing anyone opens the app for.
+        path: 'tasks',
+        name: 'Tasks',
+        meta: { capability: 'tasks.view' },
+        component: () => import('../views/Tasks.vue')
+      },
+      {
         path: 'prayer-concerns',
         name: 'PrayerConcerns',
         meta: { capability: 'prayer.view' },
         component: () => import('../views/PrayerConcerns.vue')
-      },
-      {
-        path: 'finances',
-        name: 'Finances',
-        meta: { capability: 'finances.view' },
-        component: () => import('../views/Finances.vue')
-      },
-      {
-        path: 'finances/audit',
-        name: 'FinanceAudit',
-        meta: { capability: 'finances.view' },
-        component: () => import('../views/FinanceAudit.vue')
       },
       {
         path: 'accounts',
@@ -162,6 +187,13 @@ const routes = [
         component: () => import('../views/Settings.vue')
       }
     ]
+  },
+  // Anything unrecognised lands on the dashboard rather than an empty shell —
+  // a bookmark or home-screen shortcut to a page that has since been removed
+  // (/finances, say) would otherwise render nothing at all.
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: HOME
   }
 ]
 
@@ -189,9 +221,9 @@ router.beforeEach(async (to) => {
     // cold load the setting may not have arrived yet, so it reads as "shown"
     // here and Landing.vue finishes the decision once it does.
     if (!getLandingEnabled()) return { name: 'Login' }
-    // A member who is already signed in wants the app, not the welcome mat —
-    // except when they came from Settings to preview what visitors see.
-    if (isAuthenticated.value && to.query.preview === undefined) return { path: HOME }
+    // Signed in or not, "/" stays the public page. A member who follows the
+    // church's own link should land where visitors land — the page itself
+    // offers them the way back into the app.
     return true
   }
 

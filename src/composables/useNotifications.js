@@ -9,6 +9,7 @@ import {
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import app, { db } from "../api/firebase";
 import { useToast } from "./useToast";
+import { initAuth, useAuth } from "./useAuth";
 
 // The FCM service worker gets its own scope so it never competes with the PWA
 // service worker for "/" — two registrations on the same scope replace each
@@ -124,12 +125,19 @@ async function clearPushSubscriptions(messaging) {
   }
 }
 
-async function saveToken(fcmToken) {
-  // One doc per token so multiple devices/browsers can each register
+async function saveToken(fcmToken, user) {
+  // One doc per token so multiple devices/browsers can each register.
+  //
+  // `uid` is what lets api/notify.js work out what this device may be told:
+  // without it the device is treated as an unknown account and only receives
+  // what any signed-in member would. It is rewritten on every app start, so a
+  // shared device follows whoever is signed in now.
   await setDoc(
     doc(db, "fcmTokens", fcmToken),
     {
       token: fcmToken,
+      uid: user?.uid || null,
+      email: user?.email || "",
       userAgent: navigator.userAgent,
       updatedAt: serverTimestamp(),
     },
@@ -139,6 +147,7 @@ async function saveToken(fcmToken) {
 
 export function useNotifications() {
   const { success, error, info } = useToast();
+  const { user } = useAuth();
 
   const isEnabled = computed(() => permission.value === "granted" && !!token.value);
 
@@ -199,7 +208,10 @@ export function useNotifications() {
 
     if (fcmToken) {
       token.value = fcmToken;
-      await saveToken(fcmToken);
+      // Who this device belongs to decides what it is sent, so the session has
+      // to be restored before the token is written.
+      await initAuth();
+      await saveToken(fcmToken, user.value);
     }
     return fcmToken;
   };

@@ -5,7 +5,6 @@ import {
   Users,
   UsersRound,
   Calendar,
-  DollarSign,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -13,6 +12,7 @@ import {
   Heart,
   Image,
   Link2,
+  ListChecks,
   ListMusic,
   Mic2,
   Settings,
@@ -36,7 +36,10 @@ const NAV_GROUPS = [
   {
     key: 'overview',
     label: '',
-    items: [{ name: 'Dashboard', path: '/dashboard', icon: Home, capability: 'dashboard.view' }],
+    items: [
+      { name: 'Dashboard', path: '/dashboard', icon: Home, capability: 'dashboard.view' },
+      { name: 'Tasks', path: '/tasks', icon: ListChecks, capability: 'tasks.view' },
+    ],
   },
   {
     key: 'people',
@@ -70,7 +73,6 @@ const NAV_GROUPS = [
     key: 'admin',
     label: 'Administration',
     items: [
-      { name: 'Finances', path: '/finances', icon: DollarSign, capability: 'finances.view' },
       { name: 'Accounts', path: '/accounts', icon: UserCog, adminOnly: true },
       { name: 'Settings', path: '/settings', icon: Settings, adminOnly: true },
     ],

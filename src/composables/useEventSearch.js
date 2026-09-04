@@ -49,6 +49,11 @@ const buildHaystack = (event, todayKey) => {
     event.location,
     event.description,
     event.time,
+    // Who it is for. "choir" now gathers up every practice the choir is
+    // expected at, whatever each one happens to be called. Exclusions are left
+    // out of the index on purpose: "kids" should not find the one gathering
+    // the kids are the exception to.
+    ...(event.audienceTags || []),
     ...dateParts(event.date),
     // The three kinds of event look identical in the list but behave nothing
     // alike, and only search can gather one kind up now that the type filter

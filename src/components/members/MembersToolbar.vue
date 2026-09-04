@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import { Search, X } from '../../icons';
+import { Search, X, Tag } from '../../icons';
 import SearchBar from "../common/SearchBar.vue";
 
 const props = defineProps({
@@ -16,13 +16,22 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  // Tagging the whole result set is an edit, so it is offered only to someone
+  // who may make one.
+  canTag: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(["update:searchQuery"]);
+const emit = defineEmits(["update:searchQuery", "tag-results"]);
 
 // Details live in the search bar now, so the placeholder has to teach that:
-// people only try typing a tag or a job if something tells them they can.
-const searchPlaceholder = "Search name, tag, job, address...";
+// people only try typing a tag or a job if something tells them they can. The
+// same goes for the comma - nobody discovers "choir, ushers" by accident.
+// Slashes, not commas, between the examples: the comma is the operator now,
+// and a placeholder that used both would read as syntax.
+const searchPlaceholder = "Name / tag / job — comma for several";
 
 // The count strip only earns its vertical space while a search is narrowing the list
 const showSummary = computed(() => !!props.searchQuery);
@@ -61,13 +70,22 @@ const showSummary = computed(() => !!props.searchQuery);
       </button>
     </div>
 
-    <!-- Result count (mobile) -->
+    <!-- Result count (mobile). The search is already the filter, so it is also
+         the fastest way to tag a group: narrow to them, then tag the lot. -->
     <div v-if="showSummary" class="mt-2 flex items-center gap-2 lg:hidden">
       <span
         class="shrink-0 text-[11px] font-semibold tabular-nums text-gray-500 dark:text-gray-400"
       >
         {{ resultCount }} of {{ totalCount }}
       </span>
+      <button
+        v-if="resultCount && canTag"
+        @click="emit('tag-results')"
+        class="ml-auto inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-[11px] font-semibold text-primary active:bg-primary/20 dark:bg-primary-light/15 dark:text-primary-light"
+      >
+        <Tag class="h-3.5 w-3.5" />
+        Tag these {{ resultCount }}
+      </button>
     </div>
 
     <!-- ==================== Desktop ==================== -->
@@ -84,6 +102,15 @@ const showSummary = computed(() => !!props.searchQuery);
       >
         {{ resultCount }} of {{ totalCount }}
       </span>
+
+      <button
+        v-if="showSummary && resultCount && canTag"
+        @click="emit('tag-results')"
+        class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-semibold text-primary transition-colors hover:bg-primary/20 dark:bg-primary-light/15 dark:text-primary-light"
+      >
+        <Tag class="h-4 w-4" />
+        Tag these {{ resultCount }}
+      </button>
     </div>
   </div>
 </template>

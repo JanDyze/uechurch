@@ -9,6 +9,7 @@ import {
   EyeOff,
   Mic2,
   Music4,
+  Play,
 } from '../icons'
 import { useLineup, isSundayPlanned } from '../composables/useLineups'
 import { useMembers } from '../composables/useMembers'
@@ -257,6 +258,17 @@ const saveMonthNotes = async () => {
         aria-label="Next month"
       >
         <ChevronRight class="h-5 w-5" />
+      </button>
+
+      <!-- Into the tech booth. Viewing is enough: presenting shows what the
+           worship team planned, it does not change it. -->
+      <button
+        @click="router.push('/present')"
+        class="shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
+        title="Open the presenter"
+      >
+        <Play class="h-4 w-4" />
+        <span class="hidden sm:inline">Present</span>
       </button>
 
       <button

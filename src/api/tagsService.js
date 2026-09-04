@@ -10,8 +10,11 @@ import {
   where,
   onSnapshot,
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore'
+import { inBatches } from './batchWrite'
 
 // Tags are free-text labels for describing and filtering members — "New
 // Convert", "Needs Visit", "Choir 2024". They deliberately grant nothing.
@@ -23,6 +26,65 @@ import {
 
 const TAGS_COLLECTION = 'memberTags'
 const MEMBERS_COLLECTION = 'members'
+
+// Tagging a group used to mean opening each person, ticking the tag and
+// saving — one round trip each, and a hundred people is a hundred waits.
+// Everything below commits in batches instead (see batchWrite.js).
+
+// String() because a member document carries a numeric `id` of its own
+// alongside the Firestore document id, and a path segment has to be a string.
+const refFor = (member) => doc(db, MEMBERS_COLLECTION, String(member.firestoreId || member.id))
+
+/** Anyone the app could not address — no document behind them — is left out. */
+const addressable = (members) =>
+  (members || []).filter((member) => member?.firestoreId || member?.id)
+
+const same = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase()
+
+/**
+ * Adds `tag` to everyone in `members`, skipping whoever already carries it so
+ * the count reported back is what actually changed.
+ *
+ * arrayUnion rather than a rewritten tags array: the array is written by the
+ * member form too, and rewriting it wholesale here would throw away a tag
+ * someone added on their own screen while this was running.
+ *
+ * @returns how many people the tag was added to
+ */
+export const addTagToMembers = async (members, tag) => {
+  const name = String(tag || '').trim()
+  if (!name) return 0
+
+  const targets = addressable(members).filter(
+    (member) => !(member.tags || []).some((t) => same(t, name))
+  )
+  await inBatches(targets, (batch, member) =>
+    batch.update(refFor(member), { tags: arrayUnion(name) })
+  )
+  return targets.length
+}
+
+/**
+ * Takes `tag` off everyone in `members`. arrayRemove matches exactly, so every
+ * casing anyone is actually carrying is removed — "choir" typed onto one
+ * member and "Choir" picked from the list are the same tag to everyone reading
+ * the app, and leaving one behind would look like the removal half-failed.
+ *
+ * @returns how many people the tag was removed from
+ */
+export const removeTagFromMembers = async (members, tag) => {
+  const name = String(tag || '').trim()
+  if (!name) return 0
+
+  const targets = addressable(members).filter((member) =>
+    (member.tags || []).some((t) => same(t, name))
+  )
+  await inBatches(targets, (batch, member) => {
+    const variants = [...new Set((member.tags || []).filter((t) => same(t, name)))]
+    batch.update(refFor(member), { tags: arrayRemove(...variants) })
+  })
+  return targets.length
+}
 
 /**
  * Subscribe to tags registered from Settings (not tags that only exist
@@ -67,12 +129,12 @@ const membersWithTag = async (tag) => {
  */
 export const renameTag = async (oldName, newName, customTagId = null) => {
   const docs = await membersWithTag(oldName)
-  await Promise.all(
-    docs.map((d) => {
-      const tags = (d.data().tags || []).map((t) => (t === oldName ? newName : t))
-      return updateDoc(d.ref, { tags })
-    })
-  )
+  // Rewritten per member rather than removed-and-added, because Firestore
+  // allows only one array transform per field per write.
+  await inBatches(docs, (batch, d) => {
+    const tags = (d.data().tags || []).map((t) => (t === oldName ? newName : t))
+    batch.update(d.ref, { tags })
+  })
 
   if (customTagId) {
     await updateDoc(doc(db, TAGS_COLLECTION, customTagId), { name: newName })
@@ -88,11 +150,8 @@ export const renameTag = async (oldName, newName, customTagId = null) => {
  */
 export const deleteTag = async (name, customTagId = null) => {
   const docs = await membersWithTag(name)
-  await Promise.all(
-    docs.map((d) => {
-      const tags = (d.data().tags || []).filter((t) => t !== name)
-      return updateDoc(d.ref, { tags })
-    })
+  await inBatches(docs, (batch, d) =>
+    batch.update(d.ref, { tags: arrayRemove(name) })
   )
 
   if (customTagId) {

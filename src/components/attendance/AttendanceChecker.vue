@@ -7,6 +7,14 @@ import { useMediaQuery } from '../../composables/useMediaQuery'
 import { getFullName } from '../../utils/memberUtils'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import { memberKey } from '../../utils/sgUtils'
+import {
+  readExpectedAttendance,
+  membersInAudience,
+  audienceTagsOf,
+  excludeTagsOf,
+  audienceLabel
+} from '../../utils/audience'
+import { groupByBand, bandIndexOf } from '../../utils/ageBands'
 import MemberAvatar from '../members/MemberAvatar.vue'
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
@@ -63,6 +71,11 @@ const searchQuery = ref('')
 // Check if creating new (no event data and not editing)
 const isNewAttendance = computed(() => !props.eventData && !props.isEdit)
 
+// How many were expected, recounted from the roster as the record is written:
+// the tags are what a gathering is for, the number saved on it is only a
+// snapshot of them on the day.
+const expectedFor = (source) => readExpectedAttendance(source, members.value)
+
 // Initialize form data
 const formData = computed({
   get: () => {
@@ -83,7 +96,11 @@ const formData = computed({
         location: props.eventData.location || '',
         attendees: props.attendanceData.attendees || [],
         notes: props.attendanceData.notes || '',
-        expectedAttendees: props.eventData.expectedAttendees || props.eventData.attendees || 0
+        expectedAttendees: expectedFor(props.eventData),
+        // Copied off the event or schedule, so the saved record still knows
+        // who it was for once that source is edited or deleted.
+        audienceTags: audienceTagsOf(props.eventData),
+        excludeTags: excludeTagsOf(props.eventData)
       }
     }
     return props.attendanceData
@@ -103,19 +120,61 @@ const isFormValid = computed(() => {
          formData.value.date && formData.value.date.length > 0
 })
 
+// Who this gathering is actually for. A choir practice is not attended by the
+// congregation, so the roll shown is the audience named by the event's tags
+// rather than the whole roster — the same tags the expected head is counted
+// off, which until now the list quietly disagreed with. No tags still means
+// everyone (utils/audience.js).
+//
+// The event is asked first and the record second: a record carries the tags
+// copied off its event, but a one-off tied to nothing carries its own.
+const audienceSource = computed(() => {
+  const event = props.eventData
+  if (audienceTagsOf(event).length || excludeTagsOf(event).length) return event
+  return formData.value
+})
+
+const audienceTags = computed(() => audienceTagsOf(audienceSource.value))
+const audienceExcludes = computed(() => excludeTagsOf(audienceSource.value))
+
+/** True once the tags actually narrow the roll to fewer than everyone. */
+const isNarrowed = computed(() =>
+  Boolean(audienceTags.value.length || audienceExcludes.value.length)
+)
+
+const audienceRoster = computed(() => {
+  const inAudience = membersInAudience(
+    members.value,
+    audienceTags.value,
+    audienceExcludes.value
+  )
+
+  // Anyone already marked present stays on the roll even if they fall outside
+  // the audience — someone marked before the tags changed, or found through
+  // the search below. A mark that cannot be seen is a mark that cannot be
+  // taken back, and hiding it would silently strand it in the saved record.
+  const shown = new Set(inAudience.map((member) => String(memberKey(member))))
+  const marked = (members.value || []).filter(
+    (member) =>
+      !shown.has(String(memberKey(member))) && isPresent(memberKey(member))
+  )
+
+  return [...inAudience, ...marked]
+})
+
 // Filter members by search
 const filteredMembers = computed(() => {
-  let filtered = members.value || []
-  
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(member => {
-      const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim().toLowerCase()
-      return fullName.includes(query)
-    })
-  }
-  
-  return filtered
+  const query = searchQuery.value.trim().toLowerCase()
+
+  // Searching reaches the whole roster, not just the audience. Someone turns
+  // up who was never tagged for this — a visitor at a choir practice — and
+  // still has to be markable without anyone editing the event first.
+  if (!query) return audienceRoster.value
+
+  return (members.value || []).filter(member => {
+    const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim().toLowerCase()
+    return fullName.includes(query)
+  })
 })
 
 // Toggle member attendance. Marking someone present clears any absent mark —
@@ -136,6 +195,26 @@ const toggleAttendee = (memberId) => {
 const isPresent = (memberId) => {
   return (formData.value.attendees || []).some(id => String(id) === String(memberId) || id === memberId)
 }
+
+// A room is checked group by group — the kids are sitting together, the youth
+// are sitting together — so the list is divided the same way instead of running
+// one long roll from the door to the back row. The bands are the ones the
+// People page reports on (utils/ageBands.js); names are alphabetical inside a
+// band, which is the order someone scanning for one person expects.
+const byBandThenName = (a, b) =>
+  bandIndexOf(a) - bandIndexOf(b) || getFullName(a).localeCompare(getFullName(b))
+
+const memberGroups = computed(() =>
+  groupByBand(filteredMembers.value).map((group) => ({
+    ...group,
+    members: [...group.members].sort((a, b) => getFullName(a).localeCompare(getFullName(b))),
+    present: group.members.filter((member) => isPresent(memberKey(member))).length,
+  }))
+)
+
+// The deck deals in the same order the list shows, so putting the phone down
+// halfway through the youth and finishing in the list lands where you left off.
+const orderedMembers = computed(() => [...audienceRoster.value].sort(byBandThenName))
 
 // 'browse' to hunt for a specific name, 'swipe' to go through everyone in
 // order. Swipe is the better tool while the service is filling up; browsing is
@@ -217,7 +296,7 @@ const handleCancel = () => {
 }
 
 const presentCount = computed(() => formData.value.attendees?.length || 0)
-const totalCount = computed(() => members.value?.length || 0)
+const totalCount = computed(() => audienceRoster.value.length)
 const progressPercent = computed(() =>
   totalCount.value ? Math.round((presentCount.value / totalCount.value) * 100) : 0
 )
@@ -421,7 +500,7 @@ const panelClass = computed(() => {
         v-if="mode === 'swipe'"
         v-model:presentIds="presentIds"
         v-model:absentIds="absentIds"
-        :members="members"
+        :members="orderedMembers"
         @done="mode = 'browse'"
         class="flex-1 min-h-0"
       />
@@ -440,6 +519,12 @@ const panelClass = computed(() => {
               class="w-full h-9 pl-9 pr-3 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-1 focus:ring-primary text-gray-900 dark:text-white"
             />
           </div>
+          <!-- Say so when the roll is not the whole church, and say that the
+               search still reaches everyone — otherwise a missing name reads
+               as a bug rather than as the audience doing its job. -->
+          <p v-if="isNarrowed && !searchQuery.trim()" class="mt-2 px-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+            Showing {{ audienceLabel(audienceTags, audienceExcludes) }} · search to reach anyone else
+          </p>
         </div>
 
         <!-- Members. One column on a phone, a card grid wherever there is
@@ -451,51 +536,72 @@ const panelClass = computed(() => {
             v-if="filteredMembers.length === 0"
             class="p-8 text-center text-gray-400 dark:text-gray-500 text-sm"
           >
-            No members match "{{ searchQuery }}"
+            {{ searchQuery.trim()
+              ? `No members match “${searchQuery}”`
+              : 'Nobody on the roster carries this gathering’s tags yet.' }}
           </p>
-          <ul
-            v-else
-            class="grid grid-cols-1 gap-1 @md:grid-cols-2 @md:gap-2 @3xl:grid-cols-3 @5xl:grid-cols-4"
-          >
-            <li v-for="member in filteredMembers" :key="memberKey(member)">
-              <button
-                @click="toggleAttendee(memberKey(member))"
-                :aria-pressed="isPresent(memberKey(member))"
-                :class="memberButtonClass(member)"
+          <!-- One section per age band. The heading carries that band's own
+               tally, so "the kids are all in, the youth are half done" is
+               readable without counting ticks. -->
+          <section v-else v-for="group in memberGroups" :key="group.band.key" class="mb-3">
+            <div
+              class="sticky top-0 z-10 -mx-2 mb-1 flex items-center gap-2 bg-white/95 px-3 py-1.5 backdrop-blur dark:bg-gray-800/95 @md:-mx-4 @md:px-4"
+            >
+              <span :class="['h-2 w-2 shrink-0 rounded-full', group.band.dotClass]"></span>
+              <span
+                class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400"
               >
-                <MemberAvatar :member="member" alt="" size="w-9 h-9 @md:w-11 @md:h-11" />
-                <span
-                  :class="[
-                    'flex-1 min-w-0 truncate text-sm',
-                    isPresent(memberKey(member))
-                      ? 'font-semibold text-gray-900 dark:text-white'
-                      : 'text-gray-600 dark:text-gray-300',
-                  ]"
+                {{ group.band.label }}
+              </span>
+              <span
+                class="ml-auto text-xs tabular-nums text-gray-400 dark:text-gray-500"
+                :class="group.present === group.members.length ? 'text-emerald-600 dark:text-emerald-400' : ''"
+              >
+                {{ group.present }} of {{ group.members.length }}
+              </span>
+            </div>
+
+            <ul class="grid grid-cols-1 gap-1 @md:grid-cols-2 @md:gap-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
+              <li v-for="member in group.members" :key="memberKey(member)">
+                <button
+                  @click="toggleAttendee(memberKey(member))"
+                  :aria-pressed="isPresent(memberKey(member))"
+                  :class="memberButtonClass(member)"
                 >
-                  {{ getFullName(member) }}
-                </span>
-                <!-- Three states, not two: present, explicitly absent, and
-                     not yet looked at. Collapsing the last two would hide who
-                     still needs checking. -->
-                <span
-                  :class="[
-                    'shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors',
-                    isPresent(memberKey(member))
-                      ? 'bg-emerald-500'
-                      : isAbsent(memberKey(member))
-                        ? 'bg-red-100 dark:bg-red-500/20'
-                        : 'border-2 border-gray-200 dark:border-gray-600',
-                  ]"
-                >
-                  <Check v-if="isPresent(memberKey(member))" class="h-3.5 w-3.5 text-white" />
-                  <X
-                    v-else-if="isAbsent(memberKey(member))"
-                    class="h-3.5 w-3.5 text-red-500 dark:text-red-400"
-                  />
-                </span>
-              </button>
-            </li>
-          </ul>
+                  <MemberAvatar :member="member" alt="" size="w-9 h-9 @md:w-11 @md:h-11" />
+                  <span
+                    :class="[
+                      'flex-1 min-w-0 truncate text-sm',
+                      isPresent(memberKey(member))
+                        ? 'font-semibold text-gray-900 dark:text-white'
+                        : 'text-gray-600 dark:text-gray-300',
+                    ]"
+                  >
+                    {{ getFullName(member) }}
+                  </span>
+                  <!-- Three states, not two: present, explicitly absent, and
+                       not yet looked at. Collapsing the last two would hide who
+                       still needs checking. -->
+                  <span
+                    :class="[
+                      'shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors',
+                      isPresent(memberKey(member))
+                        ? 'bg-emerald-500'
+                        : isAbsent(memberKey(member))
+                          ? 'bg-red-100 dark:bg-red-500/20'
+                          : 'border-2 border-gray-200 dark:border-gray-600',
+                    ]"
+                  >
+                    <Check v-if="isPresent(memberKey(member))" class="h-3.5 w-3.5 text-white" />
+                    <X
+                      v-else-if="isAbsent(memberKey(member))"
+                      class="h-3.5 w-3.5 text-red-500 dark:text-red-400"
+                    />
+                  </span>
+                </button>
+              </li>
+            </ul>
+          </section>
         </div>
       </template>
 

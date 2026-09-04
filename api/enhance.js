@@ -1,366 +1,212 @@
-// Vercel serverless function for AI enhancement
-// This replaces the Express server.js endpoint
+// Turns the raw notes someone typed during a meeting into minutes the church
+// can file: one agenda item at a time, or the whole meeting at once.
+//
+// The notes are what a secretary actually types on a phone mid-discussion —
+// Taglish, abbreviations, "2x2000", a name in brackets after a task, "di pa
+// sure" against a booking nobody has confirmed. The job is to organise that,
+// not to improve it.
+//
+// Which is the whole risk here. Minutes are a record: a fluent sentence about
+// a decision nobody made is worse than an obviously incomplete page, because
+// it will be read next month as what the church agreed. Everything in the
+// prompt below that looks like nagging is aimed at that one failure.
+//
+// Previously this ran a cascade of small open models on Hugging Face — gpt2
+// among them — against a 200-line prompt, capped at 500 output tokens, with a
+// client-side formatter catching what came back. The prompt was never the
+// binding constraint; the models were.
+
+import Anthropic from "@anthropic-ai/sdk";
+import { requireUser } from "../lib/firebaseAdmin.js";
+
+const MODEL = "claude-opus-5";
+
+// Both modes are the same job on a different scope, so the rules that keep the
+// minutes honest are written once and shared.
+const RULES = `Write only what the notes say.
+
+- Never add, infer or invent anything: no attendee who is not named, no decision that was not reached, no deadline that was not given, no amount that was not written down.
+- Never write a placeholder like "[Insert Date]" or "[Name]". Where the notes are silent, write "Not specified" or leave the line out entirely.
+- A section with nothing behind it says "None mentioned". Do not fill a section to make the page look complete.
+- Keep the notes' own names, amounts, dates and wording for decisions. Tidy the grammar around them, not them.
+- The notes are usually Tagalog and English mixed. Write the minutes in English, but keep a Tagalog phrase where translating it would change what was meant, and leave names exactly as they were typed.
+- Money is in Philippine pesos. Write it as ₱4,000. Where the notes imply arithmetic, do it and show your working so it can be checked: "2x2000" becomes "2 × ₱2,000 = ₱4,000". Total the expenses.
+- Preserve uncertainty instead of resolving it. "di pa sure" is "pending confirmation", not a decision.
+- A name in brackets or after a task is the person doing it: "letter (joyce)" is Joyce's task.
+- Write in the third person, plainly: "the committee agreed", not "we agreed".`;
+
+const agendaSystem = `You are minuting one agenda item for a Filipino church's meeting. You are given the item's title and the raw notes taken under it.
+
+${RULES}
+
+Cover only this agenda item. The opening prayer, attendance and adjournment belong to the meeting as a whole — leave them out.
+
+Minutes follow the same three beats for every item: what was discussed, what was decided, and who now has to do something. Reply in Markdown with "##" headings in this order, omitting any heading the notes hold nothing for, except Discussion which is always written:
+
+## Discussion
+What was raised and considered, in a short paragraph or a few bullets. Include the dates and figures the notes give.
+
+## Decisions
+What was agreed, one bullet each. Where the notes give a reason, include it; where they do not, do not supply one. If nothing was settled, write "No decision was reached." and say what remains open.
+
+## Action Items
+A Markdown table — Task | Servant | Timeline | Status — when there is more than one; a short bullet list when there is one. "Not specified" fills a column the notes leave empty.
+
+## Financial Matters
+Each amount on its own line with what it is for, then a bold total. Omit this heading when the notes mention no money.
+
+## Prayer Concerns
+People or situations the notes raise for prayer.
+
+## For Next Meeting
+Anything explicitly left unresolved or deferred.
+
+Output the Markdown and nothing else — no preamble, no code fence.`;
+
+const meetingSystem = `You are writing up the minutes of a Filipino church's meeting. You are given the meeting's own details, then the raw notes from every agenda item, each under its own heading.
+
+${RULES}
+
+The meeting details given to you — the date, the time, the place, who was present — are facts from the church's records, not from the notes. Write them into the header as given. Never add an attendee, a time or a place that was not handed to you, and never invent one because a minute usually has it.
+
+This sits above the per-item minutes, so under Business draw each item together in a few lines rather than reproducing it in full.
+
+Reply in Markdown with "##" headings in this order, omitting any heading nothing was given for:
+
+## Call to Order
+The date, time and place, and who opened the meeting in prayer if the notes say so.
+
+## Attendance
+Present, and apologies, from the details given. Never from the notes.
+
+## Approval of Previous Minutes
+Only if the notes record the previous minutes being approved.
+
+## Business
+One "###" subheading per agenda item, in the order given, each with a few lines covering what was discussed and what was decided.
+
+## Financial Matters
+Every amount approved anywhere in the meeting, each with the agenda item it belongs to, then a bold total across all of them.
+
+## Action Items
+A Markdown table — Task | Servant | Timeline | Agenda Item — covering every commitment made in the meeting.
+
+## Prayer Concerns
+People or situations raised for prayer anywhere in the notes.
+
+## For Next Meeting
+What was left unresolved, and the next meeting's date if the notes give one.
+
+## Adjournment
+The closing time and closing prayer, if recorded.
+
+End with these two lines exactly, and no signatures or names beneath them:
+
+Prepared by: ______________________
+Approved by: ______________________
+
+Output the Markdown and nothing else — no preamble, no code fence.`;
 
 export default async function handler(req, res) {
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  // This endpoint bills Anthropic per call and used to be open to anyone who
+  // found the URL. It is a church's meeting notes either way: signed in only.
+  const caller = await requireUser(req);
+  if (caller.error) return res.status(caller.status).json({ error: caller.error });
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" });
   }
 
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
-  // Handle preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+  const agendaTitle = String(req.body?.agendaTitle || "").trim();
+  const rawNotes = String(req.body?.rawNotes || "");
+  if (!rawNotes.trim()) return res.status(400).json({ error: "No notes provided" });
+  if (rawNotes.length > 60000) {
+    return res.status(400).json({ error: "Those notes are too long to summarise in one go." });
   }
+
+  // The caller says which it is. The sniff behind it is how this was decided
+  // before — the overall summary arrives as "**Item**:" blocks — and is kept
+  // only so an older client still gets the right prompt.
+  const mode =
+    req.body?.mode === "meeting" || req.body?.mode === "agenda"
+      ? req.body.mode
+      : rawNotes.split("**:\n").length > 1
+        ? "meeting"
+        : "agenda";
+
+  const isMeeting = mode === "meeting";
+
+  // The date, place and attendance are the church's own records, not something
+  // to be read out of the notes — the notes never mention them, and a model
+  // asked to write a header without them will supply a plausible one.
+  const details = req.body?.details || {};
+  const detailLines = isMeeting
+    ? [
+        ["Meeting", agendaTitle],
+        ["Date", details.date],
+        ["Time", [details.startTime, details.endTime].filter(Boolean).join(" – ")],
+        ["Place", details.location],
+        ["Present", (details.present || []).join(", ")],
+        ["Apologies", (details.apologies || []).join(", ")],
+      ]
+        .filter(([, value]) => value)
+        .map(([label, value]) => `${label}: ${value}`)
+    : agendaTitle
+      ? [`Agenda item: ${agendaTitle}`]
+      : [];
+
+  const heading = detailLines.length ? `${detailLines.join("\n")}\n\n---\n\n` : "";
 
   try {
-    const { agendaTitle, rawNotes } = req.body
+    // Built inside the try: the SDK throws here when the key is malformed, and
+    // an unhandled throw at this point is a bare FUNCTION_INVOCATION_FAILED
+    // rather than something the person clicking the button can act on.
+    const client = new Anthropic();
 
-    if (!rawNotes || !rawNotes.trim()) {
-      return res.status(400).json({ error: 'No notes provided' })
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      system: isMeeting ? meetingSystem : agendaSystem,
+      thinking: { type: "adaptive" },
+      // Minutes carry money and commitments, and the arithmetic in them is the
+      // part a reader will trust without rechecking.
+      output_config: { effort: "medium" },
+      messages: [{ role: "user", content: `${heading}${rawNotes}` }],
+    });
+
+    if (response.stop_reason === "refusal") {
+      return res.status(422).json({ error: "Claude declined to summarise these notes." });
     }
 
-    const HF_TOKEN = process.env.HF_TOKEN
+    const enhanced = response.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("\n")
+      .trim();
 
-    if (!HF_TOKEN) {
-      return res.status(500).json({ error: 'HF_TOKEN not configured' })
+    if (!enhanced) {
+      return res.status(502).json({ error: "The summary came back empty. Try again." });
     }
 
-    // Check if this is an overall summary
-    const isOverallSummary = rawNotes.includes('**:\n') && rawNotes.split('**:\n').length > 1
-
-    const prompt = isOverallSummary
-      ? `Act as a Church Secretary. Create a High-Level Ministry Summary that synthesizes information from ALL agenda items in this meeting.
-
-### CONTEXT
-This is an OVERALL MEETING SUMMARY that combines multiple agenda items. Your task is to create a strategic, ministry-focused overview that:
-- Synthesizes themes across all agenda items
-- Identifies cross-cutting decisions and outcomes
-- Provides a consolidated view of the entire meeting
-- Balances practical tasks with spiritual goals and community care
-- Uses warm, relational language appropriate for church ministry
-
-### RAW NOTES FROM ALL AGENDA ITEMS
-${rawNotes}
-
-### ARCHITECTURE FOR OVERALL SUMMARY
-1. **Opening**: Any opening prayer or devotion mentioned (if in notes)
-2. **Meeting Vitals**: Overall meeting sentiment, productivity level, and key theme (1-2 sentences)
-3. **Strategic Outcomes**: Top 3-5 high-level outcomes that span across agenda items
-4. **Stewardship & Finances**: Consolidated view of all approved expenses and budget impacts across agenda items
-5. **Key Decisions Summary**: Consolidated view of major decisions made across all agenda items
-6. **Ministry Action Items**: All action items from all agenda items in one table
-   - Task | Servant (Owner) | Timeline | Related Agenda Item
-7. **Prayer & Follow-up**: List any specific people or concerns mentioned for prayer
-8. **Next Meeting Priorities**: What should be prioritized in the next meeting based on this one
-
-### FORMATTING RULES
-- Use Markdown tables for the Ministry Action Items
-- Use bold text for names, dates, and agenda item references
-- Keep tone respectful, encouraging, and warm - appropriate for church ministry
-- Use "third-person" when appropriate
-- Be CONCISE - this is a ministry summary, not detailed notes
-- If a section is empty, write "None mentioned" (church-friendly)
-- CRITICAL: ONLY include information explicitly mentioned in the raw notes. DO NOT add, infer, or create information that is not present.
-- DO NOT use placeholders like "[Insert Date]", "[Name]", or "[Insert Date]" - if information is missing, write "Not specified" or omit that field entirely
-- DO NOT add items to Prayer & Follow-up or Next Steps that were not mentioned in the raw notes
-- If no action items are mentioned, write "None identified" instead of creating placeholder tasks
-- If no decisions are mentioned, write "None identified" instead of inferring decisions
-- If expenses/purchases are mentioned, use the EXACT amounts and items from the notes
-
-### OUTPUT FORMAT
-## Opening
-
-[Opening prayer or devotion if mentioned in notes, otherwise "None mentioned"]
-
-## Meeting Vitals
-
-[1-2 sentences: overall sentiment, productivity, key theme]
-
-## Strategic Outcomes
-
-- Outcome 1 (may span multiple agenda items)
-- Outcome 2
-- Outcome 3
-
-## Stewardship & Finances
-
-- **Total Approved Expenses**: [Total amount if mentioned]
-- **Items Purchased/Approved**:
-  - Item 1: [Amount] - [Purpose]
-  - Item 2: [Amount] - [Purpose]
-- **Budget Impact**: [If mentioned in notes]
-
-If no finances mentioned: "None mentioned"
-
-## Key Decisions Summary
-
-- **Decision**: [High-level decision from raw notes]
-  - **Ministry Impact**: [How this serves the church/ministry - from raw notes]
-  - **Affects**: [Which agenda items this affects]
-
-## Ministry Action Items
-
-| Task | Servant | Timeline | Related Agenda |
-|------|---------|----------|----------------|
-| Task 1 | Name (if mentioned) | Timeline (if mentioned) | Agenda Item 1 |
-
-IMPORTANT: Only include action items explicitly mentioned in the raw notes. If no action items are mentioned, write "None identified" instead of creating placeholder tasks. DO NOT use "[Insert Date]" or "[Name]" - use "Not specified" if information is missing.
-
-## Prayer & Follow-up
-
-- Prayer request 1 (from raw notes)
-- Prayer request 2 (from raw notes)
-
-If none mentioned: "None mentioned"
-
-## Next Meeting Priorities
-
-- Priority 1 (from raw notes)
-- Priority 2 (from raw notes)
-
-If none mentioned: "None identified"
-
-Output ONLY the markdown-formatted summary, nothing else.`
-      : `Act as a Church Secretary. Transform the raw meeting notes into professional, warm, and organized Ministry Minutes for the agenda item "${agendaTitle}".
-
-### CONTEXT
-This is a PER-AGENDA ITEM summary. Focus ONLY on content related to this specific agenda item (e.g., if the agenda is about "Outreach", all content should be related to outreach). Do NOT include opening prayers or devotions - those belong in the overall meeting summary.
-
-### CHURCH MINUTES STRUCTURE
-1. **Ministry Purpose**: A brief (2-sentence) summary of this agenda item's goal for the church. Include dates/timeframes if mentioned (e.g., "ANNIVERSARY (9-12)").
-2. **Stewardship & Finances**: 
-   - Clearly list ALL approved expenses related to this agenda item only.
-   - Calculate multipliers correctly (e.g., "2x2000" = ₱4,000).
-   - Calculate and state the total by adding ALL expenses.
-3. **Key Decisions**: What was agreed upon by the team/committee regarding this specific agenda item.
-4. **Ministry Action Items**:
-   - Task | Servant (extract from parentheses or after task) | Timeline | Status/Notes (preserve uncertainty/status)
-   - Only include action items related to this specific agenda item.
-   - Preserve status/uncertainty (e.g., "di pa sure" = "Pending confirmation").
-5. **Prayer & Follow-up**: List any specific people or concerns mentioned for prayer related to this agenda item.
-6. **Alternatives/Options**: If alternatives or options are mentioned, list them here.
-
-### RAW NOTES
-${rawNotes}
-
-### CRITICAL RULES - READ CAREFULLY
-- ONLY use information that is EXPLICITLY mentioned in the raw notes above
-- DO NOT invent, infer, or create information that is not in the raw notes
-- DO NOT use placeholders like "[Insert Date]", "[Name]", or "[Insert Date]"
-- If information is missing, write "Not specified" or "None identified"
-- DO NOT add items to Parking Lot that were not mentioned in the raw notes
-- If no action items are mentioned, write "None identified" - DO NOT create fake action items
-- If expenses/purchases are mentioned, use the EXACT amounts and items from the notes
-
-### FORMATTING RULES
-- Use Markdown tables for the Action Registry if multiple items exist.
-- Use bold text for names and dates.
-- Keep the tone objective and "third-person" (e.g., "The team agreed" instead of "We agreed").
-- If a section is empty, omit it or write "None identified."
-- ALWAYS use ## for section headings
-- Use - for bullet points, 2 spaces for indentation
-- Be BRIEF and CONCISE - focus on what matters most
-- CRITICAL: ONLY include information explicitly mentioned in the raw notes. DO NOT add, infer, or create information that is not present.
-- DO NOT use placeholders like "[Insert Date]", "[Name]", or "[Insert Date]" - if information is missing, write "Not specified" or omit that field entirely
-- DO NOT add items to Parking Lot that were not mentioned in the raw notes
-- If no action items are mentioned, write "None identified" instead of creating placeholder tasks
-- If no decisions are mentioned, write "None identified" instead of inferring decisions
-- If expenses or purchases are mentioned, include the exact amounts and items from the notes
-
-### OUTPUT
-Generate the structured minutes using this exact format:
-
-## Ministry Purpose
-
-[Brief 2-sentence summary of this agenda item's goal for the church, based on raw notes. Focus ONLY on this specific agenda item.]
-
-## Stewardship & Finances
-
-- **Approved Expenses** (related to this agenda item only):
-  - Item 1: [Amount] - [Description from notes, including multiplier if mentioned, e.g., "Manggugupit: 2x2000 = ₱4,000"]
-  - Item 2: [Amount] - [Description from notes]
-  - Item 3: [Amount] - [Description from notes]
-  - [Include ALL expenses mentioned, calculate multipliers correctly]
-- **Total**: [Calculate total by adding ALL expenses. If multiplier mentioned, calculate it correctly, e.g., "2x2000" = ₱4,000]
-- **Purpose**: [How this serves the ministry/church - from notes]
-
-If no finances mentioned: "None mentioned"
-
-## Key Decisions
-
-- **Decision**: [Decision statement from raw notes related to this agenda item]
-  - **Ministry Impact**: [How this decision serves the church/ministry - from raw notes]
-
-## Ministry Action Items
-
-| Task | Servant | Timeline | Status/Notes |
-|------|---------|----------|--------------|
-| Task 1 | Name (if mentioned in parentheses or after task) | Timeline (if mentioned) | Status if mentioned (e.g., "pending confirmation") |
-
-OR if only one action item:
-- **Task**: [Description from raw notes - related to this agenda item only, preserve uncertainty/status if mentioned]
-  - **Servant**: [Name if mentioned in parentheses or after task, e.g., "(joyce)" = "Joyce", "(youth)" = "Youth", otherwise "Not specified"]
-  - **Timeline**: [Date/timeline if mentioned, otherwise "Not specified"]
-  - **Status**: [Preserve status/uncertainty if mentioned, e.g., "di pa sure" = "Pending confirmation", otherwise omit]
-
-IMPORTANT: 
-- Extract ALL action items mentioned, even if they contain uncertainty (e.g., "di pa sure" = include as "Pending confirmation")
-- When names are in parentheses or mentioned after tasks, assign them as Servant (e.g., "letter (joyce)" = Servant: Joyce)
-- Preserve the original meaning and status of tasks
-- If no action items are mentioned, write "None identified" instead of creating placeholder tasks
-
-## Prayer & Follow-up
-
-- Prayer request 1 (from raw notes - related to this agenda item)
-- Prayer request 2 (from raw notes - related to this agenda item)
-
-If none mentioned: "None mentioned"
-
-## Alternatives/Options
-
-- Option 1 (from raw notes if mentioned)
-- Option 2 (from raw notes if mentioned)
-
-If no alternatives mentioned: Omit this section entirely
-
-Output ONLY the markdown-formatted minutes, nothing else.`
-
-    // Try multiple models
-    const models = [
-      'meta-llama/Llama-3.2-3B-Instruct',
-      'mistralai/Mistral-7B-Instruct-v0.2',
-      'gpt2',
-      'microsoft/Phi-3-mini-4k-instruct'
-    ]
-
-    let response = null
-    let lastError = null
-    let workingModel = null
-
-    // Try chat completions endpoint
-    for (const tryModel of models) {
-      try {
-        response = await fetch(
-          `https://router.huggingface.co/v1/chat/completions`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${HF_TOKEN}`
-            },
-            body: JSON.stringify({
-              model: tryModel,
-              messages: [
-                {
-                  role: 'system',
-                  content: isOverallSummary
-                    ? 'You are a Church Secretary. Create strategic, ministry-focused meeting summaries that synthesize information across multiple agenda items with a warm, relational tone.'
-                    : 'You are a Church Secretary. Transform raw meeting notes into professional, warm, and organized Ministry Minutes that balance practical tasks with spiritual goals and community care.'
-                },
-                {
-                  role: 'user',
-                  content: prompt
-                }
-              ],
-              max_tokens: 500,
-              temperature: 0.7
-            }),
-          }
-        )
-
-        if (response.ok) {
-          workingModel = tryModel
-          break
-        } else {
-          const errorText = await response.text().catch(() => 'Unknown error')
-          lastError = { status: response.status, text: errorText }
-        }
-      } catch (error) {
-        lastError = error
-        continue
-      }
-    }
-
-    // If chat completions didn't work, try direct model endpoint
-    if (!response || !response.ok) {
-      for (const tryModel of models) {
-        try {
-          response = await fetch(
-            `https://router.huggingface.co/hf-inference/models/${tryModel}`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${HF_TOKEN}`
-              },
-              body: JSON.stringify({
-                inputs: prompt,
-                parameters: {
-                  max_new_tokens: 500,
-                  temperature: 0.7,
-                  return_full_text: false
-                }
-              }),
-            }
-          )
-
-          if (response.ok) {
-            workingModel = tryModel
-            break
-          } else {
-            const errorText = await response.text().catch(() => 'Unknown error')
-            lastError = { status: response.status, text: errorText }
-          }
-        } catch (error) {
-          lastError = error
-          continue
-        }
-      }
-    }
-
-    if (!response || !response.ok) {
-      const errorText = lastError?.text || lastError?.message || 'Unknown error'
-
-      if (lastError?.status === 503) {
-        return res.status(503).json({ error: 'Model is loading, please try again in a moment' })
-      }
-      if (lastError?.status === 410 || lastError?.status === 404) {
-        return res.status(410).json({ error: 'AI models are currently unavailable. The service will use intelligent formatting instead.' })
-      }
-      return res.status(lastError?.status || 500).json({ error: `AI service error: ${lastError?.status || 'Unknown'}. Using fallback formatting.` })
-    }
-
-    const data = await response.json()
-
-    // Extract the generated text
-    let enhancedText = ''
-
-    // Chat completions format
-    if (data.choices && data.choices[0]?.message?.content) {
-      enhancedText = data.choices[0].message.content.trim()
-    }
-    // Direct model format
-    else if (Array.isArray(data) && data[0]?.generated_text) {
-      enhancedText = data[0].generated_text.trim()
-    } else if (data.generated_text) {
-      enhancedText = data.generated_text.trim()
-    } else if (typeof data === 'string') {
-      enhancedText = data.trim()
-    }
-
-    if (!enhancedText) {
-      return res.status(500).json({ error: 'Unexpected response format from AI service' })
-    }
-
-    return res.status(200).json({ enhanced: enhancedText })
+    return res.status(200).json({ enhanced, mode });
   } catch (error) {
-    console.error('Error enhancing notes:', error)
-    return res.status(500).json({ error: error.message || 'Failed to enhance notes' })
+    if (error instanceof Anthropic.AuthenticationError) {
+      return res.status(500).json({ error: "The Claude API key was rejected." });
+    }
+    if (error instanceof Anthropic.RateLimitError) {
+      return res.status(429).json({ error: "Too many requests just now — try again shortly." });
+    }
+    console.error("enhance failed", error);
+    return res.status(500).json({ error: "Could not write up those notes. Try again." });
   }
 }
 
+// Exported for the prompt check in scripts/ — the prompts are the artefact
+// worth testing here, and they are what changes.
+export { agendaSystem, meetingSystem };

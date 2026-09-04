@@ -181,7 +181,7 @@ useFocusTrap(dialogRef, () => props.show, () => emit('update:show', false))
       :class="[
         isMobile
           ? 'fixed inset-0 z-80 flex flex-col justify-end'
-          : 'minute-editor-drawer border-l-4 border-primary bg-green-50/20 dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20'
+          : 'minute-editor-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-green-50/20 dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 overflow-hidden shadow-xl shadow-primary/25 dark:shadow-primary-light/20'
       ]"
     >
       <div
@@ -447,6 +447,8 @@ useFocusTrap(dialogRef, () => props.show, () => emit('update:show', false))
   max-width: 0;
   opacity: 0;
   overflow: hidden;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .modal-sheet-enter-active,

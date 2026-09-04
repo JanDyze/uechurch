@@ -5,8 +5,8 @@
 import { getFullName } from './memberUtils'
 import { memberKey } from './sgUtils'
 
-/** Members carrying this ministry tag are offered as song leaders. */
-export const SONG_LEADER_TAG = 'song leader'
+/** Members serving in this ministry are offered as song leaders. */
+export const SONG_LEADER_MINISTRY = 'song leader'
 
 const pad = (n) => String(n).padStart(2, '0')
 
@@ -87,10 +87,21 @@ export const monthKeyOfIso = (iso) => String(iso || '').slice(0, 7)
 
 export const isSunday = (iso) => parseIso(iso)?.getDay() === 0
 
-/** Members tagged as song leaders; everyone else stays out of the picker. */
+/**
+ * Members serving in the Song Leader ministry; everyone else stays out of the
+ * picker.
+ *
+ * Ministries, not tags. Leading a service is a job somebody is rostered for,
+ * and the ministry list is the controlled vocabulary that records it. This read
+ * `tags` until the two fields were split, at which point every song leader
+ * moved to `ministries` and the filter matched nobody — so the picker silently
+ * fell back to listing the whole congregation.
+ */
 export const songLeadersFrom = (members = []) =>
   members
-    .filter((m) => (m.tags || []).some((t) => String(t).toLowerCase() === SONG_LEADER_TAG))
+    .filter((m) =>
+      (m.ministries || []).some((name) => String(name).toLowerCase() === SONG_LEADER_MINISTRY)
+    )
     .sort((a, b) => getFullName(a).localeCompare(getFullName(b)))
 
 /**

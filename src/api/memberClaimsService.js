@@ -11,6 +11,7 @@ import {
   onSnapshot,
   Timestamp,
 } from 'firebase/firestore'
+import { notify } from './notifyService'
 
 // A claim is a signed-in account asking to be recognised as a particular
 // member record. It stays pending until an administrator acts on it; only
@@ -77,6 +78,14 @@ export const requestMemberClaim = async (user, member, memberName) => {
     note: '',
     requestedAt: Timestamp.now(),
   })
+
+  // Somebody is sitting in the app unable to see their own record until an
+  // administrator acts. Nobody else can act on it, so nobody else is told.
+  notify('member.claim', {
+    title: 'Member link request',
+    body: `${user.displayName || user.email || 'Someone'} says they are ${memberName}`,
+  })
+
   return docRef.id
 }
 

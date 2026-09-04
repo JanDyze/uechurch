@@ -1,5 +1,7 @@
 import { db } from './firebase'
 import { collection, doc, setDoc, deleteDoc, onSnapshot, Timestamp } from 'firebase/firestore'
+import { notify } from './notifyService'
+import { formatMonthLabel } from '../utils/lineupUtils'
 
 // One document per month, keyed by 'YYYY-MM' so a month can never be planned
 // twice. A month holds a handful of Sundays and a handful of songs each, well
@@ -91,6 +93,18 @@ export const saveLineup = async (monthKey, updates, updatedBy) => {
     // so callers never branch on whether the month has been planned before.
     { merge: true }
   )
+
+  // Publishing is the moment the month stops being a draft and becomes what
+  // the team is expected to rehearse — the one write here anybody is waiting
+  // on. Reordering songs inside an already-published month is not announced;
+  // it would fire on every keystroke's worth of planning.
+  if (updates?.status === 'published') {
+    notify('lineup.published', {
+      title: `Worship lineup: ${formatMonthLabel(monthKey)}`,
+      body: 'The month is published and ready for the team.',
+      url: `/lineups/${monthKey}`,
+    })
+  }
 }
 
 export const deleteLineup = async (monthKey) => {

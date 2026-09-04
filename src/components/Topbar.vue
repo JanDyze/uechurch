@@ -15,6 +15,9 @@ import { useMembers } from "../composables/useMembers";
 import { useMyMember } from "../composables/useMyMember";
 import { useMemberClaims } from "../composables/useMemberClaims";
 import { usePresence } from "../composables/usePresence";
+import { usePermissions } from "../composables/usePermissions";
+import { canReceive } from "../../lib/notifications";
+import { notificationIcon, toneClass } from "../utils/notificationIcons";
 import { getFullName } from "../utils/memberUtils";
 import ClaimMemberSheet from "./auth/ClaimMemberSheet.vue";
 import MemberAvatar from "./members/MemberAvatar.vue";
@@ -54,10 +57,22 @@ const isNotifOpen = ref(false);
 const notifications = ref([]);
 const lastSeenNotif = ref(Number(localStorage.getItem("uec_notif_last_seen") || 0));
 
+// The history is one collection everyone can read, so the panel has to apply
+// the same gate api/notify.js applied when it chose who to push to — otherwise
+// a prayer concern would be readable here by someone who cannot open the page
+// it links to. Entries from before kinds existed carry none and stay visible.
+const { isAdmin, capabilities } = usePermissions();
+const visibleNotifications = computed(() =>
+  notifications.value.filter((n) =>
+    canReceive(n.kind, { isAdmin: isAdmin.value, capabilities: capabilities.value })
+  )
+);
+
 const unreadCount = computed(
   () =>
-    notifications.value.filter((n) => n.sentAt && n.sentAt.toMillis() > lastSeenNotif.value)
-      .length
+    visibleNotifications.value.filter(
+      (n) => n.sentAt && n.sentAt.toMillis() > lastSeenNotif.value
+    ).length
 );
 
 const toggleNotifPanel = () => {
@@ -105,8 +120,7 @@ const pageTitle = computed(() => {
     Members: 'People',
     MemberDetails: 'Member',
     MinuteDetails: 'Minutes',
-    PrayerConcerns: 'Prayer Concerns',
-    FinanceAudit: 'Yearly Report'
+    PrayerConcerns: 'Prayer Concerns'
   };
   // Fall back to the route name so new pages are labelled correctly
   return routeNames[route.name] || route.name || 'Dashboard';
@@ -325,31 +339,39 @@ const openMyProfile = () => {
                   class="max-h-80 overflow-y-auto custom-scrollbar border-t-2 border-gray-50 dark:border-gray-800"
                 >
                   <p
-                    v-if="notifications.length === 0"
+                    v-if="visibleNotifications.length === 0"
                     class="p-6 text-center text-[10px] font-bold uppercase tracking-widest text-gray-400"
                   >
                     No notifications yet
                   </p>
                   <button
-                    v-for="n in notifications"
+                    v-for="n in visibleNotifications"
                     :key="n.id"
                     @click="openNotification(n)"
-                    class="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-50 dark:border-gray-800/60 last:border-b-0"
+                    class="w-full flex items-start gap-2.5 text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-50 dark:border-gray-800/60 last:border-b-0"
                   >
-                    <p class="text-[11px] font-black text-gray-900 dark:text-white leading-snug">
-                      {{ n.title }}
-                    </p>
-                    <p
-                      v-if="n.body"
-                      class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2"
+                    <!-- What kind of thing happened, before a word is read -->
+                    <span
+                      :class="['shrink-0 mt-0.5 p-1.5 rounded-lg', toneClass(n.kind)]"
                     >
-                      {{ n.body }}
-                    </p>
-                    <p
-                      class="text-[9px] font-black uppercase tracking-widest text-gray-300 dark:text-gray-500 mt-1"
-                    >
-                      {{ timeAgo(n.sentAt) }}
-                    </p>
+                      <component :is="notificationIcon(n.kind)" class="w-3.5 h-3.5" />
+                    </span>
+                    <span class="min-w-0 flex-1">
+                      <span class="block text-[11px] font-black text-gray-900 dark:text-white leading-snug">
+                        {{ n.title }}
+                      </span>
+                      <span
+                        v-if="n.body"
+                        class="block text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2"
+                      >
+                        {{ n.body }}
+                      </span>
+                      <span
+                        class="block text-[9px] font-black uppercase tracking-widest text-gray-300 dark:text-gray-500 mt-1"
+                      >
+                        {{ timeAgo(n.sentAt) }}
+                      </span>
+                    </span>
                   </button>
                 </div>
               </div>

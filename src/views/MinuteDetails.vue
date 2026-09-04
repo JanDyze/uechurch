@@ -6,7 +6,7 @@ import { useMembers } from '../composables/useMembers'
 import { Calendar, Clock, MapPin, Users, Trash2, Download, ArrowLeft, FileText, List, X, Plus, Sparkles, Copy, RotateCcw, Menu } from '../icons'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import { markdownToHtml } from '../utils/markdownUtils'
-import { enhanceMinutesWithHF } from '../utils/minutesEnhancer'
+import { enhanceMinutesWithClaude } from '../utils/minutesEnhancer'
 import { useMediaQuery } from '../composables/useMediaQuery'
 
 const route = useRoute()
@@ -526,7 +526,7 @@ const enhanceMinutes = async () => {
     }
     
     // Enhance the notes (returns markdown)
-    const enhancedMarkdown = await enhanceMinutesWithHF(agendaTitle, plainText)
+    const enhancedMarkdown = await enhanceMinutesWithClaude(agendaTitle, plainText, 'agenda')
     
     // Convert markdown to HTML for display
     const enhancedHtml = markdownToHtml(enhancedMarkdown)
@@ -653,10 +653,17 @@ const enhanceOverallSummary = async () => {
     
     console.log('Generating overall summary from', allDiscussions.length, 'agenda items')
     
-    // For overall summary, pass the meeting title as the "agendaTitle" 
-    // The AI will detect it's an overall summary based on the content structure
-    // Enhance the combined notes - pass meeting title to indicate it's overall summary
-    const enhancedMarkdown = await enhanceMinutesWithHF(meetingTitle, combinedNotes)
+    // "meeting" mode draws the agenda items together rather than minuting one
+    // of them; the endpoint used to have to infer that from the notes' shape.
+    // The header details come from the minute itself — the notes never carry
+    // the date, the place or who turned up.
+    const enhancedMarkdown = await enhanceMinutesWithClaude(meetingTitle, combinedNotes, 'meeting', {
+      date: formatDate(minute.value.date),
+      startTime: minute.value.startTime,
+      endTime: minute.value.endTime,
+      location: minute.value.location,
+      present: (minute.value.attendees || []).map(getMemberName).filter((name) => name !== 'Unknown')
+    })
     
     if (!enhancedMarkdown || !enhancedMarkdown.trim()) {
       throw new Error('AI returned empty summary')
@@ -1032,7 +1039,7 @@ watch(() => minute.value, (newMinute, oldMinute) => {
             :class="[
               isMobile
                 ? 'fixed inset-0 z-80 flex flex-col justify-end'
-                : 'attendees-drawer border-l-4 border-primary bg-white dark:bg-gray-800 max-w-md w-80 h-full flex flex-col shrink-0 shadow-2xl'
+                : 'attendees-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 max-w-md w-80 h-[calc(100%-1.5rem)] flex flex-col shrink-0 overflow-hidden shadow-xl shadow-primary/25 dark:shadow-primary-light/20'
             ]"
           >
             <div
@@ -1280,6 +1287,8 @@ watch(() => minute.value, (newMinute, oldMinute) => {
   max-width: 0;
   opacity: 0;
   overflow: hidden;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .modal-enter-active,

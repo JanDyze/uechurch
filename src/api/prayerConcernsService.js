@@ -1,6 +1,6 @@
 import { db } from './firebase'
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'
-import { sendPushNotification } from './notifyService'
+import { notify } from './notifyService'
 
 const PRAYER_CONCERNS_COLLECTION = 'prayerConcerns'
 
@@ -46,12 +46,13 @@ export const addPrayerConcern = async (concernData) => {
       updatedAt: Timestamp.now()
     })
 
-    // Push to all registered devices (fire-and-forget)
-    sendPushNotification({
-      title: 'New prayer concern',
-      body: [concernData.title, concernData.memberName].filter(Boolean).join(' — '),
-      url: '/prayer-concerns',
-      event: { type: 'prayer' },
+    // Urgent gets its own kind rather than a louder subject line: it vibrates
+    // differently and reads as an alert in the panel, which is the whole
+    // reason someone marked it urgent.
+    const urgent = concernData.priority === 'urgent'
+    notify(urgent ? 'prayer.urgent' : 'prayer.new', {
+      title: urgent ? 'Urgent prayer request' : 'New prayer concern',
+      body: describe(concernData),
     })
 
     return docRef.id
@@ -61,6 +62,10 @@ export const addPrayerConcern = async (concernData) => {
   }
 }
 
+/** "Title — Whose it is", the two things worth reading on a lock screen. */
+const describe = (concern) =>
+  [concern?.title, concern?.memberName].filter(Boolean).join(' — ')
+
 // Update a prayer concern
 export const updatePrayerConcern = async (concern, updatedData) => {
   try {
@@ -69,6 +74,17 @@ export const updatePrayerConcern = async (concern, updatedData) => {
       ...updatedData,
       updatedAt: Timestamp.now()
     })
+
+    // An answered prayer is the one update here worth carrying: it is the
+    // point of having asked, and the people who prayed are the people who
+    // already hold prayer.view.
+    const after = { ...concern, ...updatedData }
+    if (updatedData.status === 'answered' && concern.status !== 'answered') {
+      notify('prayer.answered', {
+        title: 'Answered prayer',
+        body: describe(after),
+      })
+    }
   } catch (error) {
     console.error('Error updating prayer concern:', error)
     throw error

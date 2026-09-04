@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { X } from '../../icons'
 import IconSelector from './IconSelector.vue'
+import AudiencePicker from '../common/AudiencePicker.vue'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 
@@ -24,7 +25,8 @@ const props = defineProps({
       time: '09:00',
       location: '',
       description: '',
-      attendees: 0,
+      audienceTags: [],
+      excludeTags: [],
       icon: 'Calendar'
     })
   },
@@ -33,6 +35,12 @@ const props = defineProps({
     default: ''
   },
   eventTypes: {
+    type: Array,
+    default: () => []
+  },
+  // The roster the expected count is read off. Passed in rather than
+  // subscribed to here: the page already has it.
+  members: {
     type: Array,
     default: () => []
   }
@@ -160,19 +168,15 @@ useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
           <IconSelector :model-value="eventData.icon" @update:model-value="$emit('update:eventData', { ...eventData, icon: $event })" />
         </div>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Expected Attendees
-        </label>
-        <input
-          :value="eventData.attendees"
-          @input="$emit('update:eventData', { ...eventData, attendees: parseInt($event.target.value) || 0 })"
-          type="number"
-          min="0"
-          placeholder="0"
-          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-        />
-      </div>
+      <!-- Who it is for, not how many. The head count follows from the tags,
+           so it cannot be typed wrong and cannot go stale. -->
+      <AudiencePicker
+        :model-value="eventData.audienceTags || []"
+        :exclude="eventData.excludeTags || []"
+        :members="members"
+        @update:model-value="$emit('update:eventData', { ...eventData, audienceTags: $event })"
+        @update:exclude="$emit('update:eventData', { ...eventData, excludeTags: $event })"
+      />
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Location

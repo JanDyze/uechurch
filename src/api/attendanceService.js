@@ -27,6 +27,13 @@ const normalizeAttendance = (doc) => {
     attendees: data.attendees || [],
     totalAttendees: data.totalAttendees || 0,
     expectedAttendees: data.expectedAttendees || 0,
+    // Who the gathering was for, copied off the event or schedule when the
+    // record was written. The live source is asked first (useAttendance.js),
+    // so this is the fallback that keeps a choir practice reading out of ten
+    // once the event behind it is deleted - and the only audience an ad-hoc
+    // record, tied to nothing, has ever had.
+    audienceTags: Array.isArray(data.audienceTags) ? data.audienceTags : [],
+    excludeTags: Array.isArray(data.excludeTags) ? data.excludeTags : [],
     notes: data.notes || '',
     createdBy: data.createdBy || '',
     createdAt: data.createdAt?.toDate?.() || new Date(),

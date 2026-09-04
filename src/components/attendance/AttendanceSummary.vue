@@ -35,10 +35,12 @@ const tiles = computed(() => [
     icon: UserCheck,
     label: 'Last time',
     value: percent(props.stats.latestShare),
+    // Out of who was expected at that gathering, not out of the church: the
+    // tile beside it is the one reporting on the whole roster.
     hint:
       props.stats.latestCount === null
         ? 'nothing recorded yet'
-        : `${props.stats.latestCount} of ${props.stats.roster}`,
+        : `${props.stats.latestCount} of ${props.stats.latestExpected}`,
   },
   {
     key: 'reach',

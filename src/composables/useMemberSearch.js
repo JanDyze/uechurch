@@ -1,5 +1,6 @@
 import { computed } from "vue";
 import { missingMemberDetails } from "../utils/memberUtils";
+import { parseQuery, matchesQuery } from "../utils/search";
 
 // Everything a member can be found by. Narrowing used to live in a filter
 // drawer; the search bar is now the only control, so the haystack has to cover
@@ -60,14 +61,17 @@ export function useMemberSearch(members, searchQuery) {
     members.value.map((member) => ({ member, haystack: buildHaystack(member) }))
   );
 
-  // Every word has to match something, so "single teacher" keeps narrowing
-  // instead of widening the way an OR search would.
+  // Space narrows and comma gathers - "single teacher" is one person who is
+  // both, "choir, ushers" is everyone in either. See utils/search.js for why
+  // the second one had to exist: with space alone, asking for two groups at
+  // once was impossible, and two groups is what tagging a batch of people
+  // starts from.
   const filteredMembers = computed(() => {
-    const terms = searchQuery.value.toLowerCase().split(/\s+/).filter(Boolean);
-    if (terms.length === 0) return members.value;
+    const groups = parseQuery(searchQuery.value);
+    if (groups.length === 0) return members.value;
 
     return searchIndex.value
-      .filter(({ haystack }) => terms.every((term) => haystack.includes(term)))
+      .filter(({ haystack }) => matchesQuery(haystack, groups))
       .map(({ member }) => member);
   });
 

@@ -138,6 +138,9 @@ const blank = () => ({
   attendees: [],
   notes: '',
   expectedAttendees: 0,
+  // A one-off tied to nothing is for everyone until somebody says otherwise.
+  audienceTags: [],
+  excludeTags: [],
 })
 
 /** The row this page is recording against, once the live list has loaded. */
@@ -187,7 +190,12 @@ watch(
         location: row.location || '',
         attendees: [...(row.attendees || [])],
         notes: row.notes || '',
+        // Both already recounted off the live event or schedule's tags, so
+        // reopening a record refreshes the audience it was saved with rather
+        // than writing yesterday's snapshot back.
         expectedAttendees: row.expectedAttendees || 0,
+        audienceTags: [...(row.audienceTags || [])],
+        excludeTags: [...(row.excludeTags || [])],
       }
       return
     }
@@ -207,6 +215,10 @@ watch(
       attendees: row.rowType === 'minute' ? [...(row.attendees || [])] : [],
       notes: '',
       expectedAttendees: row.expectedAttendees || row.attendees?.length || 0,
+      // Copied off the event or schedule at the moment of recording, so the
+      // record still knows who it was for if that source is later deleted.
+      audienceTags: [...(row.audienceTags || [])],
+      excludeTags: [...(row.excludeTags || [])],
     }
   },
   { immediate: true }

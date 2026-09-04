@@ -95,6 +95,7 @@ const {
   newEventData,
   eventTypes,
   resetEventForm,
+  expectedFromTags,
 } = useEventForm(members)
 
 // Modal states
@@ -248,8 +249,16 @@ const handleAddEventFromDay = () => {
 const startEditEvent = () => {
   if (!selectedEvent.value) return
   editingEvent.value = { ...selectedEvent.value }
-  const { firestoreId, id, isVirtual, ...eventData } = selectedEvent.value
-  newEventData.value = { ...eventData }
+  // `attendees` is dropped on purpose: the count follows from the tags now, so
+  // carrying the stored one through the form would let the picker show one
+  // number and the save write another. An event from before audiences existed
+  // opens as "Everyone" and picks up the roster rule.
+  const { firestoreId, id, isVirtual, attendees, ...eventData } = selectedEvent.value
+  newEventData.value = {
+    ...eventData,
+    audienceTags: eventData.audienceTags || [],
+    excludeTags: eventData.excludeTags || [],
+  }
   newEventDate.value = selectedEvent.value.date
   
   // If editing a virtual event, mark that we're creating an override
@@ -325,7 +334,11 @@ const handleSaveAddEvent = async () => {
     time: newEventData.value.time || '09:00',
     location: newEventData.value.location || '',
     description: newEventData.value.description || '',
-    attendees: newEventData.value.attendees || 0,
+    audienceTags: newEventData.value.audienceTags || [],
+    excludeTags: newEventData.value.excludeTags || [],
+    // The count the tags produce, stored alongside them so anything reading the
+    // document straight still finds a number. Screens recount it live.
+    attendees: expectedFromTags.value,
     icon: newEventData.value.icon || 'Calendar'
   }
   
@@ -353,6 +366,7 @@ const handleSaveEditEvent = async () => {
       // Create a new real event that overrides the virtual one
       const overrideData = {
         ...newEventData.value,
+        attendees: expectedFromTags.value,
         date: newEventDate.value,
         overrideOf: editingEvent.value.overrideOf, // Reference to virtual event ID
         isOverride: true,
@@ -373,6 +387,7 @@ const handleSaveEditEvent = async () => {
       // Normal update for real Firestore events
       await updateEventInFirestore(editingEvent.value, {
         ...newEventData.value,
+        attendees: expectedFromTags.value,
         date: newEventDate.value
       })
     }
@@ -522,6 +537,7 @@ const showFab = computed(
         :event-data="newEventData"
         :event-date="newEventDate"
         :event-types="eventTypes"
+        :members="members"
         @update:show="handleCancelAddEditEvent"
         @update:event-data="newEventData = $event"
         @update:event-date="newEventDate = $event"
@@ -533,6 +549,7 @@ const showFab = computed(
       <EventDetailsDrawer
         :show="showEventDetails"
         :event="selectedEvent"
+        :members="members"
         :is-editable="isEventEditable"
         @update:show="showEventDetails = $event; if (!$event) selectedEvent = null"
         @edit="startEditEvent"

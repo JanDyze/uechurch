@@ -124,7 +124,7 @@ useFocusTrap(dialogRef, () => props.show, handleCancel)
       :class="[
         isMobile
           ? 'fixed inset-0 z-80 flex flex-col justify-end'
-          : 'prayer-concern-drawer border-l-4 border-primary bg-white dark:bg-gray-800 w-1/2 h-full flex flex-col shrink-0 shadow-2xl shadow-primary/20'
+          : 'prayer-concern-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 overflow-hidden shadow-xl shadow-primary/25 dark:shadow-primary-light/20'
       ]"
     >
       <div

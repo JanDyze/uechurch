@@ -59,11 +59,18 @@ const roster = computed(() => props.members.length)
 
 const present = computed(() => props.record.totalAttendees ?? props.record.attendees?.length ?? 0)
 
+// Who was expected, not who is on the roster. A choir practice is for the ten
+// people carrying the tag, and reporting "8 of 105" called a full turnout a
+// collapse. The count arrives already recounted off the gathering's tags
+// (useAttendance.js); the roster only stands in for something that names no
+// audience at all, where everyone genuinely is the answer.
+const expected = computed(() => props.record.expectedAttendees || roster.value)
+
 // The same denominator the recorder counts against on its own header, so the
 // two screens cannot disagree about the same gathering.
 const share = computed(() => {
-  if (isPlaceholder.value || !roster.value) return null
-  return Math.min(100, Math.round((present.value / roster.value) * 100))
+  if (isPlaceholder.value || !expected.value) return null
+  return Math.min(100, Math.round((present.value / expected.value) * 100))
 })
 </script>
 
@@ -108,7 +115,7 @@ const share = computed(() => {
         </span>
         <span v-if="!isPlaceholder" class="text-xs text-gray-500 dark:text-gray-400">
           <span class="tabular-nums">{{ present }}</span>
-          <span v-if="roster"> of <span class="tabular-nums">{{ roster }}</span></span>
+          <span v-if="expected"> of <span class="tabular-nums">{{ expected }}</span></span>
         </span>
         <span
           v-else

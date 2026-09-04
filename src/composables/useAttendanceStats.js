@@ -56,10 +56,26 @@ export function useAttendanceStats(rows, rosterSize) {
 
   const countOf = (row) => row.totalAttendees ?? row.attendees?.length ?? 0
 
+  // How many that gathering was for: the people carrying its tags, recounted
+  // off the roster by useAttendance.js. The roster stands in only for a
+  // gathering that names no audience, where everyone is the honest answer.
+  // Without this a choir practice of ten scored 8% and dragged the whole strip
+  // down with it.
+  const expectedOf = (row) => row.expectedAttendees || rosterSize.value
+
   // The same denominator the recorder counts against on its own header
-  // ("84 of 132"), so this page cannot disagree with the screen the number was
+  // ("8 of 10"), so this page cannot disagree with the screen the number was
   // typed on.
-  const shareOf = (count) => {
+  const shareOf = (row) => {
+    const expected = expectedOf(row)
+    if (!expected) return null
+    return Math.min(100, Math.round((countOf(row) / expected) * 100))
+  }
+
+  // Reach is the one figure that genuinely is out of the whole church - how
+  // many people we saw at all this month - so it keeps the roster as its
+  // denominator rather than any one gathering's audience.
+  const rosterShare = (count) => {
     const roster = rosterSize.value
     if (!roster) return null
     return Math.min(100, Math.round(((count || 0) / roster) * 100))
@@ -95,7 +111,7 @@ export function useAttendanceStats(rows, rosterSize) {
           longLabel: labelForMonthKey(key, { month: 'long' }),
           gatherings: month.gatherings,
           reachCount,
-          reachShare: shareOf(reachCount),
+          reachShare: rosterShare(reachCount),
         }
       })
   })
@@ -125,8 +141,11 @@ export function useAttendanceStats(rows, rosterSize) {
     return {
       roster: rosterSize.value,
 
-      latestShare: latest ? shareOf(latestCount) : null,
+      latestShare: latest ? shareOf(latest) : null,
       latestCount,
+      // What "8 of 10" is out of, so the hint under the tile names the room
+      // that was expected rather than the size of the church.
+      latestExpected: latest ? expectedOf(latest) : null,
       latestTitle: latest?.eventTitle || '',
       latestDateLabel: dayLabel(latest?.date, { weekday: 'short', day: 'numeric', month: 'short' }),
 
@@ -152,7 +171,7 @@ export function useAttendanceStats(rows, rosterSize) {
       key: String(row.firestoreId || row.id),
       title: row.eventTitle || 'Untitled',
       count: countOf(row),
-      share: shareOf(countOf(row)) ?? 0,
+      share: shareOf(row) ?? 0,
       dateLabel: dayLabel(row.date, { day: 'numeric', month: 'short' }),
     }))
   )

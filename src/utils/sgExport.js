@@ -15,7 +15,7 @@ const churchName = () => {
   return [fullName, branch].filter(Boolean).join(' ')
 }
 
-// Same visual language as the finance workbooks (src/utils/financeExport.js)
+// Same visual language as the rest of the workbook exports
 // so every spreadsheet leaving the app looks like it came from one office.
 const styles = {
   churchName: {

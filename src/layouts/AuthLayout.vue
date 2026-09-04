@@ -37,7 +37,7 @@ const { isDark, toggleTheme } = useTheme()
             Church Management System
           </p>
           <p class="text-3xl font-black leading-tight tracking-tighter max-w-md">
-            Members, events, minutes and finances — all in one place.
+            Members, events, attendance and minutes — all in one place.
           </p>
         </div>
 
