@@ -36,6 +36,7 @@ import {
   PRESENTER_CHANNEL,
   buildDeck,
   runSheetFromSunday,
+  reconcileWithLineup,
   ITEM_TYPES,
 } from '../utils/presentation'
 
@@ -75,6 +76,15 @@ const sunday = computed(
   () => sundays.value.find((entry) => entry.date === selectedDate.value) || null
 )
 
+// Now that Presentation is a destination of its own rather than somewhere you
+// arrive from Lineups, the chosen service belongs in the URL: a refresh in the
+// booth comes back to the same Sunday, and a link can name one.
+watch(selectedDate, (date) => {
+  if (date && date !== route.params.date) {
+    router.replace({ name: 'Present', params: { date } })
+  }
+})
+
 // How the words are sized and broken is a property of the room, not of the
 // service: the screen size, how far back the last row is, how good the
 // projector is. So it is remembered per machine rather than saved against a
@@ -101,8 +111,8 @@ const clamp = (value, min, max, fallback) => {
 const linesPerSlide = ref(clamp(savedPrefs.linesPerSlide, 1, 12, DEFAULT_LINES_PER_SLIDE))
 
 // The run sheet: what the tech team is running, as opposed to what the worship
-// team planned. A saved plan wins; without one the lineup is used as a starting
-// point, so a Sunday nobody has touched still runs.
+// team planned. Songs are inherited from the lineup and stay inherited; the
+// readings, notices and videos around them are this page's own.
 const items = ref([])
 const plan = ref(null)
 const isSavingPlan = ref(false)
@@ -118,12 +128,82 @@ const seedFromLineup = () => {
   items.value = sunday.value ? runSheetFromSunday(sunday.value, songsById.value) : []
 }
 
+// --- Persisting the run sheet ----------------------------------------------
+// There used to be a Save button. On a Sunday morning that is one more thing to
+// forget, and forgetting it means the readings someone spent ten minutes adding
+// are gone when the booth laptop reloads. So an edit saves itself.
+//
+// Only the operator's own edits, though. Seeding a fresh Sunday from the lineup
+// and reconciling inherited songs are both derived from the lineup and redone
+// on every load, so persisting them would write a document for every date
+// anyone merely opened — and would fight the worship team's changes instead of
+// following them.
+
+/** What the plan looks like as far as Firestore is concerned. Compared rather
+ *  than deep-watched: it is also exactly what a no-op write would send. */
+const signatureOf = (list) => JSON.stringify(list || [])
+
+/** The signature of what is known to be stored, so a save that would change
+ *  nothing is not sent — including this operator's own write coming back. */
+let savedSignature = ''
+
+let saveTimer = null
+
+const persistNow = async () => {
+  if (!selectedDate.value || !canEditPlan.value) return
+  const signature = signatureOf(items.value)
+  if (signature === savedSignature) return
+
+  isSavingPlan.value = true
+  try {
+    await saveServicePlan(selectedDate.value, items.value, auth.currentUser)
+    savedSignature = signature
+  } catch {
+    // Left unsaved on purpose: savedSignature is untouched, so the next edit
+    // retries the whole run sheet rather than leaving a gap in it.
+    toast.error('Could not save the run sheet.')
+  } finally {
+    isSavingPlan.value = false
+  }
+}
+
+/**
+ * Called by everything that changes the run sheet.
+ *
+ * Debounced, because dragging an item through four positions is one edit as far
+ * as anyone is concerned, and a service being reordered live should not be four
+ * writes.
+ */
+const markEdited = () => {
+  if (!canEditPlan.value) return
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    saveTimer = null
+    persistNow()
+  }, 700)
+}
+
+/**
+ * Keeps the inherited songs in step with the lineup.
+ *
+ * Runs whenever the lineup or the song library changes, which covers both the
+ * worship team editing their plan mid-week and the two collections simply
+ * arriving after the first paint. reconcileWithLineup returns the same array
+ * when there is nothing to do, so this settles rather than looping.
+ */
+const applyLineup = () => {
+  if (!planLoaded.value) return
+  const next = reconcileWithLineup(items.value, sunday.value, songsById.value)
+  if (next !== items.value) items.value = next
+}
+
 watch(
   selectedDate,
   (date) => {
     unsubPlan?.()
     plan.value = null
     planLoaded.value = false
+    savedSignature = ''
     items.value = []
     if (!date) return
 
@@ -134,24 +214,19 @@ watch(
       // edited in the meantime.
       if (planLoaded.value) return
       planLoaded.value = true
-      if (saved) items.value = saved.items.map((item) => ({ ...item }))
-      else seedFromLineup()
+      if (saved) {
+        items.value = saved.items.map((item) => ({ ...item }))
+        savedSignature = signatureOf(saved.items)
+      } else {
+        seedFromLineup()
+      }
+      applyLineup()
     })
   },
   { immediate: true }
 )
 
-// Songs and lineups arrive after the first paint, so a date that seeded from an
-// empty lineup has to be seeded again once there is something to seed from.
-watch([sunday, songsById], () => {
-  if (planLoaded.value && !plan.value && !items.value.length) seedFromLineup()
-})
-
-const isPlanDirty = computed(() => {
-  const saved = plan.value?.items
-  if (!saved) return items.value.length > 0
-  return JSON.stringify(saved) !== JSON.stringify(items.value)
-})
+watch([sunday, songsById], applyLineup)
 
 const deck = computed(() =>
   buildDeck(items.value, { songsById: songsById.value, linesPerSlide: linesPerSlide.value })
@@ -473,6 +548,7 @@ const commitDraft = () => {
     }
     items.value = [...items.value, { ...draft }]
     draftItem.value = null
+    markEdited()
     return
   }
 
@@ -496,6 +572,7 @@ const commitDraft = () => {
     ]
     draftItem.value = null
     resetLookup()
+    markEdited()
     return
   }
 
@@ -509,31 +586,29 @@ const commitDraft = () => {
 
   items.value = [...items.value, { ...draft }]
   draftItem.value = null
+  markEdited()
 }
 
 const removeItem = (id) => {
   items.value = items.value.filter((item) => item.id !== id)
+  markEdited()
 }
 
-const savePlan = async () => {
-  if (!selectedDate.value || isSavingPlan.value) return
-  isSavingPlan.value = true
-  try {
-    await saveServicePlan(selectedDate.value, items.value, auth.currentUser)
-    toast.success('Run sheet saved.')
-  } catch {
-    toast.error('Could not save the run sheet.')
-  } finally {
-    isSavingPlan.value = false
-  }
-}
-
-/** Throws the run sheet away and follows the worship team's lineup again. */
+/**
+ * Throws the tech team's additions away and follows the lineup alone again.
+ *
+ * The pending save is cancelled first, and the signature cleared, so an edit
+ * made a moment before the reset cannot land afterwards and resurrect the
+ * document this just deleted.
+ */
 const resetToLineup = async () => {
+  clearTimeout(saveTimer)
   try {
     if (plan.value) await deleteServicePlan(selectedDate.value)
     plan.value = null
+    savedSignature = ''
     seedFromLineup()
+    applyLineup()
     toast.success('Back to the lineup.')
   } catch {
     toast.error('Could not reset.')
@@ -545,6 +620,7 @@ const { draggingIndex: draggingItem, dragTarget, dragHandle } = useDragReorder(
   () => items.value,
   (next) => {
     items.value = next
+    markEdited()
   }
 )
 
@@ -918,8 +994,17 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // An edit made in the last moment before leaving still has to land: without
+  // this, adding a reading and immediately navigating away loses it, which is
+  // the exact failure autosave exists to prevent. Fire and forget — the write
+  // is already on its way and there is nothing left here to await it.
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    persistNow()
+  }
   unsubSongs?.()
   unsubLineups?.()
+  unsubPlan?.()
   window.removeEventListener('keydown', onKey)
   window.removeEventListener('focus', snapshotScreens)
   channel?.close()
@@ -948,15 +1033,6 @@ onUnmounted(() => {
             <span v-if="isPresenting" class="text-emerald-600 dark:text-emerald-400">· live</span>
           </p>
         </div>
-
-        <select
-          v-model="selectedDate"
-          class="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-        >
-          <option v-for="entry in sundays" :key="entry.date" :value="entry.date">
-            {{ formatServiceDate(entry.date) }}
-          </option>
-        </select>
 
         <div class="ml-auto flex items-center gap-2">
           <button
@@ -1004,6 +1080,53 @@ onUnmounted(() => {
     </div>
 
     <div class="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <!-- Presentation's own sidebar: which service is being run.
+           Its own column rather than a dropdown in the header, because
+           choosing the Sunday is the first thing done here and the header is
+           already full of things needed mid-service.
+
+           A strip across the top on a phone and a column on a wide screen: the
+           booth laptop has room for it, a phone has none to spare, and the
+           dates are short enough to scroll sideways. -->
+      <div
+        class="custom-scrollbar shrink-0 overflow-x-auto border-b border-gray-200 p-3 dark:border-gray-700 lg:w-52 lg:overflow-x-hidden lg:overflow-y-auto lg:border-b-0 lg:border-r"
+      >
+        <p class="mb-2 hidden px-1 text-xs font-bold uppercase tracking-wide text-gray-400 lg:block">
+          Services
+        </p>
+
+        <p v-if="!sundays.length" class="px-1 text-xs text-gray-400">
+          No lineups yet. The worship team plans a Sunday and it appears here.
+        </p>
+
+        <div class="flex gap-1.5 lg:flex-col">
+          <button
+            v-for="entry in sundays"
+            :key="entry.date"
+            @click="selectedDate = entry.date"
+            :class="[
+              'shrink-0 rounded-lg px-2.5 py-2 text-left transition-colors lg:w-full',
+              entry.date === selectedDate
+                ? 'bg-primary/12 text-primary'
+                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/60',
+            ]"
+          >
+            <span class="block whitespace-nowrap text-xs font-bold">
+              {{ formatServiceDate(entry.date) }}
+            </span>
+            <span
+              :class="[
+                'block whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide',
+                entry.date === selectedDate ? 'text-primary/70' : 'text-gray-400',
+              ]"
+            >
+              {{ (entry.songs || []).length }}
+              {{ (entry.songs || []).length === 1 ? 'song' : 'songs' }}
+            </span>
+          </button>
+        </div>
+      </div>
+
       <!-- The run sheet: what is being run, in order. Songs arrive from the
            worship team's lineup; everything else is added here, because a
            reading or a notice is the tech team's to plan and was never on the
@@ -1013,14 +1136,10 @@ onUnmounted(() => {
       >
         <div class="mb-2 flex items-center justify-between gap-2 px-1">
           <p class="text-xs font-bold uppercase tracking-wide text-gray-400">Run sheet</p>
-          <button
-            v-if="canEditPlan && isPlanDirty"
-            @click="savePlan"
-            :disabled="isSavingPlan"
-            class="rounded-lg bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-colors hover:bg-primary-hover disabled:opacity-40"
-          >
-            {{ isSavingPlan ? 'Saving' : 'Save' }}
-          </button>
+          <!-- No Save button: edits save themselves. This says which state that
+               left things in, and nothing more — an operator mid-service should
+               not have to read it, only be able to. -->
+          <span v-if="isSavingPlan" class="text-[11px] font-medium text-gray-400">Saving…</span>
           <span v-else-if="plan" class="text-[11px] font-medium text-gray-400">Saved</span>
           <span v-else class="text-[11px] font-medium text-gray-400">From lineup</span>
         </div>

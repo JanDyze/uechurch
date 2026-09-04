@@ -210,18 +210,104 @@ export const buildDeck = (items = [], context = {}) =>
   items.flatMap((item) => itemToSlides(item, context))
 
 /**
+ * One song from a lineup as a run-sheet item.
+ *
+ * `fromLineup` is what makes the inheritance below possible: it marks an item
+ * as the worship team's rather than the tech team's, and so as something that
+ * should follow their plan instead of standing on its own.
+ */
+const songItemFromLineup = (entry, index, songsById) => {
+  const song = songsById[entry.songId]
+  return {
+    id: `song-${entry.songId}-${index}`,
+    type: 'song',
+    songId: entry.songId,
+    title: song?.title || 'Unknown song',
+    note: entry.note || '',
+    key: entry.key || '',
+    fromLineup: true,
+  }
+}
+
+/**
  * A run sheet seeded from a Sunday's worship lineup, so the tech team starts
  * from what the worship team already planned rather than retyping it.
  */
 export const runSheetFromSunday = (sunday, songsById = {}) =>
-  (sunday?.songs || []).map((entry, index) => {
-    const song = songsById[entry.songId]
-    return {
-      id: `song-${entry.songId}-${index}`,
-      type: 'song',
-      songId: entry.songId,
-      title: song?.title || 'Unknown song',
-      note: entry.note || '',
-      key: entry.key || '',
-    }
+  (sunday?.songs || []).map((entry, index) => songItemFromLineup(entry, index, songsById))
+
+/** How many times each song appears in a list, keyed by id. */
+const countBySong = (entries, idOf) => {
+  const counts = new Map()
+  entries.forEach((entry) => {
+    const id = String(idOf(entry) || '')
+    if (id) counts.set(id, (counts.get(id) || 0) + 1)
   })
+  return counts
+}
+
+/**
+ * Brings a saved run sheet back into line with the worship team's lineup.
+ *
+ * The run sheet used to be a snapshot: seeded from the lineup once, and from
+ * then on its own thing. That is wrong for songs. The worship team goes on
+ * editing their plan all week — a song swapped on the Friday, one added on the
+ * Saturday night — and the tech team should not have to notice, let alone
+ * retype. So songs are inherited: added when the lineup gains them, removed
+ * when it loses them.
+ *
+ * Only songs marked `fromLineup` are governed this way. A song the tech team
+ * added themselves is theirs and stays put, as does every reading, notice and
+ * video — none of those were ever on the musicians' list, and they are the
+ * reason the run sheet exists as its own document.
+ *
+ * New songs land after the last inherited one, which keeps the worship set
+ * together rather than dropping a song after the offering. Returns the same
+ * array when there is nothing to change, so a caller can use identity to tell
+ * whether anything happened.
+ */
+export const reconcileWithLineup = (items = [], sunday = null, songsById = {}) => {
+  const planned = (sunday?.songs || []).filter((entry) => entry?.songId)
+
+  const plannedCounts = countBySong(planned, (entry) => entry.songId)
+
+  // An inherited song survives only while the lineup still calls for it. The
+  // count, not just the presence, so a lineup that drops one of two repeats
+  // drops one item and keeps the other.
+  const seen = new Map()
+  const kept = items.filter((item) => {
+    if (item.type !== 'song' || !item.fromLineup) return true
+    const id = String(item.songId || '')
+    const used = seen.get(id) || 0
+    if (used >= (plannedCounts.get(id) || 0)) return false
+    seen.set(id, used + 1)
+    return true
+  })
+
+  // Anything on the lineup that the run sheet does not already hold — whether
+  // inherited or added by hand, since a song the tech team added is not worth
+  // duplicating just because it later appeared on the lineup too.
+  const heldCounts = countBySong(
+    kept.filter((item) => item.type === 'song'),
+    (item) => item.songId
+  )
+  const additions = []
+  planned.forEach((entry, index) => {
+    const id = String(entry.songId)
+    const held = heldCounts.get(id) || 0
+    if (held > 0) {
+      heldCounts.set(id, held - 1)
+      return
+    }
+    additions.push(songItemFromLineup(entry, index, songsById))
+  })
+
+  if (!additions.length && kept.length === items.length) return items
+
+  const lastInherited = kept.reduce(
+    (last, item, index) => (item.type === 'song' && item.fromLineup ? index : last),
+    -1
+  )
+  if (lastInherited === -1) return [...kept, ...additions]
+  return [...kept.slice(0, lastInherited + 1), ...additions, ...kept.slice(lastInherited + 1)]
+}

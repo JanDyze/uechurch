@@ -11,6 +11,34 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.7.2] — 2026-09-04
+
+Presentation became a place of its own, and the run sheet stopped needing to be
+saved.
+
+### Added
+- **Presentation in the sidebar**, next to Lineups. The tech team goes straight
+  there on a Sunday instead of reaching it through the worship team's page.
+- **Its own services sidebar** inside the page, listing every Sunday with a
+  lineup and its song count — a column on the booth laptop, a scrolling strip
+  on a phone. Replaces the date dropdown that was competing for space in the
+  header with the controls needed mid-service.
+- The chosen service now lives in the URL, so a refresh in the booth comes back
+  to the same Sunday and a link can name one.
+
+### Changed
+- **The run sheet saves itself.** Adding a reading, removing an item or
+  reordering the service persists on its own after a moment; the Save button is
+  gone. A Sunday morning is no time to remember to press it, and forgetting it
+  lost the work on the next reload.
+- **Songs are inherited from the lineup rather than snapshotted from it.** The
+  run sheet used to be seeded once and then go its own way, so a song the
+  worship team added on the Saturday never reached the booth. Now inherited
+  songs arrive when the lineup gains them and leave when it drops them, while
+  readings, notices, videos and any song the tech team added themselves stay
+  exactly where they were put.
+- The plan subscription is now released when the page closes.
+
 ## [0.7.1] — 2026-09-04
 
 Scripture on the wall. A reading is now found rather than typed: the operator

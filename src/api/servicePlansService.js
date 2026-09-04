@@ -24,6 +24,12 @@ const normalizeItem = (item, index) => ({
   // Songs are stored by reference so a lyric edit reaches every service that
   // sings it, rather than freezing a copy into each Sunday.
   songId: item?.songId || '',
+  // Whether this song came off the worship team's lineup or the tech team put
+  // it here. An inherited song follows the lineup — it leaves when they drop it
+  // — while one added here is the tech team's own and stays. Without this the
+  // run sheet cannot tell the two apart, and reconciling would either strand
+  // the lineup's changes or trample the operator's.
+  fromLineup: item?.fromLineup === true,
   // Everything typed in here: a notice, a welcome slide.
   body: item?.body || '',
   // Scripture, by contrast, is stored resolved: the reference it was looked up

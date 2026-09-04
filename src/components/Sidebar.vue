@@ -15,6 +15,7 @@ import {
   ListChecks,
   ListMusic,
   Mic2,
+  ProjectorScreen,
   Settings,
   UserCog
 } from '../icons'
@@ -57,6 +58,10 @@ const NAV_GROUPS = [
       { name: 'Events', path: '/events', icon: Calendar, capability: 'events.view' },
       { name: 'Song List', path: '/songs', icon: ListMusic, capability: 'songs.view' },
       { name: 'Lineups', path: '/lineups', icon: Mic2, capability: 'lineups.view' },
+      // Next to Lineups because it runs what a lineup plans, but its own
+      // entry: the tech team goes straight here on a Sunday and should not
+      // have to reach it through the worship team's page.
+      { name: 'Presentation', path: '/present', icon: ProjectorScreen, capability: 'lineups.view' },
       { name: 'Minutes', path: '/minutes', icon: FileText, capability: 'minutes.view' },
       { name: 'Prayer Concerns', path: '/prayer-concerns', icon: Heart, capability: 'prayer.view' },
     ],
