@@ -11,6 +11,15 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.9.1] — 2026-09-04
+
+### Fixed
+- **The service panel rendered no controls at all** — no Add songs, no Add to
+  band, nothing, for anyone including administrators. Its immediate watcher ran
+  during setup and reset five refs that were declared below it, so the whole
+  setup threw in their temporal dead zone. The refs now come first. Nothing to
+  do with permissions, which were working the whole time.
+
 ## [0.9.0] — 2026-09-04
 
 Lineups goes back to one permission. Leading a Sunday is a view, not a rank.

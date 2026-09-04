@@ -48,6 +48,15 @@ const props = defineProps({
 
 const emit = defineEmits(['change', 'clear'])
 
+// Declared before the watch below, which is immediate and resets every one of
+// them: with these underneath it, that first synchronous run hit their temporal
+// dead zone, setup threw, and the panel rendered no controls at all.
+const showSongPicker = ref(false)
+const showTeamPicker = ref(false)
+const showAllLeaders = ref(false)
+const showAllForTeam = ref(false)
+const teamSearch = ref('')
+
 /**
  * A local copy, re-seeded whenever a different service is focused.
  *
@@ -75,12 +84,6 @@ watch(
 
 /** Every edit goes up immediately; the page decides when to write it. */
 const change = () => emit('change', { ...form.value })
-
-const showSongPicker = ref(false)
-const showTeamPicker = ref(false)
-const showAllLeaders = ref(false)
-const showAllForTeam = ref(false)
-const teamSearch = ref('')
 
 const memberById = (id) =>
   props.members.find((m) => memberKey(m) === String(id) || String(m.firestoreId) === String(id)) ||
