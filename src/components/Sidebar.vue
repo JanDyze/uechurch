@@ -1,27 +1,9 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
-import {
-  Home,
-  Users,
-  UsersRound,
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  ClipboardCheck,
-  Heart,
-  Image,
-  Link2,
-  ListChecks,
-  NotebookPen,
-  ListMusic,
-  Mic2,
-  ProjectorScreen,
-  Settings,
-  UserCog
-} from '../icons'
+import { ChevronLeft, ChevronRight } from '../icons'
 import { computed, ref } from 'vue'
 import { usePermissions } from '../composables/usePermissions'
+import { allowedGroups } from '../data/navigation'
 import { useAppSettings } from '../composables/useAppSettings'
 
 const route = useRoute()
@@ -31,65 +13,8 @@ const { church, logoUrl } = useAppSettings()
 const isMinimized = ref(false)
 const isHovered = ref(false)
 
-// Grouped rather than a flat list of twelve. Group headers are cosmetic — the
-// capability filter runs per item, and any group left with nothing in it is
-// dropped entirely, so an untagged member never sees an empty heading.
-const NAV_GROUPS = [
-  {
-    key: 'overview',
-    label: '',
-    items: [
-      { name: 'Dashboard', path: '/dashboard', icon: Home, capability: 'dashboard.view' },
-      { name: 'Tasks', path: '/tasks', icon: ListChecks, capability: 'tasks.view' },
-    ],
-  },
-  {
-    key: 'people',
-    label: 'People',
-    items: [
-      { name: 'People', path: '/members', icon: Users, capability: 'members.view' },
-      { name: 'Small Groups', path: '/small-groups', icon: UsersRound, capability: 'smallgroups.view' },
-      { name: 'Attendance', path: '/attendance', icon: ClipboardCheck, capability: 'attendance.view' },
-    ],
-  },
-  {
-    key: 'gatherings',
-    label: 'Gatherings',
-    items: [
-      { name: 'Events', path: '/events', icon: Calendar, capability: 'events.view' },
-      { name: 'Song List', path: '/songs', icon: ListMusic, capability: 'songs.view' },
-      { name: 'Lineups', path: '/lineups', icon: Mic2, capability: 'lineups.view' },
-      // Next to Lineups because it runs what a lineup plans, but its own
-      // entry: the tech team goes straight here on a Sunday and should not
-      // have to reach it through the worship team's page.
-      { name: 'Presentation', path: '/present', icon: ProjectorScreen, capability: 'lineups.view' },
-      { name: 'Minutes', path: '/minutes', icon: FileText, capability: 'minutes.view' },
-      { name: 'Prayer Concerns', path: '/prayer-concerns', icon: Heart, capability: 'prayer.view' },
-    ],
-  },
-  {
-    key: 'media',
-    label: 'Media',
-    items: [
-      { name: 'Gallery', path: '/gallery', icon: Image, capability: 'gallery.view' },
-      { name: 'Links', path: '/links', icon: Link2, capability: 'links.view' },
-    ],
-  },
-  {
-    key: 'admin',
-    label: 'Administration',
-    items: [
-      { name: 'To-do', path: '/todo', icon: NotebookPen, adminOnly: true },
-      { name: 'Accounts', path: '/accounts', icon: UserCog, adminOnly: true },
-      { name: 'Settings', path: '/settings', icon: Settings, adminOnly: true },
-    ],
-  },
-]
-
-const allowed = (item) => (item.adminOnly ? isAdmin.value : can(item.capability))
-
 const navGroups = computed(() =>
-  NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter(allowed) })).filter(
+  allowedGroups(can, isAdmin.value).filter(
     (group) => group.items.length > 0
   )
 )
@@ -136,8 +61,14 @@ const navigate = (path) => {
     </button>
 
     <div class="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto no-scrollbar">
-      <!-- Logo/Branding -->
-      <div class="flex items-center justify-center shrink-0 px-2 mb-8 overflow-hidden">
+      <!-- Logo/Branding. Also the way back to the catalogue, which is not in
+           the nav list below because it would then have to list itself. -->
+      <button
+        type="button"
+        @click="navigate('/home')"
+        aria-label="Home"
+        class="flex items-center justify-center shrink-0 px-2 mb-8 overflow-hidden w-full"
+      >
         <img :src="logoUrl" :alt="church.shortName" class="h-15 w-auto shrink-0" />
         <!-- The wordmark collapses by max-width instead of v-if, so it narrows
              and fades over the same 300ms the aside spends resizing. flex-1
@@ -152,7 +83,7 @@ const navigate = (path) => {
           <h2 class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap tracking-tight">{{ church.shortName }}</h2>
           <p class="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 whitespace-nowrap tracking-widest mt-0.5">{{ church.fullName }}</p>
         </div>
-      </div>
+      </button>
 
       <!-- Navigation -->
       <nav class="flex-1 px-3 space-y-4">
@@ -191,7 +122,19 @@ const navigate = (path) => {
             :aria-label="item.name"
             :aria-current="isActive(item.path) ? 'page' : undefined"
           >
+            <!-- Bare, like the glyph it stands in for: the row carries its own
+                 background, so the artwork needs no plate of its own. -->
+            <img
+              v-if="item.image"
+              :src="item.image"
+              alt=""
+              :class="[
+                'shrink-0 h-6 w-6 object-contain transition-all duration-300 ease-in-out',
+                isMinimized ? 'mr-0' : 'mr-3',
+              ]"
+            />
             <component
+              v-else
               :is="item.icon"
               :class="['shrink-0 h-6 w-6 transition-all duration-300 ease-in-out', isMinimized ? 'mr-0' : 'mr-3']"
             />

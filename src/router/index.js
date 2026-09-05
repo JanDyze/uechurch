@@ -5,7 +5,11 @@ import { initPermissions, usePermissions } from '../composables/usePermissions'
 import { getLandingEnabled } from '../composables/useAppSettings'
 
 // Where a signed-in member belongs: "/" is the visitors' page now.
-const HOME = '/dashboard'
+//
+// The catalogue rather than the dashboard, and it carries no capability on
+// purpose — every "denied" redirect lands here, so a page that could itself be
+// denied would bounce forever.
+const HOME = '/home'
 
 const routes = [
   // The public front door. Registered before the app shell below so it — not
@@ -181,6 +185,11 @@ const routes = [
         name: 'PrayerConcerns',
         meta: { capability: 'prayer.view' },
         component: () => import('../views/PrayerConcerns.vue')
+      },
+      {
+        path: 'home',
+        name: 'Apps',
+        component: () => import('../views/Apps.vue')
       },
       {
         path: 'todo',

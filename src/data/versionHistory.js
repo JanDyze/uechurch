@@ -8,6 +8,18 @@
 
 export const versionHistory = [
   {
+    version: '0.11.0',
+    date: '2026-09-06',
+    title: 'Every page in one place',
+    summary:
+      'Signing in now lands on a grid of everything the app does, each tile saying what you would open it for.',
+    highlights: [
+      'The button in the middle of the bottom bar opens the same grid, wherever you are.',
+      'Most pages now have an icon of their own, in the church’s red and blue.',
+      'Presentation is reachable from a phone at last — it was on the sidebar and missing from the bar.',
+    ],
+  },
+  {
     version: '0.9.3',
     date: '2026-09-04',
     title: 'Notes have left the lineup',

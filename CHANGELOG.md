@@ -11,6 +11,41 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.11.0] — 2026-09-06
+
+Every page in the app gathered onto one screen, and one list behind the three
+places that navigate to them.
+
+### Added
+- **A catalogue at `/home`**, and it is where signing in now lands. Each page
+  is a tile with a plain sentence saying what you would open it for — a grid of
+  names would tell you nothing the sidebar does not.
+- **`src/data/navigation.js`** — the sidebar, the bottom bar and the catalogue
+  read their items from here. They each kept their own copy before, and the
+  copies drifted: Presentation was in the sidebar and missing from the bottom
+  bar, so on a phone the tech team could not reach the projector from the
+  navigation at all.
+- **Painted icons** for thirteen of the pages, drawn in the church's red and
+  blue. Anything without artwork still falls back to its line icon, so a page
+  added tomorrow needs no drawing before it can appear.
+
+### Changed
+- **The bottom bar's centre button opens the app drawer** and wears the church
+  logo rather than a grid glyph. It is the one thing on the strip that does not
+  look like a tab, which is the point: it opens a chooser rather than going
+  somewhere. The drawer lists the whole catalogue, including the four tabs
+  already on the bar — a dock does not hide the apps that are in it.
+- The sidebar's logo is now the way back to the catalogue. The catalogue is not
+  in the nav list itself, because it would then have to list itself.
+- `HOME` is `/home` rather than `/dashboard`, and carries no capability on
+  purpose: every "denied" redirect lands there, so a page that could itself be
+  denied would bounce forever.
+
+### Removed
+- The dark-mode twin of the presentation icon, and the `artFor` helper that
+  chose between an icon and its twin. The new artwork carries its own red and
+  blue and holds up on a light page and a dark one, so no icon needs a variant.
+
 ## [0.10.0] — 2026-09-05
 
 A backlog for the app itself — what is broken, what is wanted, and who is on

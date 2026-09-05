@@ -41,7 +41,7 @@ const isFocus = computed(() => Boolean(route.meta?.focus))
       <main
         :class="[
           'flex-1 overflow-hidden bg-white dark:bg-gray-900 print-main',
-          isFocus ? '' : 'pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0',
+          isFocus ? '' : 'pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0',
         ]"
       >
         <!-- A focus route gets the raw box and handles its own padding and
