@@ -13,6 +13,7 @@ import {
   Image,
   Link2,
   ListChecks,
+  NotebookPen,
   ListMusic,
   Mic2,
   ProjectorScreen,
@@ -78,6 +79,7 @@ const NAV_GROUPS = [
     key: 'admin',
     label: 'Administration',
     items: [
+      { name: 'To-do', path: '/todo', icon: NotebookPen, adminOnly: true },
       { name: 'Accounts', path: '/accounts', icon: UserCog, adminOnly: true },
       { name: 'Settings', path: '/settings', icon: Settings, adminOnly: true },
     ],

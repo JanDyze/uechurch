@@ -183,6 +183,12 @@ const routes = [
         component: () => import('../views/PrayerConcerns.vue')
       },
       {
+        path: 'todo',
+        name: 'Todo',
+        meta: { adminOnly: true },
+        component: () => import('../views/Todo.vue')
+      },
+      {
         path: 'accounts',
         name: 'Accounts',
         meta: { adminOnly: true },

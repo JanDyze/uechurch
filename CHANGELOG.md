@@ -11,6 +11,36 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.10.0] — 2026-09-05
+
+A backlog for the app itself — what is broken, what is wanted, and who is on
+it — kept apart from the church's own to-do list.
+
+### Added
+- **A To-do page at `/todo`**, administrators only. Tickets are filed as a Bug,
+  a Feature or a Chore: the same three words the commit messages already use,
+  so a ticket and the commit that closes it are filed alike.
+- **A ticket is moved rather than ticked.** Start takes it and begins, Pause
+  keeps it yours while you are elsewhere, Stop puts it back for anyone, Done
+  closes it. "Not right now" and "no longer mine" are different facts, and a
+  checkbox could express neither.
+- **The order is the priority.** The list is dragged rather than labelled —
+  there is no urgent/high/normal — so second is second rather than "also high".
+  The grip appears only on the unfiltered list, because reordering three rows a
+  filter happens to show says nothing about where they sit among the rest.
+- Kind pills, and a search reaching state, assignee and kind, so "paused" or a
+  person's name narrows the list.
+
+### Changed
+- Tickets ride in the `tasks` collection under `scope: 'dev'` rather than a
+  collection of their own. A new collection needs a Firestore rule written by
+  hand before its first write lands, and that is a trip nobody should make to
+  file a bug against their own app. Both subscriptions filter on the marker, so
+  neither list shows the other's rows.
+- `build-ui-icons.mjs` now also resolves Phosphor's fill weight, for any name
+  ending `Fill`. A stop button is a filled square; the outlined one reads as an
+  empty box.
+
 ## [0.9.3] — 2026-09-04
 
 ### Removed

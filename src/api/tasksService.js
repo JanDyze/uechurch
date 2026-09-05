@@ -51,7 +51,10 @@ export const subscribeToTasks = (callback) => {
 
   return onSnapshot(
     q,
-    (snapshot) => callback(snapshot.docs.map(normalizeTask)),
+    // Dev tickets share this collection (see ticketsService) and are not the
+    // church's work; the To-do page is the only place they belong.
+    (snapshot) =>
+      callback(snapshot.docs.filter((d) => d.data().scope !== 'dev').map(normalizeTask)),
     (error) => {
       console.error('Error subscribing to tasks:', error)
       callback([])

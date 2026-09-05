@@ -22,6 +22,11 @@ import { LUCIDE_TO_PHOSPHOR } from "./lucide-to-phosphor.js";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "src");
 const SVG_DIR = path.join(ROOT, "node_modules/@phosphor-icons/core/assets/regular");
+// Phosphor ships each glyph in several weights. Regular is the house style, but
+// a few glyphs only read correctly solid — a stop button is a filled square,
+// and an outlined one looks like an empty box. Any name ending in `Fill`
+// resolves here instead: `StopFill` -> assets/fill/stop-fill.svg.
+const FILL_DIR = path.join(ROOT, "node_modules/@phosphor-icons/core/assets/fill");
 const OUT_DIR = path.join(ROOT, "src/icons");
 const OUT = path.join(OUT_DIR, "index.js");
 
@@ -72,9 +77,17 @@ function main() {
     process.exit(1);
   }
 
-  const available = new Set(
-    fs.readdirSync(SVG_DIR).filter((f) => f.endsWith(".svg")).map((f) => f.replace(/\.svg$/, ""))
-  );
+  // asset name -> the directory it came from. Fill-weight files already carry
+  // a `-fill` suffix, so the two weights cannot collide.
+  const available = new Map();
+  for (const dir of [SVG_DIR, FILL_DIR]) {
+    if (!fs.existsSync(dir)) continue;
+    for (const file of fs.readdirSync(dir)) {
+      if (!file.endsWith(".svg")) continue;
+      const asset = file.replace(/\.svg$/, "");
+      if (!available.has(asset)) available.set(asset, dir);
+    }
+  }
 
   const names = usedNames();
   const missing = [];
@@ -83,11 +96,12 @@ function main() {
   for (const name of names) {
     const phosphor = LUCIDE_TO_PHOSPHOR[name] || name;
     const asset = toKebab(phosphor);
-    if (!available.has(asset)) {
+    const dir = available.get(asset);
+    if (!dir) {
       missing.push(`${name} -> ${phosphor}`);
       continue;
     }
-    const svg = fs.readFileSync(path.join(SVG_DIR, `${asset}.svg`), "utf8");
+    const svg = fs.readFileSync(path.join(dir, `${asset}.svg`), "utf8");
     const inner = svg
       .replace(/^[\s\S]*?<svg[^>]*>/, "")
       .replace(/<\/svg>\s*$/, "")
