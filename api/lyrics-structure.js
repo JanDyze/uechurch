@@ -22,7 +22,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { requireUser } from "../lib/firebaseAdmin.js";
 import { validateStructure, validateRecasing, ALLOWED_SECTION_LABELS } from "../lib/lyrics.js";
 
-const MODEL = "claude-opus-5";
+const MODEL = "claude-sonnet-5";
 
 const SYSTEM = `You prepare a worship song for a Filipino church: you identify its structure, and you fix its capitalisation. You are given the song's lines, numbered from 0. Many songs are in Tagalog.
 
