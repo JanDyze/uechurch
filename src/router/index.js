@@ -192,6 +192,12 @@ const routes = [
         component: () => import('../views/Apps.vue')
       },
       {
+        path: 'finances',
+        name: 'Finances',
+        meta: { capability: 'finances.view' },
+        component: () => import('../views/Finances.vue')
+      },
+      {
         path: 'todo',
         name: 'Todo',
         meta: { adminOnly: true },

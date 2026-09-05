@@ -8,6 +8,18 @@
 
 export const versionHistory = [
   {
+    version: '0.12.0',
+    date: '2026-09-06',
+    title: 'Finances, as a cash book',
+    summary:
+      'The money side is back, kept a month at a time with a running balance down the page.',
+    highlights: [
+      'Cash on Hand and Bank are tracked apart, and moving money between them counts as neither giving nor spending.',
+      'Set an opening balance once and every month after it adds up from there.',
+      'Each month closes into a statement you can export.',
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-09-06',
     title: 'Every page in one place',
@@ -137,7 +149,6 @@ export const versionHistory = [
       'Presentation: a tech booth view and a chrome-free second screen for the congregation.',
       'Tasks: a module of its own, with quick add and filters.',
       'The public page now serves real church data.',
-      'Finances has been removed.',
     ],
   },
   {

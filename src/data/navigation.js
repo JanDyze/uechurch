@@ -15,6 +15,7 @@ import {
   UserCog,
   Users,
   UsersRound,
+  Wallet,
 } from '../icons'
 
 // Painted icons for the pages that have one. Imported rather than referenced by
@@ -31,6 +32,7 @@ import {
 import attendanceArt from '../assets/sidebar items/attendance.png'
 import dashboardArt from '../assets/sidebar items/dashboard.png'
 import eventsArt from '../assets/sidebar items/events.png'
+import financesArt from '../assets/sidebar items/finances.png'
 import galleryArt from '../assets/sidebar items/gallery.png'
 import lineupsArt from '../assets/sidebar items/lineups.png'
 import linksArt from '../assets/sidebar items/links.png'
@@ -194,6 +196,14 @@ export const NAV_GROUPS = [
     key: 'admin',
     label: 'Administration',
     items: [
+      {
+        name: 'Finances',
+        path: '/finances',
+        image: financesArt,
+        icon: Wallet,
+        capability: 'finances.view',
+        description: 'What comes in and goes out, and the statement for the month.',
+      },
       {
         name: 'To-do',
         path: '/todo',

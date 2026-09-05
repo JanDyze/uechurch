@@ -3,13 +3,37 @@
 The version lives in `package.json` and reaches the app as `__APP_VERSION__`
 (see `vite.config.js`); the foot of the Settings page shows it.
 
-While the app is pre-1.0 the module set is still moving — this release drops
-finances entirely — so **breaking changes ride on a minor bump**. 1.0.0 is for
-when the modules a church depends on stop being added and removed.
+While the app is pre-1.0 the module set is still moving — finances has been out
+and is back — so **breaking changes ride on a minor bump**. 1.0.0 is for when
+the modules a church depends on stop being added and removed.
 
 Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
+
+## [0.12.0] — 2026-09-06
+
+Finances returns, rebuilt around a cash book rather than the transaction list
+that came out in 0.7.0.
+
+### Added
+- **A Finances page at `/finances`**, behind a new `finances` capability, with
+  the `finances.view` permission area alongside the rest.
+- **A month at a time, as a book.** Entries carry a running balance rather than
+  standing alone, so the question a treasurer actually asks — what was in hand
+  on the 14th — is answered by reading down the column.
+- **Two accounts, Cash on Hand and Bank.** A transfer moves between them and is
+  neither income nor expense: the two halves cancel, because the church is no
+  richer for having moved its own money into the bank.
+- **Opening balances**, dated. Entries before that date are pre-history and are
+  not counted twice — the opening figure already is their sum.
+- **A statement for the month**, rolled up by the chart of accounts, with
+  export. Groups with nothing in them are left off: an empty line on a
+  statement is noise, not information.
+
+### Changed
+- `HOME` and the navigation gain Finances; the sidebar, bottom bar and
+  catalogue pick it up from `src/data/navigation.js` without further wiring.
 
 ## [0.11.0] — 2026-09-06
 
