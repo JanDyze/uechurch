@@ -29,6 +29,7 @@ import {
 // All of them are the same drawing in the church's red and blue on a
 // transparent ground. Both colours are saturated enough to hold their own
 // against a light page and a dark one, so no icon needs a dark-mode twin.
+import accountsArt from '../assets/sidebar items/accounts.png'
 import attendanceArt from '../assets/sidebar items/attendance.png'
 import dashboardArt from '../assets/sidebar items/dashboard.png'
 import eventsArt from '../assets/sidebar items/events.png'
@@ -40,9 +41,11 @@ import minutesArt from '../assets/sidebar items/minutes.png'
 import peopleArt from '../assets/sidebar items/people.png'
 import prayerArt from '../assets/sidebar items/prayer.png'
 import presentationArt from '../assets/sidebar items/presentation.png'
+import settingsArt from '../assets/sidebar items/settings.png'
 import smallGroupsArt from '../assets/sidebar items/small groups.png'
 import songsArt from '../assets/sidebar items/song list.png'
 import tasksArt from '../assets/sidebar items/tasks.png'
+import todosArt from '../assets/sidebar items/todos.png'
 
 /**
  * Every place in the app you can go, in one list.
@@ -51,6 +54,10 @@ import tasksArt from '../assets/sidebar items/tasks.png'
  * used to each keep their own copy, and the copies drifted — Presentation was
  * in the sidebar and missing from the bottom bar, so on a phone the tech team
  * could not reach the projector from the navigation at all.
+ *
+ * `short` is only for the bottom bar, where a tab is about 65px wide and a
+ * name like "Prayer Concerns" would be cut off. Everywhere with room uses
+ * `name`; anything without a `short` has a name that already fits.
  *
  * `description` is a plain sentence saying what you would open the thing to do.
  * It is what makes the home page worth having: a grid of names tells you no
@@ -98,6 +105,7 @@ export const NAV_GROUPS = [
       {
         name: 'Small Groups',
         path: '/small-groups',
+        short: 'Groups',
         image: smallGroupsArt,
         icon: UsersRound,
         capability: 'smallgroups.view',
@@ -128,6 +136,7 @@ export const NAV_GROUPS = [
       {
         name: 'Song List',
         path: '/songs',
+        short: 'Songs',
         image: songsArt,
         icon: ListMusic,
         capability: 'songs.view',
@@ -147,6 +156,7 @@ export const NAV_GROUPS = [
       {
         name: 'Presentation',
         path: '/present',
+        short: 'Present',
         image: presentationArt,
         icon: ProjectorScreen,
         capability: 'lineups.view',
@@ -163,6 +173,7 @@ export const NAV_GROUPS = [
       {
         name: 'Prayer Concerns',
         path: '/prayer-concerns',
+        short: 'Prayer',
         image: prayerArt,
         icon: Heart,
         capability: 'prayer.view',
@@ -207,6 +218,7 @@ export const NAV_GROUPS = [
       {
         name: 'To-do',
         path: '/todo',
+        image: todosArt,
         icon: NotebookPen,
         adminOnly: true,
         description: 'The backlog for building this app — bugs, features and chores.',
@@ -214,6 +226,7 @@ export const NAV_GROUPS = [
       {
         name: 'Accounts',
         path: '/accounts',
+        image: accountsArt,
         icon: UserCog,
         adminOnly: true,
         description: 'Who can sign in, and which member each account belongs to.',
@@ -221,6 +234,7 @@ export const NAV_GROUPS = [
       {
         name: 'Settings',
         path: '/settings',
+        image: settingsArt,
         icon: Settings,
         adminOnly: true,
         description: 'Church details, ministries, roles, and what the public page shows.',

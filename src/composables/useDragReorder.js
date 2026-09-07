@@ -27,8 +27,27 @@ import { nextTick, onScopeDispose, ref } from 'vue'
  *
  * @param {() => Array} read   current items
  * @param {(next: Array) => void} write  commit a reordered copy
+ * @param {{ reorder?: (list: Array, from: number, to: number) => Array }} [options]
+ *   `holdDelay` waits that many milliseconds, with the pointer held still,
+ *   before a drag begins - the press-and-hold a phone home screen asks for.
+ *   Leave it out where the row has its own grip and a press can mean nothing
+ *   else. `reorder` says how a drop rearranges the list. The default lifts the item out and drops it
+ *   in, shifting everything between - right for a run sheet, where the order is
+ *   a sequence. Pass your own to do something else: a grid where the first few
+ *   slots are a dock wants those to swap instead, so landing in one does not
+ *   push its neighbours along.
  */
-export function useDragReorder(read, write) {
+/** Lift out and drop in, shifting everything between. The default. */
+const moveItem = (list, from, to) => {
+  const next = [...list]
+  const [moved] = next.splice(from, 1)
+  next.splice(to, 0, moved)
+  return next
+}
+
+export function useDragReorder(read, write, options = {}) {
+  const reorder = options.reorder || moveItem
+  const holdDelay = options.holdDelay || 0
   const draggingIndex = ref(null)
   const offset = ref({ x: 0, y: 0 })
 
@@ -51,10 +70,7 @@ export function useDragReorder(read, write) {
     const target = Number(element.dataset.dragIndex)
     if (Number.isNaN(target) || target === draggingIndex.value) return
 
-    const next = [...read()]
-    const [moved] = next.splice(draggingIndex.value, 1)
-    next.splice(target, 0, moved)
-    write(next)
+    write(reorder([...read()], draggingIndex.value, target))
     draggingIndex.value = target
 
     // Re-base once the list has actually re-rendered, so the item settles into
@@ -79,14 +95,32 @@ export function useDragReorder(read, write) {
     offset.value = { x: 0, y: 0 }
   }
 
-  const begin = (index, event) => {
-    // Ignore anything but a primary press: a right-click, or a second finger
-    // arriving mid-drag, should not start a competing reorder.
-    if (event.button !== undefined && event.button !== 0) return
-    if (draggingIndex.value !== null) return
+  /* --- press and hold ------------------------------------------------- */
+  // A tap opens the app and a drag reorders it, so on a hold-to-drag list the
+  // two are told apart by time: hold still for `holdDelay`, and it is a drag.
+  // Moving before then is a scroll and cancels; releasing is a tap and cancels.
+  const HOLD_SLOP = 10
+  let holdTimer = null
+  let pending = null
 
+  const cancelHold = () => {
+    clearTimeout(holdTimer)
+    holdTimer = null
+    pending = null
+    window.removeEventListener('pointermove', onHoldMove)
+    window.removeEventListener('pointerup', cancelHold)
+    window.removeEventListener('pointercancel', cancelHold)
+  }
+
+  function onHoldMove(event) {
+    if (!pending) return
+    const moved = Math.hypot(event.clientX - pending.x, event.clientY - pending.y)
+    if (moved > HOLD_SLOP) cancelHold()
+  }
+
+  const start = (index, x, y) => {
     draggingIndex.value = index
-    origin = { x: event.clientX, y: event.clientY }
+    origin = { x, y }
     offset.value = { x: 0, y: 0 }
 
     window.addEventListener('pointermove', onMove, { passive: false })
@@ -96,8 +130,33 @@ export function useDragReorder(read, write) {
     document.body.style.userSelect = 'none'
   }
 
+  const begin = (index, event) => {
+    // Ignore anything but a primary press: a right-click, or a second finger
+    // arriving mid-drag, should not start a competing reorder.
+    if (event.button !== undefined && event.button !== 0) return
+    if (draggingIndex.value !== null) return
+
+    if (!holdDelay) {
+      start(index, event.clientX, event.clientY)
+      return
+    }
+
+    pending = { index, x: event.clientX, y: event.clientY }
+    window.addEventListener('pointermove', onHoldMove)
+    window.addEventListener('pointerup', cancelHold)
+    window.addEventListener('pointercancel', cancelHold)
+    holdTimer = setTimeout(() => {
+      const held = pending
+      cancelHold()
+      if (held) start(held.index, held.x, held.y)
+    }, holdDelay)
+  }
+
   // Unmounting mid-drag must not leave listeners on the window.
-  onScopeDispose(detach)
+  onScopeDispose(() => {
+    detach()
+    cancelHold()
+  })
 
   /**
    * The moving part: how a row looks while it is being carried, and the marker
