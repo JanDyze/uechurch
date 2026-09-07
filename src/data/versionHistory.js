@@ -8,6 +8,20 @@
 
 export const versionHistory = [
   {
+    version: '0.14.0',
+    date: '2026-09-07',
+    title: 'Arrange the apps how you want them',
+    summary:
+      'Press and hold any app in the drawer to drag it about. The four you pull to the front become the bar along the bottom, so it ends up holding what you actually open.',
+    highlights: [
+      'A person’s record now reads as a record — the details in plain sentences, with one Edit button rather than a pencil on every line.',
+      'It also says what is missing about them, by name, while you still have them in front of you. Address no longer counts as missing.',
+      'Search on People opens from the plus button instead of taking up a row of the list all the time.',
+      'Drawers and sheets can be swiped away from anywhere on them, not just the strip at the top.',
+      'If the app has ever felt a version behind, it should stop doing that.',
+    ],
+  },
+  {
     version: '0.13.0',
     date: '2026-09-07',
     title: 'Special Sundays, on one line',

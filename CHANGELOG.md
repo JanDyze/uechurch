@@ -11,6 +11,84 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.14.0] — 2026-09-07
+
+The navigation stops being someone else's guess, and a person's record stops
+being the add form worn backwards.
+
+### Added
+- **The app drawer is draggable, and the first four become the bottom bar.**
+  `PRIMARY_PATHS` was one hardcoded guess about what every church does most.
+  The order is now whatever the person dragged, alphabetical until they do,
+  kept per device in `localStorage` by `src/composables/useAppOrder.js` — so
+  the dock holds the apps they actually use without anyone configuring a dock.
+  Stored as paths, not indexes: a path survives a page being renamed, added or
+  removed.
+- **`holdDelay` and `reorder` on `useDragReorder`.** On a tile a tap opens the
+  app and a drag rearranges it, and only time tells them apart — hold still
+  for 350ms and it is a drag. `reorder` lets a drop that touches the dock swap
+  rather than insert, because inserting the tenth app into the second slot
+  pushes second into third, third into fourth and knocks the fourth off the bar
+  entirely.
+- **`src/components/nav/AppTile.vue`** — the drawer draws a tile in three
+  places now, and three copies of a tile is how the two navs drifted apart in
+  the first place.
+- **`src/composables/useSwipeDismiss.js`** — a sheet swipes down, an edge
+  drawer swipes right, and the whole panel is the target. A gesture you can
+  only start from a 40px header is one most people never find.
+- **`src/composables/useNotificationFeed.js`** — one reference-counted
+  subscription, with the permission gate and the last-seen mark in one place.
+  The feed lived in `Topbar.vue` while the bell was its only reader; the people
+  drawer shows the same history now.
+- **The people rail doubles as the account drawer on a phone** — who you are,
+  your profile, the theme, sign out, alongside who else is online.
+- **`missingMemberFields`** — the same gaps as `missingMemberDetails`, keyed
+  rather than phrased, for the record itself where there is room to name each.
+- **`short` labels in `navigation.js`** for the bottom bar, where a tab is
+  about 65px and "Prayer Concerns" would be cut off, plus artwork for To-do,
+  Accounts and Settings.
+
+### Changed
+- **A person's record reads as a record.** Facts are grouped in plain language
+  — "12 March 1990 · 35 · Female · Single" is one fact and belongs on one line
+  — with one Edit button for the whole thing. The two-column grid of boxed
+  rows, each with its own hover pencil, was the add form's shape borrowed for
+  reading: a screen and a half to say very little, asking which field you meant
+  before you had decided you were editing anything.
+- **`/members/:id` is a focus route.** One record is a task, and the chrome
+  around it cost a topbar and a bottom bar's worth of a phone screen. The page
+  carries its own way back.
+- **The attention badge counts instead of pointing.** Naming every gap turned
+  the roster into a wall of amber sentences; a bare icon said nothing on a
+  phone, where no hover reveals a tooltip. The record names which.
+- **Search on People is a mode, not furniture** — opened from the plus button,
+  focused on open, Escape closes, and closing clears the query, because a bar
+  you cannot see must not still be filtering the list. The summary tiles hide
+  too, remembered per device.
+- **The email digest switch comes off the bell.** `api/email.js` has always
+  treated the digest as opt-out, so an account that touches no setting already
+  gets one. A switch that only ever turned off the default made it look like a
+  subscription.
+- The last "member" labels — add drawer, export dialog, drawer headings — now
+  read "person", finishing the vocabulary change.
+
+### Fixed
+- **An installed app is no longer left on an old build.** `sw.js`, the shell
+  and the manifest are served `must-revalidate` and the hashed assets
+  `immutable`; a phone holding a cached service worker could go on serving a
+  build from weeks ago, which is why a reported bug and the code in `main` kept
+  disagreeing.
+- **`InlineEditField` no longer renders every field in edit mode on its first
+  pass.** `fieldId` is only assigned on mount and `activeEditId` starts null
+  too, so a bare equality check matched before there was an id to tell them
+  apart.
+
+### Removed
+- **Address is no longer a missing detail.** The church does not need one to do
+  anything for the person, and flagging it made most of the roster look
+  incomplete over something nobody was going to chase. Still on the record for
+  anyone who wants to fill it in.
+
 ## [0.13.0] — 2026-09-07
 
 Special Sundays stop arriving on the calendar twice.
