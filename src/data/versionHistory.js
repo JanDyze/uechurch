@@ -8,6 +8,18 @@
 
 export const versionHistory = [
   {
+    version: '0.13.0',
+    date: '2026-09-07',
+    title: 'Special Sundays, on one line',
+    summary:
+      'A Christmas party or a Pastor’s Appreciation can now be pinned to its date and marks that Sunday service, instead of sitting beside it as a second entry.',
+    highlights: [
+      'Set it under Settings → the schedule → Occasions, by week of the month or by date.',
+      'The Sunday reads “Sunday Service · Christmas Party”, with one attendance sheet as before.',
+      'Pick a date the service does not meet on and it tells you, then offers the nearest Sunday.',
+    ],
+  },
+  {
     version: '0.12.0',
     date: '2026-09-06',
     title: 'Finances, as a cash book',

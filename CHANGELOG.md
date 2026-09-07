@@ -11,6 +11,51 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.13.0] — 2026-09-07
+
+Special Sundays stop arriving on the calendar twice.
+
+### Added
+- **Occasions can be pinned to a date.** An occasion marks the service its
+  schedule already generates — communion on the first Sunday is the Sunday
+  service, not a second thing at the same hour — but it could only be written
+  as a week-of-month ordinal. Half the church calendar is not cyclical:
+  Christmas, the anniversary, the Sunday Grandparents Day or Teacher's Day or
+  Pastor's Appreciation is being kept on. None of those is "the fourth Sunday"
+  in a way that survives to next year, so an occasion now also carries `dates`,
+  matched against the day outright. Either rule will do, or both.
+- **The occasion editor checks the weekday as you type.** Christmas Day 2026 is
+  a Friday: a Friday saved against a Sunday service would mark nothing and only
+  be noticed in December. The field says the date misses and offers the nearest
+  day the schedule does meet.
+- **`scheduleFallsOn`** in `lib/occurrences.js`, which the editor uses for that
+  check. It answers whether a schedule generates an occurrence on a given date,
+  weekday and week-of-month together.
+
+### Changed
+- The Occasions help text in Settings names the two ways to say when, and says
+  plainly that there is still one calendar entry and one attendance sheet.
+
+### Notes
+Three mechanisms now overlap, and which one is right depends on what the
+special Sunday actually is:
+
+- It only changes **what the service is called or what happens inside it** —
+  greeting the grandparents, honouring the pastor: an **occasion**. One entry,
+  titled `Sunday Service · Pastor's Appreciation`. Attendance is unaffected,
+  because the occurrence id does not change.
+- That one week **moves or is off** — different time, different venue,
+  cancelled: **edit or cancel the occurrence**, which writes an override
+  replacing the generated entry. Still one entry.
+- It is a **separate gathering** — a Christmas Eve service, a party on the
+  Saturday: **add an event**. Two entries, correctly, with their own
+  attendance.
+
+A dated occasion belongs to the year it names; the editor shows the year on
+each chip for that reason. `useRecurringEvents` expands the current year only,
+so next year's Christmas Sunday is set next year — a `MM-DD` repeat would drift
+onto weekdays and silently stop marking anything.
+
 ## [0.12.0] — 2026-09-06
 
 Finances returns, rebuilt around a cash book rather than the transaction list
