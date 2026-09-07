@@ -65,18 +65,29 @@ export const getVisibleFrom = (dateString, time, showBefore) => {
   return new Date(start.getTime() - lead * 60 * 1000);
 };
 
+/** `YYYY-MM-DD` and nothing else, so a half-typed date never reaches the rule. */
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Sorted and de-duplicated: the list is read back as chips in the editor. */
+const normalizeDates = (value) =>
+  [...new Set((Array.isArray(value) ? value : []).filter((d) => DATE_PATTERN.test(d)))].sort();
+
 /**
  * Occasions are what the gathering additionally is on certain weeks —
- * communion on the first Sunday, the birthday bash on the last. Same shape as
- * the schedule's own `occurrences`, so "Last" means the same thing here.
- * A label with no weeks marks every occurrence, matching how an empty
- * `occurrences` reads on the schedule itself.
+ * communion on the first Sunday, the birthday bash on the last. `occurrences`
+ * is the same shape as the schedule's own, so "Last" means the same thing here.
+ *
+ * `dates` names days outright, for the occasions that are not cyclical:
+ * Christmas, an anniversary, the Sunday Teacher's Day is being observed on.
+ * A label with neither marks every occurrence, matching how an empty
+ * `occurrences` reads on the schedule itself. See lib/occurrences.js.
  */
 const normalizeOccasions = (value) =>
   (Array.isArray(value) ? value : [])
     .map((occasion) => ({
       label: String(occasion?.label || "").trim(),
       occurrences: Array.isArray(occasion?.occurrences) ? occasion.occurrences : [],
+      dates: normalizeDates(occasion?.dates),
     }))
     .filter((occasion) => occasion.label);
 
