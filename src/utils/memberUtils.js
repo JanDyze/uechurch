@@ -153,6 +153,11 @@ export const calculateAgeFromDate = (dateOfBirth) => {
  * numbers are counted on their own tile instead, where the number is
  * information rather than an accusation.
  *
+ * Address came off this list for a related reason: the church does not need
+ * one to do anything for the person, and flagging it made most of the roster
+ * look incomplete over a detail nobody was going to chase. It is still on the
+ * record for anyone who wants to fill it in — it just is not a gap.
+ *
  * Kept short for the same reason. Occupation, nickname and photo all have
  * fallbacks or no consequence when blank, and civil status is written onto
  * every new record by the add form.
@@ -161,7 +166,6 @@ export const calculateAgeFromDate = (dateOfBirth) => {
  */
 export const IMPORTANT_MEMBER_DETAILS = [
   { key: "dateOfBirth", label: "birthday" },
-  { key: "address", label: "address" },
   { key: "sex", label: "sex" },
 ];
 
@@ -180,6 +184,14 @@ export const isBlankDetail = (value) =>
  */
 export const missingMemberDetails = (member = {}) =>
   IMPORTANT_MEMBER_DETAILS.filter(({ key }) => isBlankDetail(member[key])).map(({ label }) => label);
+
+/**
+ * The same gaps, but keyed rather than phrased — for the record itself, where
+ * there is room to name each one and point at the field that fills it.
+ * `missingMemberDetails` stays the phrase version the list rows use.
+ */
+export const missingMemberFields = (member = {}) =>
+  IMPORTANT_MEMBER_DETAILS.filter(({ key }) => isBlankDetail(member[key]));
 
 /**
  * "birthday and address", "birthday, address and sex" — a phrase that drops

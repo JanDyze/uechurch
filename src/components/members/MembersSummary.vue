@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from "vue";
-import { Users, UserCheck, Gift } from "../../icons";
+import { ChevronUp, Users, UserCheck, Gift } from "../../icons";
+
+const emit = defineEmits(["hide"]);
 
 const props = defineProps({
   stats: {
@@ -52,7 +54,16 @@ const bandWidth = (count) =>
 </script>
 
 <template>
-  <div class="shrink-0 border-b border-gray-200 px-3 py-3 dark:border-gray-700">
+  <div class="relative shrink-0 border-b border-gray-200 px-3 py-3 dark:border-gray-700">
+    <!-- Hideable: the summary is worth its height when you are taking stock
+         and not when you are looking someone up. -->
+    <button
+      @click="emit('hide')"
+      aria-label="Hide summary"
+      class="absolute right-1 top-1 rounded-md p-1 text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400"
+    >
+      <ChevronUp class="h-3.5 w-3.5" />
+    </button>
     <!-- One row of three so the whole report is readable without scrolling,
          even on a phone. -->
     <div class="grid grid-cols-3 divide-x divide-gray-200 dark:divide-gray-700">

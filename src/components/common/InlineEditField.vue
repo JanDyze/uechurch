@@ -35,7 +35,13 @@ onMounted(() => {
   fieldId.value = generateId();
 });
 
-const isEditing = computed(() => props.forceEdit || activeEditId.value === fieldId.value);
+// fieldId is only assigned on mount, and activeEditId starts null too - so a
+// bare equality check made every field render in edit mode on its first pass,
+// before the id existed to tell them apart. Nothing is active until a field has
+// an id of its own.
+const isEditing = computed(
+  () => props.forceEdit || (fieldId.value !== null && activeEditId.value === fieldId.value)
+);
 const editValue = ref(null);
 const inputRef = ref(null);
 
@@ -165,16 +171,19 @@ const viewModeAriaLabel = computed(() => {
 <template>
   <div class="inline-edit-field group">
     <!-- View Mode -->
+    <!-- Reading, and only reading. There is no per-field control at all now:
+         the record is edited as a record, from one Edit button, rather than a
+         field at a time. A row of pencils asked which field you meant before
+         you had decided you were editing anything.
+
+         No label above the value either: the icon says which field this is,
+         and when there is nothing to show the label becomes the prompt. A row
+         of grey captions over one-line values doubled the height of the record
+         and said what the icon already said. -->
     <div
       v-if="!isEditing"
-      @dblclick="startEdit"
-      @keydown.enter="startEdit"
-      @keydown.space.prevent="startEdit"
-      role="button"
-      tabindex="0"
       :aria-label="viewModeAriaLabel"
-      class="flex items-start gap-3 p-2 -m-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
-      title="Double-click to edit"
+      class="flex items-start gap-3 rounded-lg p-2 -m-2"
     >
       <component
         v-if="icon"
@@ -182,7 +191,6 @@ const viewModeAriaLabel = computed(() => {
         class="h-5 w-5 text-primary dark:text-primary-light mt-0.5 shrink-0"
       />
       <div class="flex-1 min-w-0">
-        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{{ label }}</p>
         
         <!-- Tags display -->
         <div v-if="type === 'tags' && hasValue" class="flex flex-wrap gap-1">
@@ -195,22 +203,21 @@ const viewModeAriaLabel = computed(() => {
           </span>
         </div>
         
-        <!-- Regular value display -->
+        <!-- Regular value display. Empty reads as the field's name, so a blank
+             row still says what it is waiting for. -->
         <p
           v-else
           :class="[
             'text-sm',
             hasValue
               ? 'text-gray-900 dark:text-white'
-              : 'text-gray-400 dark:text-gray-500 italic'
+              : 'text-gray-400 dark:text-gray-500'
           ]"
         >
-          {{ hasValue ? displayValue : emptyText }}
+          {{ hasValue ? displayValue : label || emptyText }}
         </p>
       </div>
-      
-      <!-- Edit indicator -->
-      <Pencil class="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
+
     </div>
 
     <!-- Edit Mode -->

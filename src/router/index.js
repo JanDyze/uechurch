@@ -61,7 +61,10 @@ const routes = [
       {
         path: 'members/:id',
         name: 'MemberDetails',
-        meta: { capability: 'members.view' },
+        // focus: one record is a task, and the chrome around it was costing a
+        // topbar and a bottom bar's worth of a phone screen. The page carries
+        // its own way back, so nothing is stranded by dropping the nav.
+        meta: { capability: 'members.view', focus: true },
         component: () => import('../views/MemberDetails.vue')
       },
       {

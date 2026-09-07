@@ -1,8 +1,8 @@
 <script setup>
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { X, Trash2, User, Phone, Briefcase, Image as ImageIcon, ExternalLink, Edit2, Check } from '../../icons';
-import { getFullName, getSexIcon, getSexIconColor, calculateAgeFromDate, CIVIL_STATUS_OPTIONS as civilStatusOptions } from "../../utils/memberUtils";
+import { AlertCircle, X, Trash2, User, Phone, Briefcase, Image as ImageIcon, ExternalLink, Edit2, Check } from '../../icons';
+import { getFullName, getSexIcon, getSexIconColor, calculateAgeFromDate, missingMemberFields, CIVIL_STATUS_OPTIONS as civilStatusOptions } from "../../utils/memberUtils";
 import { useMediaQuery } from "../../composables/useMediaQuery";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 import ImageCropper from "./ImageCropper.vue";
@@ -42,6 +42,10 @@ const emit = defineEmits(["update:showDetails", "update", "delete"]);
 
 // Local copy of member data
 const localMember = ref({});
+
+// The same gaps the full record names. The list row can only say how many;
+// wherever the record itself is open there is room to say which.
+const gaps = computed(() => missingMemberFields(localMember.value || {}));
 
 // Watch member changes to sync local copy
 watch(() => props.member, (newMember) => {
@@ -150,10 +154,10 @@ const sexOptions = [
       <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-6 py-4 flex items-center justify-between">
         <div>
           <h3 id="member-details-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">
-            {{ isEditMode ? 'Edit Member' : 'Member Details' }}
+            {{ isEditMode ? 'Edit Person' : 'Person Details' }}
           </h3>
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            {{ isEditMode ? 'All fields are editable' : 'Double-click any field to edit' }}
+            {{ isEditMode ? 'All fields are editable' : 'Changes save as you make them' }}
           </p>
         </div>
         <button
@@ -217,6 +221,29 @@ const sexOptions = [
 
       <!-- Scrollable Content -->
       <div v-else class="flex-1 overflow-y-auto p-5">
+        <!-- What is still missing, before the record rather than beside each
+             field: you want telling while the person is still in front of you. -->
+        <div
+          v-if="gaps.length"
+          class="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-500/25 dark:bg-amber-500/10"
+        >
+          <AlertCircle class="mt-0.5 h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" />
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-bold text-amber-800 dark:text-amber-300">
+              {{ gaps.length }} {{ gaps.length === 1 ? 'detail is' : 'details are' }} still missing
+            </p>
+            <div class="mt-1.5 flex flex-wrap gap-1.5">
+              <span
+                v-for="gap in gaps"
+                :key="gap.key"
+                class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold capitalize text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+              >
+                {{ gap.label }}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- Profile Section -->
         <div class="flex items-center gap-4 pb-5 mb-5 border-b border-gray-200 dark:border-gray-700">
           <MemberAvatar

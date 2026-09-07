@@ -252,9 +252,9 @@ useFocusTrap(dialogRef, () => props.showExport, () => emit("update:showExport", 
                 </div>
               </button>
               <p class="text-xs text-gray-500 dark:text-gray-400">
-                <template v-if="!isSearchNarrowing">Search the members list first to export just part of it</template>
-                <template v-else-if="exportConfig.onlyVisible">Exporting the {{ visibleCount }} members your search is showing</template>
-                <template v-else>Exporting all {{ members.length }} members</template>
+                <template v-if="!isSearchNarrowing">Search the people list first to export just part of it</template>
+                <template v-else-if="exportConfig.onlyVisible">Exporting the {{ visibleCount }} people your search is showing</template>
+                <template v-else>Exporting all {{ members.length }} people</template>
               </p>
             </div>
           </div>

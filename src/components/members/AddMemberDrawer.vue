@@ -134,7 +134,7 @@ const sexOptions = [
           <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-t-2xl border-b border-green-500/20 dark:border-green-400/20 px-4 sm:px-6 py-4 flex items-center justify-between">
             <div>
               <h3 id="add-member-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">
-                Add New Member
+                Add New Person
               </h3>
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Fill in the details below</p>
             </div>
@@ -443,7 +443,7 @@ const sexOptions = [
                       : 'text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 cursor-not-allowed'
                   ]"
                 >
-                  Add Member
+                  Add Person
                 </button>
                 <div
                   v-if="!canAddMember && addMemberTooltip"

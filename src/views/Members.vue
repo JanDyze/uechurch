@@ -27,7 +27,7 @@ import { usePermissions } from "../composables/usePermissions";
 import { useMinistries } from "../composables/useMinistries";
 import { areaLabel } from "../data/capabilities";
 import { groupByBand } from "../utils/ageBands";
-import { Tag, X, Church } from "../icons";
+import { ChevronDown, Church, Tag, X } from "../icons";
 import {
   subscribeToCustomTags,
   addCustomTag,
@@ -561,6 +561,36 @@ const isDrawerOpen = computed(() => {
 // The button would sit on top of whatever a drawer or the details modal is
 // showing, and both carry their own actions anyway.
 // While picking, the action bar owns the bottom of the screen.
+// Search is a mode now, not furniture. Closing it clears the query, because a
+// bar you cannot see must not still be filtering the list.
+const searchOpen = ref(false);
+const openSearch = () => {
+  searchOpen.value = true;
+};
+const closeSearch = () => {
+  searchOpen.value = false;
+  searchQuery.value = "";
+};
+
+// Whether the three tiles are worth their height is a per-person judgement, so
+// it is remembered per device rather than decided here.
+const SUMMARY_KEY = "uec.people.showSummary";
+const readSummary = () => {
+  try {
+    return localStorage.getItem(SUMMARY_KEY) !== "0";
+  } catch {
+    return true;
+  }
+};
+const showSummary = ref(readSummary());
+watch(showSummary, (on) => {
+  try {
+    localStorage.setItem(SUMMARY_KEY, on ? "1" : "0");
+  } catch {
+    /* the preference lasts the session */
+  }
+});
+
 const showFab = computed(
   () => !showAddMemberComputed.value && !showDetailsComputed.value && !picking.value
 );
@@ -568,25 +598,45 @@ const showFab = computed(
 
 <template>
   <div class="relative flex flex-col h-full">
-    <!-- Search, export and add -->
+    <!-- Opened from the plus button rather than always sitting there: an
+         always-on search bar costs a row of the list on every visit, and most
+         visits are a scroll rather than a lookup. -->
     <MembersToolbar
       v-model:searchQuery="searchQuery"
+      :open="searchOpen"
       :resultCount="filteredMembers.length"
       :totalCount="members.length"
       :canTag="canTag"
       @tag-results="openTagSheetForResults"
+      @close="closeSearch"
     />
 
     <!-- Members List -->
     <div class="flex-1 overflow-hidden bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex">
-      <!-- Members Content -->
-      <div class="flex-1 min-w-0 h-full overflow-y-auto pb-20">
-        <MembersSummary
-          :stats="stats"
-          :agedTotal="agedTotal"
-          :birthdayMonthLabel="birthdayMonthLabel"
-          :loading="loading"
-        />
+      <!-- Members Content. A column, so the tiles can sit above the scroller
+           rather than inside it: a summary that scrolls away is only a summary
+           for the first screenful. -->
+      <div class="flex flex-1 min-w-0 h-full flex-col">
+        <Transition name="summary">
+          <MembersSummary
+            v-if="showSummary"
+            :stats="stats"
+            :agedTotal="agedTotal"
+            :birthdayMonthLabel="birthdayMonthLabel"
+            :loading="loading"
+            @hide="showSummary = false"
+          />
+        </Transition>
+        <button
+          v-if="!showSummary"
+          @click="showSummary = true"
+          class="flex w-full shrink-0 items-center justify-center gap-1.5 border-b border-gray-200 py-2 text-[11px] font-semibold text-gray-400 transition-colors hover:text-gray-600 dark:border-gray-700 dark:hover:text-gray-300"
+        >
+          <ChevronDown class="h-3.5 w-3.5" />
+          Show summary
+        </button>
+
+        <div class="min-h-0 flex-1 overflow-y-auto pb-20">
 
       <!-- Grid on desktop, list on mobile - the viewport decides, not a toggle.
            Both are divided into age bands, each heading carrying its own count
@@ -665,8 +715,9 @@ const showFab = computed(
         </template>
 
         <div v-if="!loading && filteredMembers.length === 0" class="p-8 text-center text-gray-500 dark:text-gray-400">
-        No members found matching your search.
-      </div>
+          Nobody matches your search.
+        </div>
+        </div>
       </div>
 
       <!-- Add Member Drawer -->
@@ -785,6 +836,7 @@ const showFab = computed(
     <!-- Floating actions -->
     <MembersFab
       v-if="showFab"
+      @search="openSearch"
       @add="showAddMemberComputed = true"
       @export="showExport = true"
     />
@@ -819,6 +871,36 @@ const showFab = computed(
 </template>
 
 <style scoped>
+/* Collapsing tiles: height and opacity together, from a fixed max rather than
+   a measured one - the block is three tiles on one row at every width, so the
+   ceiling is known and no JS hook is needed to find it. */
+.summary-enter-active,
+.summary-leave-active {
+  transition:
+    max-height 0.25s ease,
+    opacity 0.2s ease;
+  overflow: hidden;
+}
+
+.summary-enter-from,
+.summary-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.summary-enter-to,
+.summary-leave-from {
+  max-height: 10rem;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .summary-enter-active,
+  .summary-leave-active {
+    transition: none;
+  }
+}
+
 /* Drawer column animations */
 .drawer-enter-active .add-member-drawer,
 .drawer-leave-active .add-member-drawer {

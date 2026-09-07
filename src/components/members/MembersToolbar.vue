@@ -1,7 +1,6 @@
 <script setup>
-import { computed } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { Search, X, Tag } from '../../icons';
-import SearchBar from "../common/SearchBar.vue";
 
 const props = defineProps({
   searchQuery: {
@@ -22,9 +21,15 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // The bar is not permanent any more - it is opened from the plus button and
+  // closes again, so the list gets the height back when nobody is searching.
+  open: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(["update:searchQuery", "tag-results"]);
+const emit = defineEmits(["update:searchQuery", "tag-results", "close"]);
 
 // Details live in the search bar now, so the placeholder has to teach that:
 // people only try typing a tag or a job if something tells them they can. The
@@ -35,10 +40,26 @@ const searchPlaceholder = "Name / tag / job — comma for several";
 
 // The count strip only earns its vertical space while a search is narrowing the list
 const showSummary = computed(() => !!props.searchQuery);
+
+// Opened from the plus button, so the caret belongs in the field already.
+const inputRef = ref(null);
+const desktopInputRef = ref(null);
+watch(
+  () => props.open,
+  async (isOpen) => {
+    if (!isOpen) return;
+    await nextTick();
+    (inputRef.value || desktopInputRef.value)?.focus();
+  }
+);
+
+// Escape closes it, and a close with nothing typed leaves the list unfiltered.
+const closeSearch = () => emit("close");
 </script>
 
 <template>
   <div
+    v-if="open"
     class="sticky top-0 z-40 mb-3 shrink-0 rounded-xl border border-gray-200/80 bg-white/95 px-2 py-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:px-3 lg:mb-4"
   >
     <!-- ==================== Mobile ==================== -->
@@ -48,23 +69,24 @@ const showSummary = computed(() => !!props.searchQuery);
         class="pointer-events-none absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-gray-400"
       />
       <input
+        ref="inputRef"
         :value="searchQuery"
         @input="emit('update:searchQuery', $event.target.value)"
+        @keyup.escape="closeSearch"
         type="text"
         inputmode="search"
         enterkeyhint="search"
         autocomplete="off"
         autocapitalize="off"
         spellcheck="false"
-        aria-label="Search members"
+        aria-label="Search people"
         :placeholder="searchPlaceholder"
         class="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9.5 pr-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-transparent focus:bg-white focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:focus:bg-gray-800"
       />
       <button
-        v-if="searchQuery"
-        @click="emit('update:searchQuery', '')"
+        @click="searchQuery ? emit('update:searchQuery', '') : closeSearch()"
         class="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 active:bg-gray-100 dark:active:bg-gray-700"
-        aria-label="Clear search"
+        :aria-label="searchQuery ? 'Clear search' : 'Close search'"
       >
         <X class="h-4 w-4" />
       </button>
@@ -90,11 +112,29 @@ const showSummary = computed(() => !!props.searchQuery);
 
     <!-- ==================== Desktop ==================== -->
     <div class="hidden w-full items-center justify-between gap-2 lg:flex">
-      <SearchBar
-        :model-value="searchQuery"
-        @update:model-value="emit('update:searchQuery', $event)"
-        :placeholder="searchPlaceholder"
-      />
+      <div class="relative flex-1">
+        <Search
+          class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+        />
+        <input
+          ref="desktopInputRef"
+          :value="searchQuery"
+          @input="emit('update:searchQuery', $event.target.value)"
+          @keyup.escape="closeSearch"
+          type="text"
+          autocomplete="off"
+          aria-label="Search people"
+          :placeholder="searchPlaceholder"
+          class="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-9 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-primary placeholder:text-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+        />
+        <button
+          @click="searchQuery ? emit('update:searchQuery', '') : closeSearch()"
+          class="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          :aria-label="searchQuery ? 'Clear search' : 'Close search'"
+        >
+          <X class="h-4 w-4" />
+        </button>
+      </div>
 
       <span
         v-if="showSummary"

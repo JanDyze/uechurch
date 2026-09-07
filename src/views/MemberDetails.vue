@@ -1,15 +1,77 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Trash2, Calendar, MapPin, Phone, Briefcase, Users, Tag, User, Image as ImageIcon } from '../icons'
+import { AlertCircle, ArrowLeft, Check, Edit2, Trash2, Calendar, MapPin, Phone, Briefcase, Users, Tag, User, Image as ImageIcon } from '../icons'
 import { useMembers } from '../composables/useMembers'
-import { getFullName, getSexIcon, getSexIconColor, calculateAgeFromDate, mergeTagSources, CIVIL_STATUS_OPTIONS as civilStatusOptions } from '../utils/memberUtils'
+import { getFullName, getSexIcon, getSexIconColor, calculateAgeFromDate, mergeTagSources, missingMemberFields, CIVIL_STATUS_OPTIONS as civilStatusOptions } from '../utils/memberUtils'
 import { subscribeToCustomTags } from '../api/tagsService'
 import MemberAvatar from '../components/members/MemberAvatar.vue'
 import YouBadge from '../components/members/YouBadge.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import ImageCropper from '../components/members/ImageCropper.vue'
 import InlineEditField from '../components/common/InlineEditField.vue'
+
+// The list can only say a record is thin. Here there is room to say which
+// parts, so the person looking at it knows what to ask for.
+const gaps = computed(() => (localMember.value ? missingMemberFields(localMember.value) : []))
+
+// The record is edited as a record. Per-field pencils asked which field you
+// meant before you had decided you were editing anything.
+const isEditMode = ref(false)
+
+/**
+ * What the record says, grouped and in plain language.
+ *
+ * Reading and editing want different shapes. A form is a column of one field
+ * per row because every field needs a control; a record is not — "12 March
+ * 1990 · 35 · Female · Single" is one fact about a person and belongs on one
+ * line. The two-column grid of boxed rows was the form's shape borrowed for
+ * reading, which is why it took a screen and a half to say very little.
+ *
+ * Empty values are kept and shown greyed rather than dropped: a record you can
+ * see the holes in is the point, and the banner above only counts them.
+ */
+const fmtDate = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime())
+    ? ''
+    : d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+const factGroups = computed(() => {
+  const m = localMember.value || {}
+  const age = calculateAgeFromDate(m.dateOfBirth)
+  return [
+    {
+      key: 'personal',
+      label: 'Personal',
+      icon: User,
+      lines: [
+        [
+          { text: fmtDate(m.dateOfBirth), missing: 'Birthday not set' },
+          { text: age !== undefined ? `${age} years old` : '' },
+          { text: m.sex, missing: 'Sex not set' },
+          { text: m.civilStatus },
+        ],
+        [{ text: m.nickname ? `Goes by “${m.nickname}”` : '' }],
+      ],
+    },
+    {
+      key: 'contact',
+      label: 'Contact',
+      icon: Phone,
+      lines: [
+        [{ text: m.contactNumber, missing: 'No contact number' }],
+        [{ text: m.address, missing: 'No address' }],
+        [{ text: m.occupation, missing: 'No occupation recorded' }],
+      ],
+    },
+  ]
+})
+
+/** Drop the empties a line would otherwise render as stray separators. */
+const shownParts = (parts) => parts.filter((p) => p.text || p.missing)
 
 const route = useRoute()
 const router = useRouter()
@@ -139,9 +201,13 @@ const sexOptions = [
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
+  <!-- A focus route gets the raw box, so the padding and the safe areas are
+       this page's own - there is no layout chrome left to provide them. -->
+  <div
+    class="h-full flex flex-col px-3 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[env(safe-area-inset-bottom)] sm:px-4 lg:px-8 lg:pt-3"
+  >
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-4">
       <button
         @click="router.push('/members')"
         class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
@@ -151,12 +217,32 @@ const sexOptions = [
       </button>
       
       <div v-if="member" class="flex items-center gap-2">
-        <span class="text-xs text-gray-500 dark:text-gray-400 mr-2">Changes save automatically</span>
+        <span
+          v-if="isEditMode"
+          class="hidden text-xs text-gray-500 dark:text-gray-400 mr-1 sm:inline"
+        >
+          Changes save as you make them
+        </span>
+        <button
+          @click="isEditMode = !isEditMode"
+          :aria-label="isEditMode ? 'Done editing' : 'Edit this record'"
+          :title="isEditMode ? 'Done' : 'Edit'"
+          :class="[
+            'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+            isEditMode
+              ? 'bg-primary text-white hover:bg-primary-hover'
+              : 'border border-gray-200 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700',
+          ]"
+        >
+          <Check v-if="isEditMode" class="h-4 w-4" />
+          <Edit2 v-else class="h-4 w-4" />
+          {{ isEditMode ? 'Done' : 'Edit' }}
+        </button>
         <button
           @click="handleDelete"
           class="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
-          title="Delete Member"
-          aria-label="Delete member"
+          title="Delete"
+          aria-label="Delete this person"
         >
           <Trash2 class="h-5 w-5" />
         </button>
@@ -183,6 +269,30 @@ const sexOptions = [
     <!-- Member Content with Inline Editing -->
     <div v-else class="flex-1 overflow-y-auto">
       <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <!-- What is still missing. Above the record rather than beside each
+             field: the point is to be told before reading, so you know what to
+             ask for while the person is still in front of you. -->
+        <div
+          v-if="gaps.length"
+          class="flex items-start gap-2.5 border-b border-amber-200 bg-amber-50 px-6 py-3 dark:border-amber-500/25 dark:bg-amber-500/10"
+        >
+          <AlertCircle class="mt-0.5 h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" />
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-bold text-amber-800 dark:text-amber-300">
+              {{ gaps.length }} {{ gaps.length === 1 ? 'detail is' : 'details are' }} still missing
+            </p>
+            <div class="mt-1.5 flex flex-wrap gap-1.5">
+              <span
+                v-for="gap in gaps"
+                :key="gap.key"
+                class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold capitalize text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+              >
+                {{ gap.label }}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- Profile Header -->
         <div class="p-8 bg-linear-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary-light/15 dark:via-primary-light/5">
           <div class="flex items-start gap-6">
@@ -235,12 +345,63 @@ const sexOptions = [
 
         <!-- Editable Fields -->
         <div class="p-6">
-          <p class="text-xs text-gray-500 dark:text-gray-400 mb-6 flex items-center gap-2">
-            <span class="inline-block w-2 h-2 rounded-full bg-primary dark:bg-primary-light animate-pulse"></span>
-            Double-click any field to edit
-          </p>
-          
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <!-- Reading: the record as prose-shaped facts, grouped, one column,
+               related things on the same line. -->
+          <div v-if="!isEditMode" class="space-y-6">
+            <section v-for="group in factGroups" :key="group.key">
+              <h3
+                class="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500"
+              >
+                <component :is="group.icon" class="h-3.5 w-3.5" />
+                {{ group.label }}
+              </h3>
+              <div class="space-y-1.5 pl-5.5">
+                <p
+                  v-for="(line, i) in group.lines"
+                  :key="i"
+                  class="text-sm"
+                >
+                  <template v-for="(part, j) in shownParts(line)" :key="j">
+                    <span v-if="j" class="px-1.5 text-gray-300 dark:text-gray-600">·</span>
+                    <span
+                      :class="part.text ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'"
+                    >
+                      {{ part.text || part.missing }}
+                    </span>
+                  </template>
+                </p>
+              </div>
+            </section>
+
+            <!-- Ministries and tags keep their chips: a list of names is not a
+                 sentence, and reads faster as the things it is. -->
+            <section>
+              <h3
+                class="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500"
+              >
+                <Tag class="h-3.5 w-3.5" />
+                Church
+              </h3>
+              <div class="space-y-2 pl-5.5">
+                <p class="text-sm text-gray-900 dark:text-white">
+                  {{ localMember.isMember ? 'Church member' : 'Attendee' }}
+                </p>
+                <div v-if="(localMember.tags || []).length" class="flex flex-wrap gap-1.5">
+                  <span
+                    v-for="tag in localMember.tags"
+                    :key="tag"
+                    class="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary dark:bg-primary-light/20 dark:text-primary-light"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+                <p v-else class="text-sm text-gray-400 dark:text-gray-500">No tags assigned</p>
+              </div>
+            </section>
+          </div>
+
+          <!-- Editing: one control per field, which is what a form is for. -->
+          <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Left Column - Personal Information -->
             <section class="space-y-5">
               <h3 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-2">
@@ -252,12 +413,14 @@ const sexOptions = [
                 <!-- Name Fields -->
                 <div class="grid grid-cols-2 gap-4">
                   <InlineEditField
+                    :forceEdit="isEditMode"
                     v-model="localMember.firstName"
                     label="First Name"
                     type="text"
                     @save="handleFieldSave('firstName', $event)"
                   />
                   <InlineEditField
+                    :forceEdit="isEditMode"
                     v-model="localMember.lastName"
                     label="Last Name"
                     type="text"
@@ -268,6 +431,7 @@ const sexOptions = [
                 <!-- Nickname, Gender -->
                 <div class="grid grid-cols-2 gap-4">
                   <InlineEditField
+                    :forceEdit="isEditMode"
                     v-model="localMember.nickname"
                     label="Nickname"
                     type="text"
@@ -275,6 +439,7 @@ const sexOptions = [
                     @save="handleFieldSave('nickname', $event)"
                   />
                   <InlineEditField
+                    :forceEdit="isEditMode"
                     v-model="localMember.sex"
                     label="Gender"
                     type="select"
@@ -286,6 +451,7 @@ const sexOptions = [
                 <!-- Civil Status, Date of Birth -->
                 <div class="grid grid-cols-2 gap-4">
                   <InlineEditField
+                    :forceEdit="isEditMode"
                     v-model="localMember.civilStatus"
                     label="Civil Status"
                     type="select"
@@ -293,6 +459,7 @@ const sexOptions = [
                     @save="handleFieldSave('civilStatus', $event)"
                   />
                   <InlineEditField
+                    :forceEdit="isEditMode"
                     v-model="localMember.dateOfBirth"
                     label="Date of Birth"
                     type="date"
@@ -312,6 +479,7 @@ const sexOptions = [
               
               <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-5 space-y-5">
                 <InlineEditField
+                    :forceEdit="isEditMode"
                   v-model="localMember.contactNumber"
                   label="Phone Number"
                   type="tel"
@@ -319,6 +487,7 @@ const sexOptions = [
                 />
                 
                 <InlineEditField
+                    :forceEdit="isEditMode"
                   v-model="localMember.address"
                   label="Address"
                   type="textarea"
@@ -326,6 +495,7 @@ const sexOptions = [
                 />
                 
                 <InlineEditField
+                    :forceEdit="isEditMode"
                   v-model="localMember.occupation"
                   label="Occupation"
                   type="text"
@@ -333,6 +503,7 @@ const sexOptions = [
                 />
                 
                 <InlineEditField
+                    :forceEdit="isEditMode"
                   v-model="localMember.tags"
                   label="Ministry Tags"
                   type="tags"

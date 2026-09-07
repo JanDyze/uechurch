@@ -9,10 +9,11 @@ const props = defineProps({
 
 const missing = computed(() => missingMemberDetails(props.member))
 
-// Prompts, without itemising. Naming every gap turned a screen of thin records
-// into a wall of amber sentences and pushed the names themselves aside - and
-// the answer is one tap away in the record. The list still rides along in the
-// tooltip and the accessible name, where it costs no space.
+// A count, not a list. Naming every gap turned a screen of thin records into a
+// wall of amber sentences and pushed the names themselves aside; a bare icon
+// went the other way and said nothing at all on a phone, where there is no
+// hover to reveal the tooltip. The number says how thin without spending a
+// line, and the record itself now names them.
 const label = computed(() => `Missing ${listPhrase(missing.value)}`)
 </script>
 
@@ -21,9 +22,9 @@ const label = computed(() => `Missing ${listPhrase(missing.value)}`)
     v-if="missing.length"
     :title="label"
     :aria-label="label"
-    role="img"
-    class="inline-flex shrink-0 text-amber-500 dark:text-amber-400"
+    class="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
   >
-    <AlertCircle class="h-3.5 w-3.5" />
+    <AlertCircle class="h-3 w-3" />
+    {{ missing.length }}
   </span>
 </template>

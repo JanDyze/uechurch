@@ -1,31 +1,32 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { Plus, Download, UserPlus } from "../../icons";
+import { Plus, Download, Search, UserPlus } from "../../icons";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 import { usePermissions } from "../../composables/usePermissions";
 
 const { canManage } = usePermissions();
 
-const emit = defineEmits(["add", "export"]);
+const emit = defineEmits(["add", "export", "search"]);
 
 const open = ref(false);
 
 const canAdd = computed(() => canManage("members"));
 
 const actions = computed(() => {
-  const list = [];
+  // Search leads: it is the thing people reach for most, and it lives here now
+  // that the list no longer carries a permanent bar for it.
+  const list = [{ key: "search", label: "Search", icon: Search, event: "search" }];
   if (canAdd.value) {
-    list.push({ key: "add", label: "Add member", icon: UserPlus, event: "add" });
+    list.push({ key: "add", label: "Add person", icon: UserPlus, event: "add" });
   }
   list.push({ key: "export", label: "Export", icon: Download, event: "export" });
   return list;
 });
 
-// With nothing to choose between, a menu is just an extra tap: someone who
-// cannot add members gets a button that exports.
+// Kept for the degenerate case, though search means the list is never empty.
 const isSingleAction = computed(() => actions.value.length === 1);
 
-const fabIcon = computed(() => (canAdd.value ? Plus : Download));
+const fabIcon = computed(() => (canAdd.value ? Plus : Search));
 
 const close = () => {
   open.value = false;
