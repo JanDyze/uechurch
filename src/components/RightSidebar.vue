@@ -1,21 +1,59 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Users, X } from '../icons'
+import { useRouter } from 'vue-router'
+import { ChevronLeft, ChevronRight, ChevronRight as Chevron, LogOut, Moon, Sun, Users, X } from '../icons'
 import { usePresence } from '../composables/usePresence'
 import { useAuth } from '../composables/useAuth'
 import { useAvatars } from '../composables/useAvatars'
 import { useFocusTrap } from '../composables/useFocusTrap'
+import { useSwipeDismiss } from '../composables/useSwipeDismiss'
 import { useMediaQuery } from '../composables/useMediaQuery'
 import ActivePeopleList from './people/ActivePeopleList.vue'
 import MemberAvatar from './members/MemberAvatar.vue'
+import { useTheme } from '../composables/useTheme'
+import { useToast } from '../composables/useToast'
+import { useMyMember } from '../composables/useMyMember'
+import { getFullName } from '../utils/memberUtils'
 
 // The people rail. On a wide screen it is a permanent right-hand column, the
 // way Facebook keeps its contacts list; anywhere narrower it collapses into a
 // drawer opened from the Topbar, since the content column needs the width more
 // than the rail does.
 const { visitors, onlineCount, showPeoplePanel, isRailCollapsed, toggleRail } = usePresence()
-const { displayName } = useAuth()
+const { displayName, logout } = useAuth()
+const router = useRouter()
+
+// On a phone this drawer is the account surface: who you are, your profile and
+// the theme, alongside who else is here. Notifications keep a drawer of their
+// own off the bell - they are a feed you come to read, not a setting.
+const { isDark, toggleTheme } = useTheme()
+const { isLinked } = useMyMember()
+
 const { accountMember, accountAvatarUrl, myMember, myAvatarUrl } = useAvatars()
+
+const toast = useToast()
+const signingOut = ref(false)
+
+const handleLogout = async () => {
+  if (signingOut.value) return
+  signingOut.value = true
+  try {
+    await logout()
+    showPeoplePanel.value = false
+    toast.success('Signed out')
+    router.push('/login')
+  } catch {
+    toast.error('Could not sign out. Please try again.')
+  } finally {
+    signingOut.value = false
+  }
+}
+
+const openMyProfile = () => {
+  showPeoplePanel.value = false
+  router.push(`/members/${myMember.value.id || myMember.value.firestoreId}`)
+}
+
 
 // Collapsed, the rail is a strip of faces. Past a handful it would run off the
 // bottom of a laptop screen, so the rest are counted instead.
@@ -36,6 +74,16 @@ const onlineLabel = computed(() =>
     ? `You and ${onlineCount.value} ${onlineCount.value === 1 ? 'other' : 'others'} online`
     : 'You are the only one online'
 )
+
+// Came in from the right, so it goes back out that way. The whole panel is the
+// target; the people list still scrolls, because the swipe stands down unless
+// a vertical drag is clearly horizontal instead.
+const { swipeTarget: drawerSwipe, swipeStyle: drawerStyle } = useSwipeDismiss({
+  direction: 'right',
+  onDismiss: () => {
+    showPeoplePanel.value = false
+  },
+})
 
 const drawerRef = ref(null)
 useFocusTrap(drawerRef, showPeoplePanel, () => {
@@ -59,7 +107,7 @@ watch(railIsVisible, (visible) => {
     ]"
   >
     <div
-      class="shrink-0 flex items-center gap-2 h-16 px-3 border-b border-gray-100 dark:border-slate-900"
+      class="shrink-0 flex items-center gap-2 h-12 px-3 border-b border-gray-100 dark:border-slate-900"
     >
       <template v-if="!isRailCollapsed">
         <Users class="h-4 w-4 shrink-0 text-primary dark:text-primary-light" />
@@ -163,18 +211,74 @@ watch(railIsVisible, (visible) => {
           aria-modal="true"
           aria-labelledby="people-drawer-title"
           tabindex="-1"
+          v-bind="drawerSwipe"
+          :style="drawerStyle()"
           class="people-panel absolute inset-y-0 right-0 w-[19rem] max-w-[85vw] flex flex-col bg-white dark:bg-slate-950 shadow-2xl border-l border-gray-200 dark:border-slate-800"
         >
+          <!-- Who you are, first: this drawer is the account surface on a
+               phone, not only the list of who else is here. The name is the
+               way into your own profile - the chevron says so, so nothing has
+               to spell it out - and the address is not shown at all, since you
+               are the one person who does not need telling. -->
           <div
-            class="shrink-0 flex items-center gap-2 h-16 px-4 border-b border-gray-100 dark:border-slate-900 pt-[env(safe-area-inset-top)]"
+            class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-slate-900 pt-[calc(0.75rem+env(safe-area-inset-top))]"
           >
-            <Users class="h-4 w-4 text-primary dark:text-primary-light" />
-            <h2
-              id="people-drawer-title"
-              class="flex-1 text-sm font-bold text-gray-900 dark:text-white"
+            <component
+              :is="isLinked ? 'button' : 'div'"
+              v-bind="isLinked ? { onClick: openMyProfile, 'aria-label': 'My profile' } : {}"
+              :class="[
+                'flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left transition-colors',
+                isLinked ? '-m-1 p-1 hover:bg-gray-100 dark:hover:bg-white/5' : '',
+              ]"
             >
-              Online Souls
-            </h2>
+              <MemberAvatar
+                :member="myMember"
+                :src="myAvatarUrl"
+                alt=""
+                size="w-10 h-10"
+                plain-class="border-2 border-primary/20"
+              />
+              <span class="min-w-0 flex-1">
+                <span
+                  id="people-drawer-title"
+                  class="block truncate text-sm font-bold text-gray-900 dark:text-white"
+                >
+                  {{ isLinked ? getFullName(myMember) : displayName }}
+                </span>
+              </span>
+              <Chevron
+                v-if="isLinked"
+                class="h-4 w-4 shrink-0 text-gray-300 dark:text-slate-600"
+              />
+            </component>
+            <button
+              @click="showPeoplePanel = false"
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+              aria-label="Close"
+            >
+              <X class="h-5 w-5" />
+            </button>
+          </div>
+
+          <div class="shrink-0 border-b border-gray-100 px-3 py-2 dark:border-slate-900">
+            <!-- The toggle used to be its own button on the topbar. -->
+            <button
+              @click="toggleTheme($event)"
+              class="flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/5"
+            >
+              <Sun v-if="isDark" class="h-4 w-4 shrink-0 text-primary dark:text-primary-light" />
+              <Moon v-else class="h-4 w-4 shrink-0 text-primary dark:text-primary-light" />
+              <span class="flex-1 text-[11px] font-bold text-gray-900 dark:text-white">
+                {{ isDark ? 'Light mode' : 'Dark mode' }}
+              </span>
+            </button>
+          </div>
+
+          <div class="flex shrink-0 items-center gap-2 px-4 pt-3 pb-1.5">
+            <Users class="h-3.5 w-3.5 text-gray-400 dark:text-slate-500" />
+            <h3 class="flex-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-slate-500">
+              Online
+            </h3>
             <span
               class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 dark:text-slate-500"
               :title="onlineLabel"
@@ -183,19 +287,25 @@ watch(railIsVisible, (visible) => {
               <span class="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
               {{ onlineCount + 1 }}
             </span>
-            <button
-              @click="showPeoplePanel = false"
-              class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-              aria-label="Close"
-            >
-              <X class="h-5 w-5" />
-            </button>
           </div>
 
-          <ActivePeopleList
-            class="flex-1 min-h-0 pb-[env(safe-area-inset-bottom)]"
-            @navigate="showPeoplePanel = false"
-          />
+          <ActivePeopleList class="flex-1 min-h-0 overscroll-contain" @navigate="showPeoplePanel = false" />
+
+          <!-- Last thing in the drawer, under everything it belongs to: this is
+               the account surface on a phone, and signing out is the one action
+               here you do not want to hit by accident on the way past. -->
+          <div
+            class="shrink-0 border-t border-gray-100 px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] dark:border-slate-900"
+          >
+            <button
+              @click="handleLogout"
+              :disabled="signingOut"
+              class="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:border-slate-800 dark:text-slate-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+            >
+              <LogOut class="h-3.5 w-3.5" />
+              {{ signingOut ? 'Signing out…' : 'Sign out' }}
+            </button>
+          </div>
         </div>
       </div>
     </Transition>
