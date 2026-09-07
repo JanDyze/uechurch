@@ -11,6 +11,7 @@ import {
   DEFAULT_SHOW_BEFORE,
   showBeforeLabel,
 } from '../composables/useRecurringSchedules'
+import { addDays, formatShortDate, scheduleFallsOn } from '../../lib/occurrences'
 import { useToast } from '../composables/useToast'
 import { useMediaQuery } from '../composables/useMediaQuery'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
@@ -124,9 +125,11 @@ const openEdit = (schedule) => {
     occasions: (schedule.occasions || []).map((occasion) => ({
       label: occasion.label,
       occurrences: [...(occasion.occurrences || [])],
+      dates: [...(occasion.dates || [])],
     })),
   }
   occasionDraft.value = blankOccasion()
+  occasionDateDraft.value = ''
   showEditor.value = true
 }
 
@@ -134,13 +137,15 @@ const closeEditor = () => {
   showEditor.value = false
   editing.value = null
   occasionDraft.value = blankOccasion()
+  occasionDateDraft.value = ''
 }
 
-/* Occasions — communion on the first Sunday, the birthday bash on the last.
+/* Occasions — communion on the first Sunday, the birthday bash on the last,
+   the Christmas party on the Sunday before it.
    Deliberately not separate schedules: they happen inside this gathering, and
    a second schedule would put a second entry on the calendar and a second row
    on the attendance page for the same room of people. */
-const blankOccasion = () => ({ label: '', occurrences: [] })
+const blankOccasion = () => ({ label: '', occurrences: [], dates: [] })
 const occasionDraft = ref(blankOccasion())
 
 const toggleDraftOccurrence = (value) => {
@@ -151,10 +156,47 @@ const toggleDraftOccurrence = (value) => {
   occasionDraft.value.occurrences = sortOccurrences(list)
 }
 
-// A label with no weeks would mark every service, which is not an occasion —
-// it is just a different name for the gathering.
+/* The other way to say when: the day itself. Grandparents Day, the
+   anniversary and Pastor's Appreciation are not "the fourth Sunday" in any way
+   that survives to next year, so they are pinned to the dates they fall on. */
+const occasionDateDraft = ref('')
+
+const addDraftDate = () => {
+  const date = occasionDateDraft.value
+  if (!date || occasionDraft.value.dates.includes(date)) return
+  occasionDraft.value.dates = [...occasionDraft.value.dates, date].sort()
+  occasionDateDraft.value = ''
+}
+
+const removeDraftDate = (date) => {
+  occasionDraft.value.dates = occasionDraft.value.dates.filter((d) => d !== date)
+}
+
+// Christmas Day 2026 is a Friday. A date this gathering does not meet on saves
+// happily and then marks nothing, so it is caught while it is being typed
+// rather than discovered in December.
+const draftDateMisses = computed(
+  () => Boolean(occasionDateDraft.value) && !scheduleFallsOn(form.value, occasionDateDraft.value)
+)
+
+/** The closest day this gathering does meet, to offer instead. */
+const nearestOccurrence = computed(() => {
+  if (!draftDateMisses.value) return ''
+  for (let offset = 1; offset <= 31; offset += 1) {
+    for (const direction of [-1, 1]) {
+      const candidate = addDays(occasionDateDraft.value, offset * direction)
+      if (scheduleFallsOn(form.value, candidate)) return candidate
+    }
+  }
+  return ''
+})
+
+// A label with neither rule would mark every service, which is not an
+// occasion — it is just a different name for the gathering.
 const canAddOccasion = computed(
-  () => occasionDraft.value.label.trim().length > 0 && occasionDraft.value.occurrences.length > 0
+  () =>
+    occasionDraft.value.label.trim().length > 0 &&
+    (occasionDraft.value.occurrences.length > 0 || occasionDraft.value.dates.length > 0)
 )
 
 const addOccasion = () => {
@@ -164,24 +206,43 @@ const addOccasion = () => {
     {
       label: occasionDraft.value.label.trim(),
       occurrences: [...occasionDraft.value.occurrences],
+      dates: [...occasionDraft.value.dates],
     },
   ]
   occasionDraft.value = blankOccasion()
+  occasionDateDraft.value = ''
 }
 
 const removeOccasion = (index) => {
   form.value.occasions = form.value.occasions.filter((_, i) => i !== index)
 }
 
-/** "1st Sunday" / "Last Sunday" / "1st, 3rd Sunday" */
+/** "Sun 20 Dec 2026" — the year is shown because a dated occasion is that
+    year's only: next year the same Sunday falls on a different date. */
+const formatOccasionDate = (date) => `${formatShortDate(date)} ${String(date).slice(0, 4)}`
+
+/** "1st Sunday" / "Last Sunday" / "Sun 20 Dec 2026" / both, joined */
 const describeOccasion = (occasion) => {
   const day = weekdayLabel(form.value.weekday)
-  if (!occasion.occurrences?.length) return `Every ${day}`
-  const ordinals = sortOccurrences(occasion.occurrences)
-    .map((o) => OCCURRENCES.find((x) => x.value === o)?.label)
-    .filter(Boolean)
-    .join(', ')
-  return `${ordinals} ${day}`
+  const parts = []
+
+  if (occasion.occurrences?.length) {
+    const ordinals = sortOccurrences(occasion.occurrences)
+      .map((o) => OCCURRENCES.find((x) => x.value === o)?.label)
+      .filter(Boolean)
+      .join(', ')
+    parts.push(`${ordinals} ${day}`)
+  }
+
+  // A year of anniversaries would run off the end of one line, so the tail is
+  // counted rather than listed.
+  if (occasion.dates?.length) {
+    const shown = occasion.dates.slice(0, 3).map(formatOccasionDate).join(', ')
+    const rest = occasion.dates.length - 3
+    parts.push(rest > 0 ? `${shown} +${rest} more` : shown)
+  }
+
+  return parts.length ? parts.join(' · ') : `Every ${day}`
 }
 
 // Empty selection means "every occurrence"
@@ -615,9 +676,10 @@ const formatTime = (time) => {
                   Occasions
                 </label>
                 <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">
-                  Something this gathering also is on certain weeks — communion,
-                  a birthday bash. It marks the same service; there is still one
-                  entry on the calendar and one attendance sheet.
+                  Something this gathering also is — communion, a birthday bash,
+                  Pastor's Appreciation. Set it by week of the month, or pin it
+                  to a date. It marks the same service; there is still one entry
+                  on the calendar and one attendance sheet.
                 </p>
 
                 <ul v-if="form.occasions.length" class="mb-2 space-y-1.5">
@@ -668,6 +730,61 @@ const formatTime = (time) => {
                       {{ occurrence.label }}
                     </button>
                   </div>
+
+                  <!-- ...or on the day itself, for the occasions no ordinal can
+                       describe: Christmas, the anniversary, whichever Sunday
+                       Teacher's Day is being kept on this year. -->
+                  <p class="text-xs text-gray-400 dark:text-gray-500">or on a date</p>
+
+                  <div class="flex gap-1">
+                    <input
+                      v-model="occasionDateDraft"
+                      type="date"
+                      class="h-10 min-w-0 flex-1 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
+                    />
+                    <button
+                      @click="addDraftDate"
+                      :disabled="!occasionDateDraft"
+                      :class="[
+                        'h-10 shrink-0 rounded-lg px-3 text-xs font-semibold transition-colors',
+                        occasionDateDraft
+                          ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200'
+                          : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500',
+                      ]"
+                    >
+                      Add date
+                    </button>
+                  </div>
+
+                  <!-- Saving a date the gathering does not meet on would mark
+                       nothing at all, so say so, and offer the day it does. -->
+                  <p
+                    v-if="draftDateMisses"
+                    class="text-xs text-amber-600 dark:text-amber-400"
+                  >
+                    {{ weekdayLabel(form.weekday) }}s only — this date is not one.
+                    <button
+                      v-if="nearestOccurrence"
+                      @click="occasionDateDraft = nearestOccurrence"
+                      class="font-semibold underline"
+                    >
+                      Use {{ formatOccasionDate(nearestOccurrence) }}
+                    </button>
+                  </p>
+
+                  <div v-if="occasionDraft.dates.length" class="flex flex-wrap gap-1">
+                    <button
+                      v-for="date in occasionDraft.dates"
+                      :key="`draft-date-${date}`"
+                      @click="removeDraftDate(date)"
+                      :aria-label="`Remove ${formatOccasionDate(date)}`"
+                      class="flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1.5 text-xs font-medium text-primary dark:bg-primary-light/15 dark:text-primary-light"
+                    >
+                      {{ formatOccasionDate(date) }}
+                      <X class="h-3 w-3" />
+                    </button>
+                  </div>
+
                   <button
                     @click="addOccasion"
                     :disabled="!canAddOccasion"
