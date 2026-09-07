@@ -5,9 +5,9 @@ import { Bell, Sun, Moon, X, Users, LogOut, UserCheck, UserPlus, Clock3, Chevron
 import { useRouter } from "vue-router";
 import { useTheme } from "../composables/useTheme";
 import { useNotifications } from "../composables/useNotifications";
-import { useEmailDigest } from "../composables/useEmailDigest";
-import { subscribeToNotifications } from "../api/notifyService";
+import { useNotificationFeed, timeAgo } from "../composables/useNotificationFeed";
 import { useFocusTrap } from "../composables/useFocusTrap";
+import { useSwipeDismiss } from "../composables/useSwipeDismiss";
 import { useAuth } from "../composables/useAuth";
 import { useAvatars } from "../composables/useAvatars";
 import { useToast } from "../composables/useToast";
@@ -15,6 +15,7 @@ import { useMembers } from "../composables/useMembers";
 import { useMyMember } from "../composables/useMyMember";
 import { useMemberClaims } from "../composables/useMemberClaims";
 import { usePresence } from "../composables/usePresence";
+import { useMediaQuery } from "../composables/useMediaQuery";
 import { usePermissions } from "../composables/usePermissions";
 import { canReceive } from "../../lib/notifications";
 import { notificationIcon, toneClass } from "../utils/notificationIcons";
@@ -31,56 +32,19 @@ const { myAvatarUrl } = useAvatars();
 const toast = useToast();
 const { isEnabled: notificationsEnabled, enabling, enable } = useNotifications();
 
-// Email digests sit next to the push switch because they answer the same
-// question — how do I hear about what is on — and Settings, where the rest of
-// the controls live, is administrators only.
-const {
-  isEnabled: emailDigestsEnabled,
-  saving: savingEmailDigests,
-  toggleEnabled: toggleEmailDigests,
-} = useEmailDigest();
-
-const handleEmailDigestToggle = async () => {
-  try {
-    await toggleEmailDigests();
-    toast.success(
-      emailDigestsEnabled.value ? "Email digests on" : "Email digests off"
-    );
-  } catch (e) {
-    console.error("Error saving email digest preference:", e);
-    toast.error("Could not save that. Please try again.");
-  }
-};
+// No digest switch here any more: the digest is simply sent. api/email.js has
+// always treated it as opt-out, so an account that never touches a setting
+// gets one — which is what "automatic" means. Administrators still have the
+// wider controls in Settings.
 
 // Notifications panel + history
 const isNotifOpen = ref(false);
-const notifications = ref([]);
-const lastSeenNotif = ref(Number(localStorage.getItem("uec_notif_last_seen") || 0));
-
-// The history is one collection everyone can read, so the panel has to apply
-// the same gate api/notify.js applied when it chose who to push to — otherwise
-// a prayer concern would be readable here by someone who cannot open the page
-// it links to. Entries from before kinds existed carry none and stay visible.
 const { isAdmin, capabilities } = usePermissions();
-const visibleNotifications = computed(() =>
-  notifications.value.filter((n) =>
-    canReceive(n.kind, { isAdmin: isAdmin.value, capabilities: capabilities.value })
-  )
-);
-
-const unreadCount = computed(
-  () =>
-    visibleNotifications.value.filter(
-      (n) => n.sentAt && n.sentAt.toMillis() > lastSeenNotif.value
-    ).length
-);
+const { visibleNotifications, unreadCount, markSeen } = useNotificationFeed();
 
 const toggleNotifPanel = () => {
   isNotifOpen.value = !isNotifOpen.value;
-  if (isNotifOpen.value) {
-    lastSeenNotif.value = Date.now();
-    localStorage.setItem("uec_notif_last_seen", String(lastSeenNotif.value));
-  }
+  if (isNotifOpen.value) markSeen();
 };
 
 const openNotification = (n) => {
@@ -90,24 +54,6 @@ const openNotification = (n) => {
   else router.push(url);
 };
 
-const timeAgo = (ts) => {
-  if (!ts) return "just now";
-  const s = Math.floor((Date.now() - ts.toMillis()) / 1000);
-  if (s < 60) return "just now";
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return ts.toDate().toLocaleDateString();
-};
-
-let unsubscribeNotifications = null;
-onMounted(() => {
-  unsubscribeNotifications = subscribeToNotifications((list) => (notifications.value = list));
-});
-onUnmounted(() => unsubscribeNotifications?.());
 const isMenuOpen = ref(false);
 
 const toggleMenu = () => {
@@ -118,7 +64,7 @@ const pageTitle = computed(() => {
   const routeNames = {
     Home: 'Dashboard',
     Members: 'People',
-    MemberDetails: 'Member',
+    MemberDetails: 'Person',
     MinuteDetails: 'Minutes',
     PrayerConcerns: 'Prayer Concerns'
   };
@@ -129,6 +75,17 @@ const pageTitle = computed(() => {
 // Live presence now belongs to the people rail; the Topbar only carries the
 // button that opens it on screens too narrow for the permanent column.
 const { onlineCount, showPeoplePanel, togglePeoplePanel } = usePresence()
+
+// The dropdown is a desktop affordance; a phone gets the drawer instead.
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+
+// Same gesture as the drawer beside it, so the two behave alike.
+const { swipeTarget: notifSwipe, swipeStyle: notifStyle } = useSwipeDismiss({
+  direction: 'right',
+  onDismiss: () => {
+    isNotifOpen.value = false
+  },
+})
 
 const notifPanelRef = ref(null)
 useFocusTrap(notifPanelRef, isNotifOpen, () => { isNotifOpen.value = false }, { trap: false })
@@ -198,28 +155,29 @@ const openMyProfile = () => {
 </script>
 
 <template>
-  <header class="bg-white dark:bg-gray-800 sticky top-0 z-70 no-print">
+  <!-- Deliberately slight: this bar says where you are and gives you your
+       account, and every row it takes is a row the page does not get. A hairline
+       under it does the work the old height and weight were doing. -->
+  <header
+    class="sticky top-0 z-70 no-print border-b border-gray-100 bg-white/90 backdrop-blur dark:border-gray-800 dark:bg-gray-800/90"
+  >
     <div class="px-4 sm:px-6 lg:px-4">
-      <div class="flex items-center justify-between h-16">
-        <div class="flex items-center gap-3">
-          <div>
-            <div class="text-xl font-bold text-primary dark:text-primary-light">
-              {{ pageTitle }}
-            </div>
-          </div>
-        </div>
+      <div class="flex items-center justify-between h-12">
+        <h1 class="min-w-0 truncate text-sm font-semibold text-gray-900 dark:text-white">
+          {{ pageTitle }}
+        </h1>
         <!-- Right: User menu and notifications -->
         <div class="flex items-center gap-2">
           <!-- Who is online. The permanent rail replaces this from xl up. -->
           <button
             @click="togglePeoplePanel"
-            class="xl:hidden relative p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            class="hidden lg:relative lg:inline-flex xl:hidden p-1.5 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="Who is online"
             aria-label="Who is online"
             aria-haspopup="dialog"
             :aria-expanded="showPeoplePanel"
           >
-            <Users class="w-6 h-6" />
+            <Users class="w-5 h-5" />
             <span
               v-if="onlineCount"
               class="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 flex items-center justify-center rounded-full bg-emerald-500 text-white text-[9px] font-black"
@@ -231,167 +189,58 @@ const openMyProfile = () => {
           <!-- Theme Toggle -->
           <button
             @click="toggleTheme($event)"
-            class="p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            class="hidden lg:inline-flex p-1.5 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
             :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
           >
-            <Sun v-if="isDark" class="w-5 h-5" />
-            <Moon v-else class="w-5 h-5" />
+            <Sun v-if="isDark" class="w-4 h-4" />
+            <Moon v-else class="w-4 h-4" />
           </button>
 
-          <!-- Notifications -->
-          <div class="relative">
+          <!-- Notifications, at every size. A feed you come to read earns its
+               own drawer rather than a menu hanging off the bar. -->
+          <div>
             <button
               @click="toggleNotifPanel"
-              class="p-2 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 relative"
+              class="p-1.5 rounded-full text-primary dark:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 relative"
               title="Notifications"
               aria-label="Notifications"
               aria-haspopup="true"
               :aria-expanded="isNotifOpen"
             >
-              <Bell class="w-6 h-6" />
+              <Bell class="w-5 h-5" />
               <span
                 v-if="unreadCount > 0"
                 class="absolute top-1 right-1 w-2 h-2 bg-[#bc1c09] rounded-full"
               ></span>
             </button>
 
-            <!-- Click-away overlay -->
-            <div
-              v-if="isNotifOpen"
-              class="fixed inset-0 z-90"
-              @click="isNotifOpen = false"
-            ></div>
-
-            <!-- Notifications Panel -->
-            <Transition name="fade">
-              <div
-                v-if="isNotifOpen"
-                ref="notifPanelRef"
-                role="dialog"
-                aria-labelledby="notif-panel-title"
-                tabindex="-1"
-                class="absolute top-full right-0 mt-3 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border-2 border-primary/20 dark:border-primary-light/20 rounded-2xl shadow-2xl z-100 overflow-hidden"
-              >
-                <div class="flex items-center justify-between px-4 pt-4 pb-2">
-                  <p id="notif-panel-title" class="text-[9px] font-black uppercase tracking-widest text-primary">
-                    Notifications
-                  </p>
-                  <button
-                    @click="isNotifOpen = false"
-                    aria-label="Close"
-                    class="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors"
-                  >
-                    <X class="w-3 h-3" />
-                  </button>
-                </div>
-
-                <!-- Enable state -->
-                <div v-if="!notificationsEnabled" class="px-4 pb-3">
-                  <button
-                    @click="enable"
-                    :disabled="enabling"
-                    class="w-full py-2.5 bg-primary text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 active:scale-95 disabled:opacity-50"
-                  >
-                    {{ enabling ? "Enabling..." : "Enable on this device" }}
-                  </button>
-                </div>
-                <div v-else class="px-4 pb-2 flex items-center gap-1.5">
-                  <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                  <span class="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                    Enabled on this device
-                  </span>
-                </div>
-
-                <!-- Email digests. Push is per-device; this one follows the
-                     account, so it reads the signed-in address back. -->
-                <div class="px-4 pb-3 pt-1 flex items-center gap-3">
-                  <div class="min-w-0 flex-1">
-                    <p class="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                      Email digests
-                    </p>
-                    <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                      {{ emailDigestsEnabled ? userEmail : "What's on, sent to your inbox" }}
-                    </p>
-                  </div>
-                  <button
-                    @click="handleEmailDigestToggle"
-                    :disabled="savingEmailDigests"
-                    role="switch"
-                    :aria-checked="emailDigestsEnabled"
-                    aria-label="Email digests"
-                    :class="[
-                      'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
-                      emailDigestsEnabled ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700',
-                    ]"
-                  >
-                    <span
-                      :class="[
-                        'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform',
-                        emailDigestsEnabled ? 'translate-x-[1.15rem]' : 'translate-x-0.5',
-                      ]"
-                    ></span>
-                  </button>
-                </div>
-
-                <!-- History -->
-                <div
-                  class="max-h-80 overflow-y-auto custom-scrollbar border-t-2 border-gray-50 dark:border-gray-800"
-                >
-                  <p
-                    v-if="visibleNotifications.length === 0"
-                    class="p-6 text-center text-[10px] font-bold uppercase tracking-widest text-gray-400"
-                  >
-                    No notifications yet
-                  </p>
-                  <button
-                    v-for="n in visibleNotifications"
-                    :key="n.id"
-                    @click="openNotification(n)"
-                    class="w-full flex items-start gap-2.5 text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-50 dark:border-gray-800/60 last:border-b-0"
-                  >
-                    <!-- What kind of thing happened, before a word is read -->
-                    <span
-                      :class="['shrink-0 mt-0.5 p-1.5 rounded-lg', toneClass(n.kind)]"
-                    >
-                      <component :is="notificationIcon(n.kind)" class="w-3.5 h-3.5" />
-                    </span>
-                    <span class="min-w-0 flex-1">
-                      <span class="block text-[11px] font-black text-gray-900 dark:text-white leading-snug">
-                        {{ n.title }}
-                      </span>
-                      <span
-                        v-if="n.body"
-                        class="block text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2"
-                      >
-                        {{ n.body }}
-                      </span>
-                      <span
-                        class="block text-[9px] font-black uppercase tracking-widest text-gray-300 dark:text-gray-500 mt-1"
-                      >
-                        {{ timeAgo(n.sentAt) }}
-                      </span>
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </Transition>
           </div>
 
           <!-- User account menu -->
           <div class="relative">
+            <!-- One control on a phone. The theme toggle, the bell and the
+                 who-is-online button all used to sit out here beside it, which
+                 is four taps' worth of chrome on a 360px bar; they are all in
+                 the drawer this opens now. A desktop still gets the dropdown,
+                 since it has the room for the separate buttons. -->
             <button
-              @click="isUserMenuOpen = !isUserMenuOpen"
-              aria-label="User menu"
+              @click="isDesktop ? (isUserMenuOpen = !isUserMenuOpen) : togglePeoplePanel()"
+              aria-label="Account, notifications and who is online"
               aria-haspopup="true"
-              :aria-expanded="isUserMenuOpen"
-              class="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+              :aria-expanded="isDesktop ? isUserMenuOpen : showPeoplePanel"
+              class="relative flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <MemberAvatar
                 :member="myMember"
                 :src="myAvatarUrl"
                 alt="User Avatar"
-                size="w-8 h-8"
+                size="w-7 h-7"
+              />
+              <!-- The bell is gone from the bar, so its badge rides here. -->
+              <span
+                v-if="unreadCount > 0"
+                class="lg:hidden absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[#bc1c09] ring-2 ring-white dark:ring-gray-800"
               />
             </button>
 
@@ -404,7 +253,7 @@ const openMyProfile = () => {
 
             <Transition name="fade">
               <div
-                v-if="isUserMenuOpen"
+                v-if="isUserMenuOpen && isDesktop"
                 ref="userMenuRef"
                 role="dialog"
                 aria-labelledby="user-menu-title"
@@ -508,6 +357,100 @@ const openMyProfile = () => {
       </div>
     </div>
 
+
+    <!-- Notifications drawer. Same shape as the people drawer it sits beside,
+         so the two read as one family rather than a menu and a panel. -->
+    <Teleport to="body">
+      <Transition name="notif-drawer">
+        <div v-if="isNotifOpen" class="fixed inset-0 z-110 no-print">
+          <div class="absolute inset-0 bg-black/50" @click="isNotifOpen = false" />
+              <div
+                v-if="isNotifOpen"
+                ref="notifPanelRef"
+                role="dialog"
+                aria-labelledby="notif-panel-title"
+                tabindex="-1"
+                v-bind="notifSwipe"
+                :style="notifStyle()"
+                class="notif-panel absolute inset-y-0 right-0 flex w-[21rem] max-w-[85vw] flex-col bg-white dark:bg-gray-900 shadow-2xl border-l border-gray-200 dark:border-gray-800"
+              >
+                <div
+                  class="shrink-0 flex items-center justify-between px-4 pb-2 pt-[calc(1rem+env(safe-area-inset-top))]"
+                >
+                  <p id="notif-panel-title" class="text-[9px] font-black uppercase tracking-widest text-primary">
+                    Notifications
+                  </p>
+                  <button
+                    @click="isNotifOpen = false"
+                    aria-label="Close"
+                    class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <X class="w-5 h-5" />
+                  </button>
+                </div>
+
+                <!-- Enable state -->
+                <div v-if="!notificationsEnabled" class="px-4 pb-3">
+                  <button
+                    @click="enable"
+                    :disabled="enabling"
+                    class="w-full py-2.5 bg-primary text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 active:scale-95 disabled:opacity-50"
+                  >
+                    {{ enabling ? "Enabling..." : "Enable on this device" }}
+                  </button>
+                </div>
+                <div v-else class="px-4 pb-2 flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                  <span class="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                    Enabled on this device
+                  </span>
+                </div>
+
+                <!-- History -->
+                <div
+                  class="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar border-t-2 border-gray-50 dark:border-gray-800 pb-[env(safe-area-inset-bottom)]"
+                >
+                  <p
+                    v-if="visibleNotifications.length === 0"
+                    class="p-6 text-center text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                  >
+                    No notifications yet
+                  </p>
+                  <button
+                    v-for="n in visibleNotifications"
+                    :key="n.id"
+                    @click="openNotification(n)"
+                    class="w-full flex items-start gap-2.5 text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-50 dark:border-gray-800/60 last:border-b-0"
+                  >
+                    <!-- What kind of thing happened, before a word is read -->
+                    <span
+                      :class="['shrink-0 mt-0.5 p-1.5 rounded-lg', toneClass(n.kind)]"
+                    >
+                      <component :is="notificationIcon(n.kind)" class="w-3.5 h-3.5" />
+                    </span>
+                    <span class="min-w-0 flex-1">
+                      <span class="block text-[11px] font-black text-gray-900 dark:text-white leading-snug">
+                        {{ n.title }}
+                      </span>
+                      <span
+                        v-if="n.body"
+                        class="block text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2"
+                      >
+                        {{ n.body }}
+                      </span>
+                      <span
+                        class="block text-[9px] font-black uppercase tracking-widest text-gray-300 dark:text-gray-500 mt-1"
+                      >
+                        {{ timeAgo(n.sentAt) }}
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+                    </div>
+      </Transition>
+    </Teleport>
+
     <ClaimMemberSheet
       v-model:show="showClaimSheet"
       :members="members"
@@ -520,4 +463,24 @@ const openMyProfile = () => {
 
 <style scoped>
 /* Scrollbars are themed globally in src/style.css (.custom-scrollbar) */
+
+.notif-drawer-enter-active,
+.notif-drawer-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.notif-drawer-enter-active .notif-panel,
+.notif-drawer-leave-active .notif-panel {
+  transition: transform 0.25s ease;
+}
+
+.notif-drawer-enter-from,
+.notif-drawer-leave-to {
+  opacity: 0;
+}
+
+.notif-drawer-enter-from .notif-panel,
+.notif-drawer-leave-to .notif-panel {
+  transform: translateX(100%);
+}
 </style>
