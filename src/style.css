@@ -100,6 +100,16 @@
   --scrollbar-thumb-hover: rgba(34, 184, 207, 0.6);
 }
 
+/* Switches off Chrome's own pull-to-refresh and the rubber-band glow at the
+   ends of a scroll. Every scroller in the app ends up chaining its overscroll
+   to the root, so one rule here covers the lot - a flick at the top of a
+   bottom sheet used to reload the whole app. The gesture is not lost: it is
+   picked up by PullToRefresh.vue, which spins the church's logo instead. */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
 body {
   margin: 0;
   min-width: 320px;

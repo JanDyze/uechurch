@@ -3,9 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/uec-logo.png" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#01779b" />
+
+    <!-- iOS reads none of the web app manifest before 16.4, and still ignores
+         parts of it after: without these an "Add to Home Screen" icon opens a
+         Safari tab with a URL bar instead of the app. The name is set here too
+         because iOS labels the home screen from this tag, not from the
+         manifest's short_name.
+
+         The status bar stays "default" deliberately. "black-translucent" draws
+         the page underneath the clock, which only looks right where the top of
+         the page pads itself by safe-area-inset-top. Some panels here do; the
+         two that would meet a new iOS user first — the public landing header
+         and the sign-in screen — do not, and would wear the clock. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="UECPCOM" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
     <!-- One pixel typeface, for the discipleship stage names only. The
          church's own poster sets them in 8-bit type, and a serif "PUNLA" over

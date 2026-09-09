@@ -1,11 +1,14 @@
 <script setup>
-import { onMounted, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useTheme } from './composables/useTheme'
 import { useNotifications } from './composables/useNotifications'
 import { useAppSettings } from './composables/useAppSettings'
 import { useVersionCheck } from './composables/useVersionCheck'
+import PullToRefresh from './components/common/PullToRefresh.vue'
 import ToastContainer from './components/common/ToastContainer.vue'
 import WhatsNewModal from './components/common/WhatsNewModal.vue'
+import InstallPrompt from './components/common/InstallPrompt.vue'
+import RouteTransition from './components/common/RouteTransition.vue'
 
 const { isTransitioning, isDark, transitionOrigin } = useTheme()
 
@@ -32,16 +35,51 @@ const { init: initNotifications } = useNotifications()
 // on the build the user has just been moved onto.
 const { checkOnLaunch: checkAppVersion } = useVersionCheck()
 
+// Pull-to-refresh, ours instead of Chrome's (which style.css switches off).
+// The listeners are here rather than inside the component because the gesture
+// belongs to the whole app: every view scrolls in its own container, and one
+// set of listeners on the window covers all of them at once. touchmove has to
+// be non-passive - the pull cancels the page's own scrolling - which is
+// exactly what Vue's template handlers cannot express.
+const pullToRefresh = ref(null)
+const forwardTouch = (name) => (event) => pullToRefresh.value?.[name](event)
+const onTouchStart = forwardTouch('onTouchStart')
+const onTouchMove = forwardTouch('onTouchMove')
+const onTouchEnd = forwardTouch('onTouchEnd')
+
 onMounted(() => {
   initNotifications()
   checkAppVersion()
+
+  window.addEventListener('touchstart', onTouchStart, { passive: true })
+  window.addEventListener('touchmove', onTouchMove, { passive: false })
+  window.addEventListener('touchend', onTouchEnd, { passive: true })
+  window.addEventListener('touchcancel', onTouchEnd, { passive: true })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('touchstart', onTouchStart)
+  window.removeEventListener('touchmove', onTouchMove)
+  window.removeEventListener('touchend', onTouchEnd)
+  window.removeEventListener('touchcancel', onTouchEnd)
 })
 </script>
 
 <template>
   <div id="app">
     <router-view />
-    
+
+    <!-- Between one page and the next: the church's mark over the gap, while
+         the view being navigated to fetches its chunk. -->
+    <RouteTransition />
+
+    <!-- Pull down at the top of any page: the church's logo, not Chrome's bar -->
+    <PullToRefresh ref="pullToRefresh" />
+
+    <!-- Offers the home-screen install to anyone still in a browser tab.
+         Renders nothing once the app is installed, dismissed or unsupported. -->
+    <InstallPrompt />
+
     <!-- Global Toast Notifications -->
     <ToastContainer />
 
