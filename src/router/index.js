@@ -28,10 +28,11 @@ const routes = [
     meta: { guestOnly: true }
   },
   {
+    // Kept as a redirect rather than deleted: sign-up was a real page for a
+    // year, and the address is in old links, bookmarks and at least one email.
+    // Google sign-in creates the account anyway, so /login is where it went.
     path: '/register',
-    name: 'Register',
-    component: () => import('../views/Register.vue'),
-    meta: { guestOnly: true }
+    redirect: '/login'
   },
   {
     // The projector's own window. Registered outside the app shell on purpose:
@@ -40,7 +41,10 @@ const routes = [
     path: '/present-output',
     name: 'PresentOutput',
     component: () => import('../views/PresentOutput.vue'),
-    meta: { requiresAuth: true }
+    // projector: nothing of ours may float over this window. It is on a second
+    // screen in front of a congregation, so even a dismissible banner is a
+    // banner the whole church reads mid-song.
+    meta: { requiresAuth: true, projector: true }
   },
   {
     path: '/',

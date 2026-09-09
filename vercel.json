@@ -10,6 +10,10 @@
       "destination": "/api/$1"
     },
     {
+      "source": "/__/auth/(.*)",
+      "destination": "https://church-c9b15.firebaseapp.com/__/auth/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

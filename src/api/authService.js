@@ -1,35 +1,41 @@
-import { auth } from "./firebase";
+import { auth, authHandlerIsSelfHosted } from "./firebase";
 import {
   GoogleAuthProvider,
-  createUserWithEmailAndPassword,
   getRedirectResult,
   onAuthStateChanged,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
   signOut,
   updateProfile,
 } from "firebase/auth";
 
+// Google is the only sign-in method this app offers. There was an email and
+// password path here — login(), register() and resetPassword(), backed by a
+// second form at /register — and it is gone deliberately: one provider means
+// one account per person, no password for a congregation to lose, and nothing
+// to reset. Accounts made the old way still exist and still show as "Email &
+// password" on the Accounts page; they simply have no door here any more.
+//
+// The UI is only half of it. Email/Password must also be switched off under
+// Firebase Authentication > Sign-in method, or the REST API still accepts it.
+
 // Firebase error codes are not fit to show a user — map them to plain English.
+// Only the codes Google sign-in can actually raise: the password-only ones
+// (wrong-password, user-not-found, weak-password and the rest) went with it.
 const ERROR_MESSAGES = {
-  "auth/invalid-email": "That email address doesn't look right.",
   "auth/user-disabled": "This account has been disabled. Contact an administrator.",
-  "auth/user-not-found": "No account found with that email.",
-  "auth/wrong-password": "Incorrect email or password.",
-  "auth/invalid-credential": "Incorrect email or password.",
-  "auth/email-already-in-use": "An account with that email already exists.",
-  "auth/weak-password": "Password must be at least 6 characters.",
-  "auth/missing-password": "Please enter your password.",
   "auth/too-many-requests": "Too many attempts. Please wait a moment and try again.",
   "auth/network-request-failed": "Network error. Check your connection and try again.",
+  // Raised when Google sign-in itself is switched off in the Firebase console.
   "auth/operation-not-allowed":
     "That sign-in method is not enabled for this project.",
   "auth/popup-closed-by-user": "Sign-in was cancelled.",
   "auth/cancelled-popup-request": "Sign-in was cancelled.",
+  // Reachable by an account made back when this app took passwords, on a
+  // project set to keep one account per email address. Nothing the person can
+  // do from this screen, so it points them at somebody who can.
   "auth/account-exists-with-different-credential":
-    "An account with that email already exists. Sign in with your password instead.",
+    "An account with that email already exists under a different sign-in method. Contact an administrator.",
   // Firebase only accepts sign-ins from domains listed under Authentication >
   // Settings > Authorized domains. A phone hitting the dev server by LAN IP
   // trips this until that IP is added there.
@@ -39,32 +45,6 @@ const ERROR_MESSAGES = {
 
 export const getAuthErrorMessage = (error) =>
   ERROR_MESSAGES[error?.code] || "Something went wrong. Please try again.";
-
-// Sign in an existing user
-export const login = async (email, password) => {
-  const credential = await signInWithEmailAndPassword(
-    auth,
-    email.trim(),
-    password
-  );
-  return credential.user;
-};
-
-// Create a new account. `displayName` is optional but shown in the topbar.
-export const register = async (email, password, displayName = "") => {
-  const credential = await createUserWithEmailAndPassword(
-    auth,
-    email.trim(),
-    password
-  );
-
-  const name = displayName.trim();
-  if (name) {
-    await updateProfile(credential.user, { displayName: name });
-  }
-
-  return credential.user;
-};
 
 // Rename the signed-in account. Used by the topbar identity popover.
 export const updateDisplayName = async (displayName) => {
@@ -78,21 +58,57 @@ const googleProvider = new GoogleAuthProvider();
 // already signed into the browser — phones are often shared here.
 googleProvider.setCustomParameters({ prompt: "select_account" });
 
+/**
+ * iPadOS 13+ calls itself "Macintosh"; the touch points are what tell the two
+ * apart, since no desktop Mac reports any.
+ */
+const isIos = () =>
+  /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+const isStandalone = () =>
+  window.matchMedia?.("(display-mode: standalone)").matches === true ||
+  window.navigator.standalone === true;
+
+/**
+ * When to skip the popup and go straight to a redirect.
+ *
+ * The one case that matters is an iOS home-screen install. A popup opened from
+ * there lands in a separate Safari view that has no opener to postMessage
+ * back to, so signInWithPopup does not fail so much as never finish — the
+ * worst outcome of the three, because the button just spins.
+ *
+ * Conditional on the self-hosted handler because the alternative is no better
+ * without it: on Safari a redirect through firebaseapp.com loses its state to
+ * storage partitioning and returns signed out. Until that is switched on, a
+ * popup that might work beats a redirect that reliably will not.
+ */
+const prefersRedirect = () =>
+  authHandlerIsSelfHosted && isIos() && isStandalone();
+
 // Sign in with Google. Popups are blocked or unsupported in a fair number of
 // mobile in-app browsers, so fall back to a full-page redirect; that path
 // resolves later through consumePendingGoogleSignIn() on the way back.
 export const loginWithGoogle = async () => {
+  if (prefersRedirect()) {
+    await signInWithRedirect(auth, googleProvider);
+    return null; // The page navigates away; nothing to return.
+  }
+
   try {
     const credential = await signInWithPopup(auth, googleProvider);
     return credential.user;
   } catch (error) {
     const needsRedirect =
       error?.code === "auth/popup-blocked" ||
-      error?.code === "auth/operation-not-supported-in-this-environment";
+      error?.code === "auth/operation-not-supported-in-this-environment" ||
+      // Thrown when the browser denies access to the storage the popup flow
+      // needs — iOS in-app webviews (Facebook, Messenger) do this routinely.
+      error?.code === "auth/web-storage-unsupported";
     if (!needsRedirect) throw error;
 
     await signInWithRedirect(auth, googleProvider);
-    return null; // The page navigates away; nothing to return.
+    return null;
   }
 };
 
@@ -105,9 +121,6 @@ export const consumePendingGoogleSignIn = async () => {
 
 // Sign the current user out
 export const logout = () => signOut(auth);
-
-// Send a password reset email
-export const resetPassword = (email) => sendPasswordResetEmail(auth, email.trim());
 
 // Subscribe to auth state changes — returns an unsubscribe function
 export const subscribeToAuth = (callback) => onAuthStateChanged(auth, callback);

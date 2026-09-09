@@ -61,8 +61,9 @@ const normalizeAccount = (docSnap) => {
     // disabled flag, so it stays false until a sync fills it in.
     disabled: Boolean(data.disabled),
     providers,
-    // How this account was created — Google, or an email and password typed
-    // into the register form. Multi-provider accounts keep the full list.
+    // How this account was created — Google, or, for an account made before
+    // this app dropped passwords, an email and password. Multi-provider
+    // accounts keep the full list.
     primaryProvider: data.primaryProvider || providers[0],
     createdAt: toDate(data.createdAt),
     lastSignInAt: toDate(data.lastSignInAt),

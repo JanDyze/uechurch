@@ -3,8 +3,9 @@ import { computed } from 'vue'
 import { KeyRound } from '../../icons'
 import { providerLabel, providerShortLabel } from '../../api/userAccountsService'
 
-// How an account was created: tapped "Continue with Google", or typed an email
-// and password into the register form.
+// How an account was created: tapped "Continue with Google", or — for accounts
+// old enough — typed an email and password into the sign-up form this app used
+// to have. Google is the only way in now, so "Email" is history, not an offer.
 const props = defineProps({
   provider: { type: String, required: true },
   /** Long labels read better in the details sheet, short ones in a list row. */

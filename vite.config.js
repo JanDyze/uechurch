@@ -146,7 +146,11 @@ export default defineConfig(({ mode }) => ({
         // Precaching 44 images nothing in the app requests is pure payload.
         globIgnores: ['**/firebase-messaging-sw.js', 'icons/events/**'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+        // /__/auth/ is Firebase's sign-in handler, reverse-proxied onto this
+        // domain (see vercel.json) so the iOS redirect flow stays first-party.
+        // It is a real navigation to a real page: hand it index.html and the
+        // sign-in returns to a blank app shell instead of completing.
+        navigateFallbackDenylist: [/^\/api\//, /^\/__\//],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // The Bible is 4.7 MB across 66 files and is deliberately not
         // precached — globPatterns above does not list json, so it stays out of
