@@ -24,6 +24,9 @@ import { dayLabel, daysUntil, monthOf, dayOf, whenLine } from '../../utils/publi
 // count on them, nudge occasionally with the next one, and open on a tap.
 const props = defineProps({
   gatherings: { type: Array, default: () => [] },
+  // The member record the signed-in account is linked to, when there is one.
+  // Only ever used to recognise this reader's own birthday in the list.
+  myMemberId: { type: String, default: '' },
 })
 
 const TYPE_ICONS = {
@@ -42,6 +45,18 @@ const iconFor = (type) => TYPE_ICONS[type] || Calendar
 // line would be empty. It gets its own word and its own row instead.
 const labelFor = (type) =>
   type === 'birthday' ? 'Birthday' : type ? type[0].toUpperCase() + type.slice(1) : 'Gathering'
+
+// A birthday arrives from the server titled "Kaarawan ni Dyze", because the
+// server is answering for a page anyone may be reading. When the reader is
+// Dyze, that is the app talking about them in the third person to their face.
+// The id carries the member it was built from, so the one entry that is
+// theirs is addressed to them instead.
+const titleOf = (gathering) =>
+  gathering.type === 'birthday' &&
+  props.myMemberId &&
+  gathering.id === `birthday-${props.myMemberId}`
+    ? 'Birthday Mo'
+    : gathering.title
 
 const open = ref(false)
 const dialog = ref(null)
@@ -77,18 +92,13 @@ const toggle = () => {
   open.value = true
 }
 
-// Escape, initial focus, and focus handed back to the icon on close — the
-// same treatment every other dialog in the app gets.
+// Escape, initial focus, focus handed back to the icon on close, and the page
+// held still underneath — the same treatment every other dialog in the app
+// gets. The scroll lock used to be written out here by hand; it lives in
+// useFocusTrap now, so every dialog gets it rather than the ones that
+// remembered to ask.
 useFocusTrap(dialog, open, () => {
   open.value = false
-})
-
-// The page behind a focused sheet should not scroll under it.
-watch(open, (value) => {
-  document.body.style.overflow = value ? 'hidden' : ''
-})
-onUnmounted(() => {
-  document.body.style.overflow = ''
 })
 
 /* ------------------------------------------------------------------ peeks */
@@ -188,7 +198,7 @@ const markSeen = () => {
 </script>
 
 <template>
-  <div v-if="gatherings.length" class="pointer-events-none fixed inset-0 z-50">
+  <div class="pointer-events-none fixed inset-0 z-50">
     <!-- The whole sheet — dimmed page and all — is revealed by one circle
          opening out of the icon, which is why they share a wrapper. -->
     <Transition name="reveal">
@@ -254,7 +264,7 @@ const markSeen = () => {
                   >
                 </p>
                 <h2 class="mt-1 font-serif text-2xl font-semibold leading-tight text-white">
-                  {{ next.title }}
+                  {{ titleOf(next) }}
                 </h2>
               </div>
             </div>
@@ -268,6 +278,29 @@ const markSeen = () => {
                 <component :is="iconFor(next.type)" class="h-4 w-4 shrink-0 text-primary-light" />
                 {{ labelFor(next.type) }}
               </span>
+            </div>
+          </div>
+
+          <!-- Nothing coming up is an answer, not a failure, so it gets a
+               sentence rather than an empty sheet. The dock used to vanish
+               entirely in this state, which reads to a visitor as a page that
+               forgot to load — and it hid the one place they would look to
+               find out there is nothing on this week. -->
+          <div v-else class="px-6 pb-7 pt-5">
+            <div class="flex items-start gap-4">
+              <div
+                class="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-2xl bg-white/[0.06] text-primary-light"
+              >
+                <Calendar class="h-8 w-8" />
+              </div>
+              <div class="min-w-0 flex-1 pt-2">
+                <h2 class="font-serif text-xl font-semibold leading-tight text-white">
+                  Wala pang nakatakda
+                </h2>
+                <p class="mt-1.5 text-sm leading-relaxed text-white/50">
+                  Makikita mo rito ang susunod naming pagtitipon.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -301,7 +334,7 @@ const markSeen = () => {
                 />
                 <span class="min-w-0 flex-1">
                   <span class="block truncate text-sm font-semibold text-white/90">
-                    {{ gathering.title }}
+                    {{ titleOf(gathering) }}
                   </span>
                   <span class="block truncate text-[11px] text-white/40">
                     {{ whenLine(gathering) }}
@@ -338,73 +371,59 @@ const markSeen = () => {
             {{ dayLabel(peeked.date) || 'Soon' }}
           </p>
           <p class="truncate font-serif text-sm font-semibold leading-tight text-white">
-            {{ peeked.title }}
+            {{ titleOf(peeked) }}
           </p>
         </button>
       </Transition>
 
-      <!-- No circle behind it: the icon is the button. Drawn here rather than
-           taken from the icon set, because that set is single-colour Phosphor
-           paths and this wants to read as a little object sitting on the page
-           — a tear-off calendar with one day ringed in red. -->
+      <!-- No frame behind it: the icon is the button, and the word sits
+           loose underneath. The pill made it obviously pressable but it also
+           made it a chip stuck to the page — this is meant to be a little
+           object hanging in the corner. The word carries the meaning the
+           frame used to, and the tip carries the invitation. -->
       <button
         ref="trigger"
         @click="toggle"
         class="dock-btn pointer-events-auto relative block shrink-0"
         :class="{ 'is-open': open }"
-        :aria-label="open ? 'Hide upcoming gatherings' : `Upcoming gatherings (${badge})`"
+        :aria-label="open ? 'Hide upcoming gatherings' : badge ? `Events (${badge} new)` : 'Events'"
         :aria-expanded="open"
       >
-        <!-- Three layers, because three things move independently: the
-             wrapper drifts, the page tilts, and the circled day breathes.
-             Stacking them means none of the transforms fight. -->
-        <span class="block">
-          <svg
-            viewBox="0 0 48 48"
-            class="dock-art h-16 w-16 drop-shadow-lg sm:h-20 sm:w-20"
-            role="img"
-            aria-hidden="true"
-          >
-          <defs>
-          <linearGradient id="uecDockBand" x1="0" y1="0" x2="0.8" y2="1">
-          <stop offset="0" stop-color="#45dcef"/><stop offset="1" stop-color="#0288ac"/>
-          </linearGradient>
-          <linearGradient id="uecDockPage" x1="0.1" y1="0" x2="0.9" y2="1">
-          <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#edf2f3"/>
-          </linearGradient>
-          </defs>
+        <svg
+          viewBox="0 0 48 48"
+          class="dock-art mx-auto block h-14 w-14 sm:h-16 sm:w-16"
+          role="img"
+          aria-hidden="true"
+        >
+          <!-- Flat: no turned faces, no gradients, no shear, no shadow.
+               Tilted a few degrees in the plane of the page, the way a calendar
+               hanging on one nail sits — style, not depth. One day ringed in red.
+               The two rings are pale so they hold up over a photograph. -->
+          <g transform="rotate(-8 24 24)">
+          <rect x="15.5" y="5.5" width="3.2" height="8" rx="1.6" fill="#cfdadd"/>
+          <rect x="29.3" y="5.5" width="3.2" height="8" rx="1.6" fill="#cfdadd"/>
+          <rect x="8" y="10" width="32" height="30" rx="2.5" fill="#ffffff"/>
+          <path d="M8 12.5A2.5 2.5 0 0 1 10.5 10h27A2.5 2.5 0 0 1 40 12.5V19H8z" fill="#0288ac"/>
+          <rect x="12.5" y="23" width="5" height="5" rx="1" fill="#93a8b0"/>
+          <rect x="21.5" y="23" width="5" height="5" rx="1" fill="#93a8b0"/>
+          <rect x="30.5" y="23" width="5" height="5" rx="1" fill="#93a8b0"/>
+          <rect x="12.5" y="31" width="5" height="5" rx="1" fill="#93a8b0"/>
+          <rect x="21.5" y="31" width="5" height="5" rx="1" fill="#e2483d"/>
+          <rect x="30.5" y="31" width="5" height="5" rx="1" fill="#93a8b0"/>
+          </g>
+        </svg>
 
-          <!-- A block seen from off to one side, not a sticker.
-             The card is turned and sheared, and the two faces it turns away
-             from the viewer are drawn as their own polygons — the right and
-             the underside. Square corners and block days are the rest of
-             what stops it reading as jolly. -->
-          <g transform="translate(24 24) scale(1.16) translate(-25 -24.5)">
-          <g transform="rotate(-9 25 24.5) skewY(4)">
-          <polygon points="11,39 35,39 39,42.5 15,42.5" fill="#011c27"/>
-          <polygon points="35,20 39,23.5 39,42.5 35,39" fill="#013245"/>
-          <polygon points="35,11 39,14.5 39,23.5 35,20" fill="#015f7c"/>
-          <rect x="11" y="11" width="24" height="28" fill="url(#uecDockPage)"/>
-          <rect x="11" y="11" width="24" height="9" fill="url(#uecDockBand)"/>
-          <rect x="11" y="20" width="24" height="0.8" fill="#cfdadd"/>
-          <rect x="16" y="6.5" width="3.4" height="8" fill="#0b2c38"/>
-          <polygon points="19.4,6.5 20.8,7.6 20.8,15.6 19.4,14.5" fill="#061c25"/>
-          <rect x="26.5" y="6.5" width="3.4" height="8" fill="#0b2c38"/>
-          <polygon points="29.9,6.5 31.3,7.6 31.3,15.6 29.9,14.5" fill="#061c25"/>
-          <rect x="14.5" y="24" width="4.2" height="4.2" fill="#93a8b0"/>
-          <rect x="20.9" y="24" width="4.2" height="4.2" fill="#93a8b0"/>
-          <rect x="27.3" y="24" width="4.2" height="4.2" fill="#93a8b0"/>
-          <rect x="14.5" y="30.6" width="4.2" height="4.2" fill="#93a8b0"/>
-          <rect x="20.9" y="30.6" width="4.2" height="4.2" fill="#e2483d"/>
-          <rect x="27.3" y="30.6" width="4.2" height="4.2" fill="#93a8b0"/>
-          </g>
-          </g>
-          </svg>
+        <!-- Nothing behind the word either, so it is shadowed instead: it has
+             to stay readable over whichever photograph the hero is showing. -->
+        <span
+          class="dock-label mt-0.5 block text-center text-[10px] font-bold uppercase leading-none tracking-[0.14em] text-white"
+        >
+          Events
         </span>
 
         <span
           v-if="badge && !open"
-          class="absolute right-1 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e2483d] px-1 text-[9px] font-black leading-none text-white"
+          class="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e2483d] px-1 text-[9px] font-black leading-none text-white"
         >
           {{ badge > 9 ? '9+' : badge }}
         </span>
@@ -480,14 +499,15 @@ const markSeen = () => {
   transform: scale(0.92);
 }
 
-/* One movement only. The drift and the pulsing day were dropped: three
-   things breathing at once on a fixed element reads as a page that will not
-   settle, and the tip is the one that actually says "look here". */
+/* One movement only. The drift and the pulsing day were dropped long ago, and
+   the ring went with the pill it was drawn around — an expanding rectangle
+   needs an edge to expand from. What is left is the tip, which is the one that
+   reads as an invitation rather than an alarm.
 
-/* Every nine seconds it tips over and rights itself, the way a page
-   hanging on a nail would if somebody walked past. Pivoted at the rings,
-   because that is what it is hanging from. Mostly stillness: an icon that
-   never stops moving is a page that never settles. */
+   Every nine seconds it tips over and rights itself, the way a page hanging on
+   a nail would if somebody walked past. Pivoted at the rings, because that is
+   what it is hanging from. Mostly stillness: an icon that never stops moving
+   is a page that never settles. */
 .dock-art {
   transform-origin: 50% 12%;
   animation: dock-nudge 9s ease-in-out infinite;
@@ -516,6 +536,10 @@ const markSeen = () => {
   96% {
     transform: rotate(1.5deg);
   }
+}
+
+.dock-label {
+  text-shadow: 0 1px 4px rgba(2, 20, 28, 0.9);
 }
 
 @media (prefers-reduced-motion: reduce) {
