@@ -11,6 +11,76 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.15.0] — 2026-09-09
+
+The public page becomes the church's own, in Tagalog, and every photograph in
+the app moves out of the database and onto a CDN.
+
+### Added
+- **A landing page written for the congregation, not for a template.** Warm
+  paper, a serif, an arched window instead of a full-bleed photograph, and
+  Tagalog throughout — the greeting rolls through the names somebody at the
+  door would use (ate, kuya, nanay, lolo), or the member's own name once they
+  have signed in. Dates stay in English, being read off a calendar.
+- **Punla, Puno, Prutas as a section of its own**, drawn with the church's own
+  poster artwork behind it. The rail walks itself through the three stages and
+  hands over the moment somebody taps one.
+- **A floating Upcoming dock.** What is coming up used to sit inline under the
+  hero, in the middle of the one paragraph a stranger reads. It waits in the
+  corner instead, counts what has not been seen, leans out with a reminder now
+  and then, and opens into a focused sheet revealed by a circle growing out of
+  the icon. The count goes quiet once it has been opened and returns only when
+  something new appears.
+- **Birthdays on the public page, off by default.** Only the name somebody is
+  called by and the day — never a surname, never the year, so never an age —
+  and only once an administrator turns it on under Settings → Public page.
+  A member's photograph appears beside theirs when they have one.
+- **Nearly all of the public page is editable.** The verse, the vision and
+  mission, the discipleship stages, the closing invitation and the list of
+  names the greeting rolls through all moved into Settings → Public page.
+
+### Changed
+- **Photographs live in Vercel Blob, not in Firestore.** Every image the app
+  stores — gallery photographs, member portraits, the church logo, the hero,
+  small-group covers and session photos — went in as base64 inside a document,
+  which capped each one at the 1 MiB a document holds, inflated it by a third,
+  and put a Firestore read and a decode in front of every view. A cold gallery
+  photograph took two seconds to arrive; from the CDN it takes 124–517 ms. The
+  existing gallery was migrated; the other images were cleared at the church's
+  request and want re-uploading.
+- **Deleting an album now deletes its photographs**, in Firestore and in
+  storage. It used to delete only the album, leaving every photograph behind
+  for good.
+- **Vision and mission read as two statements** rather than cards to turn over,
+  and sit after the photographs, where what the church says about itself lands
+  better.
+- The church is UECPCOM, with Canubing II beneath it.
+
+### Fixed
+- **An album deleted from the gallery kept appearing on the public page.** The
+  payload allowed an hour of stale serving at the edge, so the old list was
+  handed out long after the change — and no amount of clearing a browser
+  touches a cache that lives in Singapore. The page is no longer cached.
+- **Albums that shared a calendar event collapsed into one tile**, leaving the
+  others unreachable — and so undeletable. Three albums named "test" were
+  showing as one.
+- **A member's photograph was racing its own upload.** The cropper was bound
+  twice, so the raw base64 was written to the record alongside the upload and
+  won whenever the upload failed.
+- The close button on the Upcoming sheet did nothing: the dock's wrapper was
+  claiming clicks across an invisible box that covered it.
+- Service times on a phone each began wherever their name happened to end.
+- Editing a file under `api/` no longer leaves `npm run dev` serving the
+  version it first imported.
+
+### Removed
+- **Every capability check, temporarily.** Roles come from a member record's
+  ministry tags and most accounts are not linked to one yet, so the real rules
+  lock out the people setting the church up. `OPEN_ACCESS` in
+  `src/composables/usePermissions.js` turns them back on in one word. This does
+  not open anything to the public — signing in is still required, and the
+  Firestore rules are untouched.
+
 ## [0.14.0] — 2026-09-07
 
 The navigation stops being someone else's guess, and a person's record stops

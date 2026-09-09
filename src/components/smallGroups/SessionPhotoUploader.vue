@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { ImagePlus, Trash2, Loader2 } from '../../icons'
 import { compressImageToBase64 } from '../../utils/imageUtils'
+import { uploadImage } from '../../api/blobService'
 import { useSgLanguage } from '../../composables/useSgLanguage'
 
 const props = defineProps({
@@ -29,8 +30,9 @@ const handleFiles = async (event) => {
   isUploading.value = true
   try {
     for (const file of files) {
-      const base64 = await compressImageToBase64(file)
-      emit('upload', base64)
+      // Stored, then the URL is what the session record keeps.
+      const url = await uploadImage(await compressImageToBase64(file), 'sessions')
+      emit('upload', url)
     }
   } finally {
     isUploading.value = false

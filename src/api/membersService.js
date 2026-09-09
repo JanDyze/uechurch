@@ -9,6 +9,8 @@ import {
   onSnapshot,
   query,
   orderBy,
+  where,
+  limit,
 } from "firebase/firestore";
 
 const MEMBERS_COLLECTION = "members";
@@ -40,6 +42,24 @@ const normalizeMember = (data, docId) => {
     // only when an administrator approves a claim (see memberClaimsService).
     uid: data.uid || null,
   };
+};
+
+/**
+ * The single member record an account has been linked to, by auth uid, or null
+ * when no claim has been approved.
+ *
+ * A targeted one-shot read rather than subscribeToMembers, because the callers
+ * that want this want one field. The public page greets a signed-in member by
+ * nickname; opening a listener on the whole collection to find it would pull
+ * every member down — base64 portraits and all — to print a first name.
+ */
+export const getMemberByUid = async (uid) => {
+  if (!uid) return null;
+  const snapshot = await getDocs(
+    query(collection(db, MEMBERS_COLLECTION), where("uid", "==", uid), limit(1))
+  );
+  const found = snapshot.docs[0];
+  return found ? normalizeMember(found.data(), found.id) : null;
 };
 
 // Get all members

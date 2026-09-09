@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -23,6 +23,10 @@ import { VitePWA } from 'vite-plugin-pwa'
  */
 const DEV_API_ROUTES = {
   '/api/public': './api/public.js',
+  // Uploads reach the real Blob store from `npm run dev` too, which is why
+  // BLOB_STORE_ID and VERCEL_OIDC_TOKEN have to be in .env.local. There is
+  // no local emulator, so a photo added in development is a photo added.
+  '/api/blob': './api/blob.js',
   '/api/youtube-search': './api/youtube-search.js',
   // Both bill Anthropic per call — a lookup runs a web search on top of the
   // tokens — so they cost real money here in a way the two above do not. They
@@ -79,7 +83,14 @@ const apiDevServer = (env) => ({
           }
 
           const handlerPath = fileURLToPath(new URL(modulePath, import.meta.url))
-          const { default: handler } = await import(pathToFileURL(handlerPath).href)
+          // Node keeps an ES module for the life of the process, so editing a
+          // handler left this serving whichever version it imported first —
+          // silently, which is the worst way to be wrong: the endpoint answers,
+          // just with last hour's code. The file's mtime in the specifier makes
+          // every save a new module to Node, so an edit lands on the next
+          // request while an untouched handler is still only imported once.
+          const stamp = statSync(handlerPath).mtimeMs
+          const { default: handler } = await import(`${pathToFileURL(handlerPath).href}?v=${stamp}`)
           await handler(req, res)
         } catch (error) {
           next(error)
@@ -112,9 +123,10 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['uec-logo.png', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'UEC Canubing II',
-        short_name: 'UEC Church',
-        description: 'United Evangelical Church Canubing II — church management app',
+        name: 'UECPCOM Canubing II',
+        short_name: 'UECPCOM',
+        description:
+          'United Evangelical Church of the Philippines – Calapan, Oriental Mindoro — church management app',
         theme_color: '#01779b',
         background_color: '#ffffff',
         display: 'standalone',
@@ -144,6 +156,21 @@ export default defineConfig(({ mode }) => ({
         // verse is not going to be revised, and the service a passage was
         // looked up for has to survive the hall's wifi giving out mid-reading.
         runtimeCaching: [
+          {
+            // Gallery photos and the logo on the public page. Each is a base64
+            // blob decoded out of Firestore on every cache miss, and a photo is
+            // addressed by a document id whose bytes never change — so the
+            // first visit should be the only one that ever pays for it. Held
+            // here as well as by the HTTP cache because this survives the
+            // eviction the browser's own cache does not.
+            urlPattern: /\/api\/public\?image=/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'public-images',
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
           {
             urlPattern: /\/bible\/[^/]+\/[^/]+\.json$/,
             handler: 'CacheFirst',

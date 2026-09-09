@@ -2,6 +2,8 @@
 import { ref, computed } from "vue";
 import { X, Image as ImageIcon, ChevronDown, User, Phone, Church } from '../../icons';
 import ImageCropper from "./ImageCropper.vue";
+import { uploadImage } from "../../api/blobService";
+import { useToast } from "../../composables/useToast";
 import FloatingInput from "../common/FloatingInput.vue";
 import { calculateAgeFromDate, CIVIL_STATUS_OPTIONS as civilStatusOptions } from "../../utils/memberUtils";
 import { useMediaQuery } from "../../composables/useMediaQuery";
@@ -63,8 +65,23 @@ const computedAge = computed(() => {
   return null;
 });
 
-const handleImageUpdate = (base64Image) => {
-  emit('update:newMember', { ...props.newMember, image: base64Image });
+const toast = useToast();
+
+// The cropper hands back a full-quality PNG data URL, which is why member
+// portraits used to be the biggest base64 blobs in the database. It goes to
+// Blob storage instead and the record keeps the URL — same as a gallery photo.
+const handleImageUpdate = async (base64Image) => {
+  if (!base64Image) {
+    emit('update:newMember', { ...props.newMember, image: null });
+    return;
+  }
+  try {
+    const url = await uploadImage(base64Image, 'members');
+    emit('update:newMember', { ...props.newMember, image: url });
+  } catch (error) {
+    console.error('Error storing that photo:', error);
+    toast.error('Could not save that photo. Please try again.');
+  }
 };
 
 const updateField = (field, value) => {
@@ -461,9 +478,14 @@ const sexOptions = [
   </Teleport>
 
   <!-- Image Cropper -->
+    <!-- :modelValue, not v-model. v-model would register a second listener
+         that writes the cropper's base64 straight into the record, racing the
+         upload beside it — and winning outright whenever the upload failed,
+         which is how a 194 KB data URL ended up saved on a member. The
+         handler below is the only thing allowed to set this field. -->
   <ImageCropper
     v-model:show="showImageCropper"
-    v-model="newMember.image"
+    :modelValue="newMember.image"
     @update:modelValue="handleImageUpdate"
   />
 </template>

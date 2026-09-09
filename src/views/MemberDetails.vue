@@ -9,6 +9,8 @@ import MemberAvatar from '../components/members/MemberAvatar.vue'
 import YouBadge from '../components/members/YouBadge.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import ImageCropper from '../components/members/ImageCropper.vue'
+import { uploadImage } from '../api/blobService'
+import { useToast } from '../composables/useToast'
 import InlineEditField from '../components/common/InlineEditField.vue'
 
 // The list can only say a record is thin. Here there is room to say which
@@ -187,8 +189,21 @@ const handleDelete = () => {
   })
 }
 
-const handleImageUpdate = (base64Image) => {
-  handleFieldSave('image', base64Image)
+const toast = useToast()
+
+// The cropper hands back a full-quality PNG data URL. It goes to Blob storage
+// and the record keeps only the URL — a data URL is never written to Firestore.
+const handleImageUpdate = async (base64Image) => {
+  if (!base64Image) {
+    handleFieldSave('image', null)
+    return
+  }
+  try {
+    handleFieldSave('image', await uploadImage(base64Image, 'members'))
+  } catch (error) {
+    console.error('Error storing that photo:', error)
+    toast.error('Could not save that photo. Please try again.')
+  }
 }
 
 // Options for select fields
@@ -563,9 +578,13 @@ const sexOptions = [
     />
 
     <!-- Image Cropper -->
+      <!-- :modelValue, not v-model. v-model registers a second listener that
+           writes the cropper's base64 straight into the record, racing the
+           upload beside it and winning whenever the upload fails. The handler
+           is the only thing allowed to set this field. -->
     <ImageCropper
       v-model:show="showImageCropper"
-      v-model="localMember.image"
+      :modelValue="localMember.image"
       @update:modelValue="handleImageUpdate"
     />
   </div>

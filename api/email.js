@@ -43,9 +43,9 @@ import {
 export const config = { maxDuration: 60 };
 
 const DEFAULT_CHURCH = {
-  shortName: "UEC Canubing II",
-  fullName: "United Evangelical Church Philippines Inc.",
-  branch: "Canubing II Outreach",
+  shortName: "UECPCOM",
+  fullName: "United Evangelical Church of the Philippines – Calapan, Oriental Mindoro",
+  branch: "Canubing II",
 };
 
 const docsOf = (snapshot) => snapshot.docs.map((d) => ({ id: d.id, data: d.data() }));

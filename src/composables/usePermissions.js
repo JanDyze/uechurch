@@ -47,11 +47,27 @@ export const initPermissions = () => {
   return ready
 }
 
+/*
+ * TEMPORARY: every signed-in account gets everything.
+ *
+ * Roles are derived from a member record's ministry tags, and most accounts
+ * are not linked to a member yet — so the real rules lock out the very people
+ * setting the church up, including whoever is meant to do the linking. This
+ * opens the app to anyone who can sign in until that groundwork is done.
+ *
+ * It does NOT open anything to the public: the router still requires a signed
+ * in account, and Firestore's own rules are untouched. It only stops this app
+ * from filtering what a signed-in person may reach.
+ *
+ * Set to false to put the capability checks back. Nothing else has to change.
+ */
+const OPEN_ACCESS = true
+
 export function usePermissions() {
   const { user } = useAuth()
 
-  const isAdmin = computed(() =>
-    Boolean(user.value && admins.value.some((a) => a.uid === user.value.uid))
+  const isAdmin = computed(
+    () => OPEN_ACCESS || Boolean(user.value && admins.value.some((a) => a.uid === user.value.uid))
   )
 
   // Nobody holds the role yet. The bootstrap button that claims it lives in
@@ -87,6 +103,7 @@ export function usePermissions() {
 
   /** Admins bypass every check; everyone else is limited to what they hold. */
   const can = (capability) => {
+    if (OPEN_ACCESS) return true
     if (!capability) return true
     if (isAdmin.value) return true
     return capabilities.value.has(capability)

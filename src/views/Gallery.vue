@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Image as ImageIcon, Plus, Maximize2, X, MapPin, Calendar, Clock, ChevronRight, ChevronLeft, ArrowLeft, Loader2, Upload, Download as DownloadIcon, ListFilter, Users, Info, Grid, Check, Trash2, Share2, AlertTriangle, MoreHorizontal, LogIn, ExternalLink } from '../icons'
-import { subscribeToAlbums, uploadPhotoToBase64, addAlbum, subscribeToAlbumPhotos, setAlbumCover, deletePhoto, deleteAlbum } from '../api/galleryService'
+import { subscribeToAlbums, uploadPhoto, addAlbum, subscribeToAlbumPhotos, setAlbumCover, deletePhoto, deleteAlbum } from '../api/galleryService'
 import { subscribeToEvents } from '../api/eventsService'
 import churchCover from '../assets/church.jpg'
 import { useMediaQuery } from '../composables/useMediaQuery'
@@ -172,7 +172,27 @@ const allAlbums = computed(() => {
     }))
   const combined = [...pastEvents]
   manualAlbums.value.forEach(album => {
-    const existingIndex = combined.findIndex(item => item.calendarEventId === album.calendarEventId || (item.title === album.title && item.date === album.date))
+    // An album fills in the calendar event it was shot at, so the page shows
+    // one tile rather than two. Two guards on that, both load-bearing:
+    //
+    //   item.isCalendarEvent — only an event row may be filled in. Without it
+    //     an album matched the *album* already sitting in the row and replaced
+    //     it, so several albums sharing a title and date collapsed into a
+    //     single tile showing only the last of them. The rest were on the page
+    //     nowhere: not openable, and so not deletable either. Deleting the
+    //     tile just handed its place to the next one, complete with a
+    //     different set of photos — which reads exactly like a delete that
+    //     did not work.
+    //
+    //   !item.existsInGallery — one album per event. A row already filled is
+    //     taken, and a second album pointing at the same event gets its own
+    //     tile rather than evicting the first.
+    const existingIndex = combined.findIndex(item =>
+      item.isCalendarEvent &&
+      !item.existsInGallery &&
+      ((album.calendarEventId && item.calendarEventId === album.calendarEventId) ||
+        (item.title === album.title && item.date === album.date))
+    )
     if (existingIndex !== -1) combined[existingIndex] = { ...combined[existingIndex], ...album, existsInGallery: true }
     else combined.push({ ...album, isCalendarEvent: false, existsInGallery: true })
   })
@@ -314,7 +334,7 @@ const handleFileUpload = async (event) => {
     for (let i = 0; i < files.length; i++) {
        uploadProgress.value = `Uploading ${i + 1}/${files.length}`
        const base64 = await compressImageToBase64(files[i])
-       await uploadPhotoToBase64(currentId, base64, '')
+       await uploadPhoto(currentId, base64, '')
     }
     event.target.value = ''
   } catch (err) { alert("Upload failed."); console.error(err) } finally { isUploading.value = false; uploadProgress.value = '' }

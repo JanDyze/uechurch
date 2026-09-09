@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { ImagePlus, Loader2, RotateCcw } from '../../icons'
 import { compressImageToBase64, LOGO_OPTIONS } from '../../utils/imageUtils'
+import { uploadImage } from '../../api/blobService'
 import { useAppSettings } from '../../composables/useAppSettings'
 import { useToast } from '../../composables/useToast'
 
@@ -24,7 +25,14 @@ const handleFile = async (mode, event) => {
   if (!file) return
   busy.value = mode
   try {
-    const compressed = await compressImageToBase64(file, LOGO_OPTIONS)
+    // Compressed in the browser as before, then stored rather than kept.
+    // The logo rides in appSettings/church, which every signed-in screen
+    // subscribes to in full — as a data URL it was downloaded once per
+    // session on every device; as a URL it is a hundred characters.
+    const compressed = await uploadImage(
+      await compressImageToBase64(file, LOGO_OPTIONS),
+      'branding'
+    )
     if (mode === 'dark') {
       await saveLogoDark(compressed)
       toast.success('Dark-mode logo updated')

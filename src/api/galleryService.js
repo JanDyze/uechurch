@@ -5,12 +5,16 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDoc,
+  getDocs,
   query,
   where,
   orderBy,
   onSnapshot,
   Timestamp
 } from 'firebase/firestore'
+import { inBatches } from './batchWrite'
+import { deleteImages, uploadImage } from './blobService'
 import { notify } from './notifyService'
 
 const ALBUMS_COLLECTION = 'gallery_albums'
@@ -107,12 +111,24 @@ export const addAlbum = async (albumData) => {
 /**
  * Upload a photo as Base64 to a separate Firestore document
  */
-export const uploadPhotoToBase64 = async (albumId, base64Data, description) => {
+/**
+ * Stores one photograph and files it under an album.
+ *
+ * The bytes go to Blob and the document keeps only the URL they landed
+ * at. It used to keep the whole base64 string, which is what capped a
+ * picture at the 1 MiB a Firestore document holds and put a function
+ * decode in front of every read. `url` is still the field name, and still
+ * something an <img> can be pointed at — a migrated photo is an https URL,
+ * one that predates this is a data URL, and both render.
+ */
+export const uploadPhoto = async (albumId, base64Data, description) => {
   try {
+    const url = await uploadImage(base64Data, `gallery/${albumId}`)
+
     // 1. Create photo document
     const photoRef = await addDoc(collection(db, PHOTOS_COLLECTION), {
       albumId,
-      url: base64Data,
+      url,
       description: description || '',
       uploadedAt: Timestamp.now()
     })
@@ -170,8 +186,31 @@ export const setAlbumCover = async (albumId, photoUrl) => {
  */
 export const deleteAlbum = async (albumId) => {
   try {
-    const docRef = doc(db, ALBUMS_COLLECTION, albumId)
-    await deleteDoc(docRef)
+    // The photographs go with it.
+    //
+    // They used to be left where they were. Nothing renders an orphan — the
+    // public page and the gallery both look a photo's album up before showing
+    // it, and the image route refuses one — so the leak was invisible, which
+    // is why it lasted: every deleted album left its photos in Firestore for
+    // good, each one a base64 blob, each one still counted against every read
+    // of the collection the public page makes.
+    //
+    // Photos first, then the album. That order is the recoverable one: a
+    // failure halfway leaves an album that still owns what is left of its
+    // photos, and deleting it again finishes the job. The other order would
+    // strand them beyond reach of this function.
+    const photos = await getDocs(
+      query(collection(db, PHOTOS_COLLECTION), where('albumId', '==', albumId))
+    )
+
+    // The stored files go too. Deduplicated because an album's cover points at
+    // the same blob as one of its photographs, and one list means one request
+    // however many pictures the album holds.
+    await deleteImages([...new Set(photos.docs.map((photo) => photo.data()?.url))])
+
+    await inBatches(photos.docs, (batch, photo) => batch.delete(photo.ref))
+
+    await deleteDoc(doc(db, ALBUMS_COLLECTION, albumId))
   } catch (error) {
     console.error('Error deleting album:', error)
     throw error
@@ -183,6 +222,14 @@ export const deleteAlbum = async (albumId) => {
 export const deletePhoto = async (photoId) => {
   try {
     const photoRef = doc(db, PHOTOS_COLLECTION, photoId)
+
+    // The stored file first, then the document that points at it. That order
+    // is the recoverable one: if the delete fails halfway the photo is still
+    // listed and can be deleted again, where the reverse would leave bytes in
+    // the store with nothing left in the app that knows about them.
+    const snapshot = await getDoc(photoRef)
+    if (snapshot.exists()) await deleteImages(snapshot.data()?.url)
+
     await deleteDoc(photoRef)
   } catch (error) {
     console.error('Error deleting photo:', error)

@@ -8,6 +8,20 @@
 
 export const versionHistory = [
   {
+    version: '0.15.0',
+    date: '2026-09-09',
+    title: 'A front door of our own',
+    summary:
+      'The page visitors land on is now in Tagalog and written for our church — it greets whoever is reading, shows Punla, Puno, Prutas, and keeps what’s coming up in a calendar you can tap in the corner.',
+    highlights: [
+      'Photographs are far quicker to load now, and no longer sit inside the database.',
+      'Almost everything on the public page — the verse, the vision and mission, the stages, the welcome — is yours to edit under Settings → Public page.',
+      'Birthdays can appear there too. Off unless you turn it on, and only ever a first name and the day.',
+      'Deleting an album now really deletes it, and a deleted album no longer lingers on the page for an hour.',
+      'Member photos, the logo and group covers want re-uploading — they were cleared when photographs moved.',
+    ],
+  },
+  {
     version: '0.14.0',
     date: '2026-09-07',
     title: 'Arrange the apps how you want them',

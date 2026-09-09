@@ -47,10 +47,47 @@ import {
 const HORIZON_DAYS = 75;
 const MAX_GATHERINGS = 6;
 
-// How many photos the page may draw on. The hero rotates through a few of
-// them and the strip shows the rest; the client picks its own order, so a
-// larger pool than either needs is what makes the page look different on two
-// visits.
+// Birthdays are capped separately. A congregation of a hundred has one most
+// weeks, and without a cap of its own a busy month would push every service
+// off the end of the list.
+const MAX_BIRTHDAYS = 6;
+
+/*
+ * Not cached, anywhere.
+ *
+ * This payload is what the public page draws itself from — the service times,
+ * the calendar, which albums are published — so every cache in front of it is
+ * a window in which an admin's change has not happened yet. That was not
+ * theoretical: an album deleted from the gallery kept appearing on the page,
+ * and no amount of clearing a browser helped, because the stale copy was
+ * sitting in Vercel's edge rather than on the phone.
+ *
+ * "no-store" is the whole of it: the browser may not keep a copy, and neither
+ * may the edge. What an admin saves is what the next visitor loads.
+ *
+ * The cost is a Firestore read pass per visit — the settings document, then
+ * events, recurringSchedules, gallery_photos and gallery_albums. Every one of
+ * those uses `select`, so they are id-and-a-field reads rather than whole
+ * documents, but they are still reads and they are no longer amortised across
+ * five minutes of traffic. If that ever starts to matter, this is the one
+ * place to put a small s-maxage back.
+ *
+ * The pictures are a separate matter and are still cached hard, which is safe
+ * for a different reason: a Blob photo's filename is a uuid and a logo's URL
+ * carries the settings timestamp, so changing either produces a new URL rather
+ * than new bytes at an old one. Nothing there can go stale.
+ */
+const CACHE_PAYLOAD = "no-store";
+
+/** Nothing to publish, and no reason to remember that either. */
+const CACHE_OFF = "no-store";
+
+// How many photos the page may draw on. The hero is one static bundled photo
+// now, so this feeds the "Buhay sa simbahan" strip alone, which draws six. The
+// pool stays deliberately wider than that: this response is edge-cached, and
+// the shuffle below picking six out of twelve is what makes the strip look
+// different from one cache window to the next. Only ids and captions travel,
+// so the extra six cost a few dozen bytes.
 const MAX_PHOTOS = 12;
 
 // Inward-facing by nature: an elders' meeting or a leaders' training session
@@ -83,14 +120,28 @@ const cadenceLabel = (schedule = {}) => {
  * the client owns those (src/data/appDefaults.js), so there is one copy of the
  * starting values rather than two that can drift apart.
  */
+/**
+ * An image field as something the browser can fetch.
+ *
+ * Uploads go to Blob now, so most of these are already URLs and travel
+ * untouched. The fallback is for the ones saved before that: they are still
+ * base64 inside the settings document, and the image route below decodes them.
+ */
+const publicImage = (value, kind, stamp) => {
+  if (!value) return "";
+  if (isStored(value)) return value;
+  return `/api/public?image=${kind}&v=${stamp}`;
+};
+
 const publicChurch = (church = {}, stamp) => ({
   shortName: church.shortName || "",
   fullName: church.fullName || "",
   branch: church.branch || "",
-  // Sent as URLs, not base64. `v` busts the cache the moment a new logo is
-  // saved, which is what lets the bytes be cached hard.
-  logo: church.logo ? `/api/public?image=logo&v=${stamp}` : "",
-  logoDark: church.logoDark ? `/api/public?image=logoDark&v=${stamp}` : "",
+  // Always a URL. A logo uploaded now is already one and is passed through;
+  // anything still held as base64 from before gets a link to the route that
+  // decodes it, where `v` busts the cache the moment a new one is saved.
+  logo: publicImage(church.logo, "logo", stamp),
+  logoDark: publicImage(church.logoDark, "logoDark", stamp),
 });
 
 /**
@@ -103,7 +154,7 @@ const publicLanding = (landing = {}, stamp) => {
   const { heroImage, hiddenAlbums, ...rest } = landing;
   return {
     ...rest,
-    heroImage: heroImage ? `/api/public?image=hero&v=${stamp}` : "",
+    heroImage: publicImage(heroImage, "hero", stamp),
   };
 };
 
@@ -172,9 +223,67 @@ const publicGatherings = ({ events, schedules }, today) => {
  * a base64 image and an album document carries its cover, so pulling either
  * collection whole would move megabytes to list a set of ids.
  */
+/**
+ * Whose birthday falls between today and the horizon.
+ *
+ * Deliberately the least that can still be a greeting. What leaves the server
+ * is the name somebody is called by and the day it falls on — no surname, no
+ * year, and therefore no age, no contact details, nothing else off the record.
+ * The read itself is projected down to those three fields, so the rest of a
+ * member's document never even reaches this function.
+ *
+ * Off by default: this is the one thing on the page that is somebody else's
+ * personal information rather than the church's own, so an install publishes
+ * it only once an administrator has said to.
+ */
+const publicBirthdays = (members, today, until) => {
+  const [todayYear] = today.split("-").map(Number);
+
+  return members
+    .map((member) => {
+      const [, month, day] = String(member.dateOfBirth || "").split("-").map(Number);
+      if (!month || !day) return null;
+
+      // This year's, unless it has already gone — then next year's. A birthday
+      // on 3 January is "coming up" when read just before Christmas.
+      const pad = (n) => String(n).padStart(2, "0");
+      let date = `${todayYear}-${pad(month)}-${pad(day)}`;
+      if (date < today) date = `${todayYear + 1}-${pad(month)}-${pad(day)}`;
+      if (date > until) return null;
+
+      // The name they are called by, which is the whole point of a greeting.
+      const name = (member.nickname || "").trim() || (member.firstName || "").trim();
+      if (!name) return null;
+
+      return {
+        id: `birthday-${member.id}`,
+        title: `Kaarawan ni ${name}`,
+        type: "birthday",
+        date,
+        time: "",
+        cadence: "",
+        recurring: false,
+        // Only a portrait already sitting in Blob, never a base64 one. A
+        // stored photo costs a URL here; an inline one would put a couple of
+        // hundred kilobytes per member into a payload that is otherwise a few
+        // hundred bytes, which is exactly what moving them out of Firestore
+        // was for. A member without one simply has no avatar.
+        avatar: isStored(member.image) ? member.image : "",
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, MAX_BIRTHDAYS);
+};
+
+/** Already in Blob, rather than a base64 string still inside its document. */
+const isStored = (url) => typeof url === "string" && url.startsWith("https://");
+
 const publicPhotos = async (firestore, hidden) => {
   const [photoSnap, albumSnap] = await Promise.all([
-    firestore.collection("gallery_photos").select("albumId").get(),
+    // `url` joins the projection now: a stored photo publishes its own URL,
+    // and for those it is a short string rather than the picture itself.
+    firestore.collection("gallery_photos").select("albumId", "url").get(),
     firestore.collection("gallery_albums").select("title").get(),
   ]);
 
@@ -185,13 +294,16 @@ const publicPhotos = async (firestore, hidden) => {
 
   const photos = photoSnap.docs
     // An album can be deleted without its photos going with it. Those are not
-    // anybody's decision to publish, so they stay out.
-    .filter((d) => albumTitles.has(d.data().albumId))
+    // anybody's decision to publish, so they stay out. A photograph that is
+    // not in the store has nothing publishable either.
+    .filter((d) => albumTitles.has(d.data().albumId) && isStored(d.data().url))
     .map((d) => ({
       id: d.id,
-      // A photo document never changes after it is uploaded, so its bytes can
-      // be cached for good.
-      url: `/api/public?image=photo&id=${d.id}`,
+      // Its own URL: the file is already on a CDN, and routing it through
+      // this function would only add a Firestore read to something that
+      // needs none. Nothing writes a base64 photograph any more, and the
+      // filter above has already dropped any that somehow is one.
+      url: d.data().url,
       album: albumTitles.get(d.data().albumId) || "",
     }));
 
@@ -246,6 +358,21 @@ async function serveImage(firestore, req, res) {
     return res.status(400).json({ error: "Unknown image" });
   }
 
+  // Already in Blob: the bytes are on a CDN, so the reader is sent straight
+  // there instead of being proxied through here. The listing publishes storage
+  // URLs directly now, so this is only reached by a link made before the move —
+  // a payload cached in a browser, a bookmark, a service worker's copy. Every
+  // check above has already run, so a hidden or deleted album is still refused.
+  //
+  // Location is set by hand rather than with res.redirect, which exists on
+  // Vercel but not on the small response shim vite.config.js uses in dev.
+  if (isStored(source)) {
+    res.statusCode = 302;
+    res.setHeader("Location", source);
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    return res.end();
+  }
+
   const decoded = decodeDataUrl(source);
   if (!decoded) return res.status(404).json({ error: "Not found" });
 
@@ -253,11 +380,14 @@ async function serveImage(firestore, req, res) {
   res.setHeader("Content-Length", decoded.buffer.length);
   // A photo is addressed by an id that never changes its bytes; a logo or hero
   // is addressed with the settings document's own timestamp, so a new upload
-  // is a new URL. Either way the bytes behind one URL are final.
+  // is a new URL. Either way the bytes behind one URL are final — which is why
+  // the browser is now trusted with them for as long as the edge is. It used
+  // to be given an hour, so a second visit the same afternoon re-downloaded
+  // every photo on the page from the CDN for no reason.
   res.setHeader(
     "Cache-Control",
     immutable || req.query.v
-      ? "public, max-age=3600, s-maxage=31536000, immutable"
+      ? "public, max-age=31536000, s-maxage=31536000, immutable"
       : "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400"
   );
   return res.end(decoded.buffer);
@@ -286,7 +416,7 @@ export default async function handler(req, res) {
     // Off means off: an install using this only as an internal tool answers
     // with nothing to publish rather than with its address and phone number.
     if (landing.enabled === false) {
-      res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
+      res.setHeader("Cache-Control", CACHE_OFF);
       return res.status(200).json({ enabled: false });
     }
 
@@ -294,7 +424,9 @@ export default async function handler(req, res) {
     const today = zonedDateString(new Date(), DEFAULT_TIMEZONE);
     const hidden = new Set(Array.isArray(landing.hiddenAlbums) ? landing.hiddenAlbums : []);
 
-    const [events, schedules, photos] = await Promise.all([
+    const wantsBirthdays = landing.showBirthdays === true;
+
+    const [events, schedules, photos, birthdayMembers] = await Promise.all([
       firestore
         .collection("events")
         .select(
@@ -311,9 +443,18 @@ export default async function handler(req, res) {
         .get(),
       firestore.collection("recurringSchedules").get(),
       landing.showPhotos === false ? [] : publicPhotos(firestore, hidden),
+      // Three fields and nothing else. A member document also carries an
+      // address, a contact number and a base64 portrait, and none of that has
+      // any business being loaded by the public endpoint.
+      wantsBirthdays
+        ? firestore
+            .collection("members")
+            .select("firstName", "nickname", "dateOfBirth", "image")
+            .get()
+        : null,
     ]);
 
-    const gatherings =
+    const scheduled =
       landing.showEvents === false
         ? []
         : publicGatherings(
@@ -321,7 +462,21 @@ export default async function handler(req, res) {
             today
           );
 
-    res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=3600");
+    const birthdays = birthdayMembers
+      ? publicBirthdays(
+          birthdayMembers.docs.map((d) => ({ id: d.id, ...d.data() })),
+          today,
+          addDays(today, HORIZON_DAYS)
+        )
+      : [];
+
+    // One list, in date order: a visitor reading "what's coming up" does not
+    // care which collection a thing came out of.
+    const gatherings = [...scheduled, ...birthdays].sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
+
+    res.setHeader("Cache-Control", CACHE_PAYLOAD);
     return res.status(200).json({
       enabled: true,
       church: publicChurch(data.church, stamp),

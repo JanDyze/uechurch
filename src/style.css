@@ -10,6 +10,15 @@
   --color-primary-hover: #015a77;
 }
 
+/* The pixel face from index.html, kept to the one place it belongs. Named
+   rather than applied to an element so nothing else picks it up by accident;
+   the fallback is a monospace stack, which at least keeps the blocky feel if
+   the font never loads. */
+.font-pixel {
+  font-family: Silkscreen, ui-monospace, "Courier New", monospace;
+  letter-spacing: 0.02em;
+}
+
 /* Hides the scrollbar on deliberately swipeable strips (tab bars, chip rows)
    while keeping them scrollable. Defined once here — several components each
    used to carry their own copy. */

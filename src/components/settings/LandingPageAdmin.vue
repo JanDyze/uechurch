@@ -26,12 +26,15 @@ import {
 import { subscribeToAlbums } from '../../api/galleryService'
 import { formatTime } from '../../../lib/occurrences'
 import { compressImageToBase64 } from '../../utils/imageUtils'
-import bundledHero from '../../assets/church.jpg'
+import { uploadImage } from '../../api/blobService'
+import bundledHero from '../../assets/hero-cover.webp'
 
 // The hero rides inside appSettings/church, which every signed-in screen
 // subscribes to in full — so it gets a budget close to the logo's rather than a
-// gallery photo's. Full-bleed at 1400px wide is enough for a phone or a laptop.
-const HERO_OPTIONS = { maxSize: 160 * 1024, maxDim: 1400 }
+// gallery photo's. It is now an arch about 300px wide rather than a full-bleed
+// backdrop, so 900px on the long edge is already twice what any screen draws,
+// and the old 1400px budget was paying for pixels nobody ever saw.
+const HERO_OPTIONS = { maxSize: 100 * 1024, maxDim: 900 }
 
 const toast = useToast()
 const { isAdmin } = usePermissions()
@@ -39,12 +42,16 @@ const { landing, saveLanding } = useAppSettings()
 
 const blankService = () => ({ name: '', when: '', note: '' })
 
+const blankStage = () => ({ stage: '', note: '' })
+
 const cloneLanding = (source) => ({
   ...source,
   services: (source.services || []).map((service) => ({ ...service })),
+  path: (source.path || []).map((step) => ({ ...step })),
   // Copied, not shared: the picker below replaces this array, and holding the
   // stored one would make every edit look already-saved.
   hiddenAlbums: [...(source.hiddenAlbums || [])],
+  welcomeTerms: [...(source.welcomeTerms || [])],
 })
 
 const form = ref(cloneLanding(landing.value))
@@ -60,6 +67,31 @@ const dirty = computed(
 watch(landing, (next) => {
   if (!dirty.value) form.value = cloneLanding(next)
 })
+
+/**
+ * The welcome names, as one editable line.
+ *
+ * Thirty-odd one-word values want a text field, not thirty rows. Split on
+ * commas and newlines so a list pasted from anywhere still parses, and joined
+ * back with ", " so the field reads as a sentence.
+ */
+const termsText = computed({
+  get: () => (form.value.welcomeTerms || []).join(', '),
+  set: (value) => {
+    form.value.welcomeTerms = String(value)
+      .split(/[\n,]/)
+      .map((name) => name.trim())
+      .filter(Boolean)
+  },
+})
+
+const addStage = () => {
+  form.value.path = [...form.value.path, blankStage()]
+}
+
+const removeStage = (index) => {
+  form.value.path = form.value.path.filter((_, i) => i !== index)
+}
 
 const heroPreview = computed(() => form.value.heroImage || bundledHero)
 const heroInput = ref(null)
@@ -91,6 +123,19 @@ const toggleEvents = () => {
   persist(
     { showEvents },
     showEvents ? 'Upcoming gatherings are shown' : 'Upcoming gatherings are hidden'
+  )
+}
+
+// Opted into rather than out of, unlike every other switch here: this one
+// publishes something about other people.
+const toggleBirthdays = () => {
+  const showBirthdays = form.value.showBirthdays !== true
+  form.value.showBirthdays = showBirthdays
+  persist(
+    { showBirthdays },
+    showBirthdays
+      ? 'Birthdays now appear on the public page'
+      : 'Birthdays are no longer published'
   )
 }
 
@@ -193,7 +238,10 @@ const handleHeroFile = async (event) => {
   if (!file) return
   uploading.value = true
   try {
-    const heroImage = await compressImageToBase64(file, HERO_OPTIONS)
+    const heroImage = await uploadImage(
+      await compressImageToBase64(file, HERO_OPTIONS),
+      'branding'
+    )
     form.value.heroImage = heroImage
     await persist({ heroImage }, 'Hero photo updated')
   } catch (error) {
@@ -224,8 +272,20 @@ const handleSave = async () => {
     const trimmed = (value) => (value || '').trim()
     const payload = {
       ...form.value,
-      tagline: trimmed(form.value.tagline),
       intro: trimmed(form.value.intro),
+      welcomeLine: trimmed(form.value.welcomeLine),
+      welcomeLineMember: trimmed(form.value.welcomeLineMember),
+      verse: trimmed(form.value.verse),
+      verseReference: trimmed(form.value.verseReference),
+      vision: trimmed(form.value.vision),
+      mission: trimmed(form.value.mission),
+      closingTitle: trimmed(form.value.closingTitle),
+      closingBody: trimmed(form.value.closingBody),
+      // A stage with no name draws nothing on the page, so it is dropped
+      // rather than stored as an empty step.
+      path: form.value.path
+        .filter((step) => trimmed(step.stage))
+        .map((step) => ({ stage: trimmed(step.stage), note: trimmed(step.note) })),
       aboutTitle: trimmed(form.value.aboutTitle),
       about: trimmed(form.value.about),
       address: trimmed(form.value.address),
@@ -348,6 +408,37 @@ const labelClass = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
         </button>
       </div>
 
+      <!-- Birthdays. Its own switch, under the one it depends on, and worded
+           so nobody turns it on without knowing what leaves the building. -->
+      <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100 dark:border-gray-700">
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-gray-900 dark:text-white">Include birthdays</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            Adds members' birthdays to that list. Only the name they are called by and the
+            day — never a surname, never the year, so never an age. It is still personal
+            information on a public page, so it is off unless you turn it on.
+          </p>
+        </div>
+        <button
+          @click="toggleBirthdays"
+          :disabled="form.showEvents === false"
+          :class="[
+            'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-40',
+            form.showBirthdays === true ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
+          ]"
+          role="switch"
+          :aria-checked="form.showBirthdays === true"
+          aria-label="Include birthdays"
+        >
+          <span
+            :class="[
+              'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+              form.showBirthdays === true ? 'translate-x-6' : 'translate-x-1',
+            ]"
+          ></span>
+        </button>
+      </div>
+
       <div class="p-4 space-y-5">
         <div
           class="flex items-start gap-2 rounded-lg bg-gray-50 dark:bg-gray-900/40 p-3 text-xs text-gray-600 dark:text-gray-300"
@@ -397,8 +488,8 @@ const labelClass = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
             </div>
           </div>
           <p class="mt-1 text-[11px] text-gray-400">
-            Saved as soon as you pick it. Sits behind the welcome text whenever the
-            gallery has no photo to show there.
+            Saved as soon as you pick it. Drawn as the arched window beside the
+            welcome text — a tall, upright photo suits it best.
           </p>
         </div>
 
@@ -410,8 +501,7 @@ const labelClass = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
                 Photos from the gallery
               </p>
               <p class="text-[11px] text-gray-400">
-                The hero rotates through a random handful, and they fill the "Life at
-                church" strip
+                They fill the "Buhay sa simbahan" strip near the foot of the page
               </p>
             </div>
             <button
@@ -537,16 +627,135 @@ const labelClass = 'block text-xs font-medium text-gray-500 dark:text-gray-400 m
           </template>
         </div>
 
-        <!-- Welcome -->
-        <div>
-          <label :class="labelClass">Headline</label>
-          <input v-model="form.tagline" type="text" :class="inputClass" />
-          <p class="mt-1 text-[11px] text-gray-400">The big line across the photo</p>
-        </div>
-
+        <!-- Welcome. The headline itself is not editable: it greets the
+             reader by name — ate, kuya, nanay, or their own once they are
+             signed in — and rolls through the rest while they read. -->
         <div>
           <label :class="labelClass">Welcome paragraph</label>
           <textarea v-model="form.intro" rows="3" :class="areaClass"></textarea>
+          <p class="mt-1 text-[11px] text-gray-400">
+            The line under the greeting, at the top of the public page
+          </p>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label :class="labelClass">After the name</label>
+            <input v-model="form.welcomeLine" type="text" :class="inputClass" />
+            <p class="mt-1 text-[11px] text-gray-400">Shown to a visitor</p>
+          </div>
+          <div>
+            <label :class="labelClass">After a member's name</label>
+            <input v-model="form.welcomeLineMember" type="text" :class="inputClass" />
+            <p class="mt-1 text-[11px] text-gray-400">Shown once they have signed in</p>
+          </div>
+        </div>
+
+        <div>
+          <label :class="labelClass">Names the greeting rolls through</label>
+          <textarea v-model="termsText" rows="4" :class="areaClass"></textarea>
+          <p class="mt-1 text-[11px] text-gray-400">
+            Separated by commas. Shuffled on every visit, and replaced by a member's
+            own name once they sign in — so leave out anything you would not say to
+            a stranger at the door. Empty means no name at all.
+          </p>
+        </div>
+
+        <!-- Verse -->
+        <div>
+          <label :class="labelClass">Verse</label>
+          <textarea v-model="form.verse" rows="3" :class="areaClass"></textarea>
+          <p class="mt-1 text-[11px] text-gray-400">
+            The band under the welcome. Leave empty to drop it
+          </p>
+        </div>
+
+        <div>
+          <label :class="labelClass">Verse reference</label>
+          <input
+            v-model="form.verseReference"
+            type="text"
+            placeholder="Mateo 18:20"
+            :class="inputClass"
+          />
+        </div>
+
+        <!-- Why the church is here -->
+        <div>
+          <label :class="labelClass">Pananaw / Vision</label>
+          <textarea v-model="form.vision" rows="2" :class="areaClass"></textarea>
+        </div>
+
+        <div>
+          <label :class="labelClass">Misyon / Mission</label>
+          <textarea v-model="form.mission" rows="2" :class="areaClass"></textarea>
+          <p class="mt-1 text-[11px] text-gray-400">
+            With both of these empty the whole section goes
+          </p>
+        </div>
+
+        <!-- Discipleship process -->
+        <div>
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <p class="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                Discipleship process
+              </p>
+              <p class="text-[11px] text-gray-400">
+                Punla, Puno, Prutas — the stages, in order
+              </p>
+            </div>
+            <button
+              @click="addStage"
+              class="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary/10 px-2.5 text-xs font-semibold text-primary dark:text-primary-light"
+            >
+              <Plus class="h-3.5 w-3.5" />
+              Add
+            </button>
+          </div>
+
+          <div v-if="!form.path.length" class="text-[11px] text-gray-400">
+            No stages — the section is hidden.
+          </div>
+
+          <div
+            v-for="(step, index) in form.path"
+            :key="'stage-' + index"
+            class="mb-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+          >
+            <div class="flex items-center gap-2">
+              <input
+                v-model="step.stage"
+                type="text"
+                placeholder="Punla"
+                :class="inputClass"
+              />
+              <button
+                @click="removeStage(index)"
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                aria-label="Remove stage"
+              >
+                <Trash2 class="h-4 w-4" />
+              </button>
+            </div>
+            <input
+              v-model="step.note"
+              type="text"
+              placeholder="Pagsisimula kay Kristo."
+              :class="[inputClass, 'mt-2']"
+            />
+          </div>
+        </div>
+
+        <!-- The last word on the page -->
+        <div>
+          <label :class="labelClass">Closing invitation</label>
+          <input v-model="form.closingTitle" type="text" :class="inputClass" />
+          <textarea
+            v-model="form.closingBody"
+            rows="2"
+            :class="[areaClass, 'mt-2']"
+          ></textarea>
         </div>
 
         <!-- Services -->

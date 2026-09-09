@@ -7,6 +7,7 @@ import {
   COVER_ASPECT,
   COVER_PHOTO_OPTIONS,
 } from '../../utils/imageUtils'
+import { uploadImage } from '../../api/blobService'
 import { useSgLanguage } from '../../composables/useSgLanguage'
 import ImageCropModal from '../common/ImageCropModal.vue'
 
@@ -42,16 +43,22 @@ const handleFile = async (event) => {
   }
 }
 
-const handleCrop = (rect) => {
+const handleCrop = async (rect) => {
   if (!sourceImage.value) return
   isProcessing.value = true
   try {
-    emit(
-      'update:modelValue',
-      cropImageToBase64(sourceImage.value, rect, { maxSize: COVER_PHOTO_OPTIONS.maxSize })
-    )
+    // Cropped in the browser, then stored: the group document keeps a URL.
+    // It used to keep the picture itself, and the small-groups list
+    // subscribes to every group in full — so one cover was downloaded for
+    // every group just to draw the index.
+    const cropped = cropImageToBase64(sourceImage.value, rect, {
+      maxSize: COVER_PHOTO_OPTIONS.maxSize,
+    })
+    emit('update:modelValue', await uploadImage(cropped, 'groups'))
     showCrop.value = false
     sourceImage.value = null
+  } catch (error) {
+    console.error('Error storing that cover:', error)
   } finally {
     isProcessing.value = false
   }

@@ -6,6 +6,7 @@ import { getFullName, getSexIcon, getSexIconColor, calculateAgeFromDate, missing
 import { useMediaQuery } from "../../composables/useMediaQuery";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 import ImageCropper from "./ImageCropper.vue";
+import { uploadImage } from "../../api/blobService";
 import MemberAvatar from "./MemberAvatar.vue";
 import InlineEditField from "../common/InlineEditField.vue";
 import { useMinistries } from "../../composables/useMinistries";
@@ -107,8 +108,19 @@ useFocusTrap(dialogRef, () => props.showDetails, () => emit("update:showDetails"
 
 const showImageCropper = ref(false);
 
-const handleImageUpdate = (base64Image) => {
-  handleFieldSave('image', base64Image);
+// The cropper hands back a full-quality PNG data URL, which is why member
+// portraits used to be the biggest base64 blobs in the database. It goes to
+// Blob storage instead and the record keeps the URL — same as a gallery photo.
+const handleImageUpdate = async (base64Image) => {
+  if (!base64Image) {
+    handleFieldSave('image', null);
+    return;
+  }
+  try {
+    handleFieldSave('image', await uploadImage(base64Image, 'members'));
+  } catch (error) {
+    console.error('Error storing that photo:', error);
+  }
 };
 
 // Options for select fields
@@ -477,9 +489,14 @@ const sexOptions = [
   </Teleport>
 
   <!-- Image Cropper -->
+    <!-- :modelValue, not v-model. v-model would register a second listener
+         that writes the cropper's base64 straight into the record, racing the
+         upload beside it — and winning outright whenever the upload failed,
+         which is how a 194 KB data URL ended up saved on a member. The
+         handler below is the only thing allowed to set this field. -->
   <ImageCropper
     v-model:show="showImageCropper"
-    v-model="localMember.image"
+    :modelValue="localMember.image"
     @update:modelValue="handleImageUpdate"
   />
 </template>
