@@ -17,6 +17,7 @@ import { useMemberClaims } from "../composables/useMemberClaims";
 import { usePresence } from "../composables/usePresence";
 import { useMediaQuery } from "../composables/useMediaQuery";
 import { usePermissions } from "../composables/usePermissions";
+import { useAppSettings } from "../composables/useAppSettings";
 import { canReceive } from "../../lib/notifications";
 import { notificationIcon, toneClass } from "../utils/notificationIcons";
 import { getFullName } from "../utils/memberUtils";
@@ -31,6 +32,13 @@ const { displayName, email: userEmail, logout } = useAuth();
 const { myAvatarUrl } = useAvatars();
 const toast = useToast();
 const { isEnabled: notificationsEnabled, enabling, enable } = useNotifications();
+
+// The mark doubles as the way out to the church's public page. Only offered
+// when that page is actually published: with the landing page turned off "/"
+// is not a destination, and a link that bounces you back where you started is
+// worse than no link.
+const { church, logoUrl, landing } = useAppSettings();
+const showPublicLink = computed(() => landing.value.enabled !== false);
 
 // No digest switch here any more: the digest is simply sent. api/email.js has
 // always treated it as opt-out, so an account that never touches a setting
@@ -163,9 +171,20 @@ const openMyProfile = () => {
   >
     <div class="px-4 sm:px-6 lg:px-4">
       <div class="flex items-center justify-between h-12">
-        <h1 class="min-w-0 truncate text-sm font-semibold text-gray-900 dark:text-white">
-          {{ pageTitle }}
-        </h1>
+        <div class="flex min-w-0 items-center gap-2.5">
+          <router-link
+            v-if="showPublicLink"
+            to="/"
+            :title="`Go to the ${church.shortName} public page`"
+            :aria-label="`Go to the ${church.shortName} public page`"
+            class="-ml-1 flex shrink-0 items-center rounded-lg p-1 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <img :src="logoUrl" :alt="church.shortName" class="h-8 w-auto" />
+          </router-link>
+          <h1 class="min-w-0 truncate text-sm font-semibold text-gray-900 dark:text-white">
+            {{ pageTitle }}
+          </h1>
+        </div>
         <!-- Right: User menu and notifications -->
         <div class="flex items-center gap-2">
           <!-- Who is online. The permanent rail replaces this from xl up. -->

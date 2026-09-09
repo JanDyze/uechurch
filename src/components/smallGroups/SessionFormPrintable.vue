@@ -296,7 +296,7 @@ const groupSchedule = computed(() => {
   padding-bottom: 0.65rem;
 }
 .sg-logo {
-  height: 44px;
+  height: 28px;
   width: auto;
   flex-shrink: 0;
 }

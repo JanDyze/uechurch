@@ -126,6 +126,30 @@ const isActive = (path) => {
   return route.path.startsWith(path)
 }
 
+// Which app the current page belongs to. Longest match wins: /small-groups and
+// /small-groups/3 both answer to the same prefix, and a nested route should
+// still name its own app rather than whichever entry matched first.
+const currentApp = computed(() =>
+  [...allowedApps.value]
+    .filter((item) => isActive(item.path))
+    .sort((a, b) => b.path.length - a.path.length)[0] || null
+)
+
+// ...and whether it is one the strip can mark. A page opened through the
+// centre button lights no tab, so the bar used to answer "where am I" with a
+// blank space and a fading pill. The mark now carries the name instead.
+const offBarApp = computed(() => {
+  const item = currentApp.value
+  if (!item) return null
+  return primaryNav.value.some((tab) => tab.path === item.path) ? null : item
+})
+
+// The word under the mark. What it opens when it is only a button; where you
+// are when it is also the answer to that.
+const centreLabel = computed(() =>
+  offBarApp.value ? offBarApp.value.short || offBarApp.value.name : 'Apps'
+)
+
 // With the labels gone, the selected tab is marked by one pill that slides
 // between the icons rather than a background per tab switching on and off: the
 // travel is what tells you which way you just moved. Its position has to be
@@ -224,12 +248,13 @@ const restApps = computed(() =>
 </script>
 
 <template>
-  <!-- The app drawer behind the centre button. It takes almost the whole
-       screen, leaving a strip of the page visible so it still reads as a sheet
-       pulled up over the app rather than a new screen. It sits above the
-       topbar: at this height it would otherwise run underneath it. It also
-       covers the bar it was opened from, so the tab strip never competes with
-       the grid it just opened. -->
+  <!-- The app drawer behind the centre button. Four fifths of the screen, so
+       it reads as a sheet pulled up over the app rather than a new screen:
+       the page stays visible above it and the grid scrolls inside. Full
+       height rather than content height on purpose - the grid is a flex child
+       with a zero basis, so an auto-height sheet would collapse to its header.
+       It still covers the bar it was opened from, so the tab strip never
+       competes with the grid it just opened. -->
   <Transition name="more-sheet">
     <div
       v-if="showMoreMenu"
@@ -245,9 +270,9 @@ const restApps = computed(() =>
         tabindex="-1"
         v-bind="sheetSwipe"
         :style="sheetStyle()"
-        class="more-sheet-panel relative z-10 w-full h-full flex flex-col rounded-t-3xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700"
+        class="more-sheet-panel relative z-10 w-full h-full max-h-[80dvh] flex flex-col rounded-t-3xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700"
       >
-        <div class="shrink-0 rounded-t-3xl pt-[env(safe-area-inset-top)]">
+        <div class="shrink-0 rounded-t-3xl">
           <!-- Grab handle. It reads as something you can pull the sheet down
                by, so it does that rather than only looking the part: pressing
                it closes the drawer. The whole strip is the target, not the
@@ -370,7 +395,7 @@ const restApps = computed(() =>
   >
     <div
       ref="islandRef"
-      class="nav-island pointer-events-auto relative mx-auto flex h-16 w-full items-center rounded-[1.75rem] border border-gray-200/70 bg-white/80 px-1.5 backdrop-blur-xl dark:border-white/10 dark:bg-gray-800/80"
+      class="nav-island pointer-events-auto relative mx-auto flex h-20 w-full items-center rounded-[1.75rem] border border-gray-200/70 bg-white/80 px-1.5 backdrop-blur-xl dark:border-white/10 dark:bg-gray-800/80"
     >
       <!-- The travelling pill. One element for the whole strip, moved by
            transform so the slide runs on the compositor. -->
@@ -397,7 +422,7 @@ const restApps = computed(() =>
           :title="item.name"
           :aria-label="item.name"
           :aria-current="isActive(item.path) ? 'page' : undefined"
-          class="relative z-10 flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 transition-transform duration-150 active:scale-90"
+          class="relative z-10 flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1 px-0.5 transition-transform duration-150 active:scale-90"
         >
           <img
             v-if="item.image"
@@ -422,8 +447,24 @@ const restApps = computed(() =>
       </div>
 
       <!-- Holds the middle of the strip open; the button itself is positioned
-           over this gap so it can break the top edge of the bar. -->
-      <div class="w-24 shrink-0" aria-hidden="true" />
+           over this gap so it can break the top edge of the bar.
+
+           It carries a word now, sitting on the same line as the tab labels
+           either side of it: "Apps" while the mark is only a button, and the
+           name of the page while one opened from the drawer is on screen.
+           Those pages light no tab, so this is the only thing on the strip
+           that can say where you are. The blank box above it stands in for a
+           glyph, which is what keeps the word level with its neighbours - the
+           mark itself is drawn over that space by the button below. -->
+      <div
+        class="pointer-events-none flex h-full w-24 shrink-0 flex-col items-center justify-center gap-1"
+        aria-hidden="true"
+      >
+        <span class="h-7 w-7" />
+        <span class="nav-label" :class="offBarApp ? 'nav-label-active' : 'nav-label-idle'">
+          {{ centreLabel }}
+        </span>
+      </div>
 
       <div class="flex flex-1 justify-around">
         <button
@@ -434,7 +475,7 @@ const restApps = computed(() =>
           :title="item.name"
           :aria-label="item.name"
           :aria-current="isActive(item.path) ? 'page' : undefined"
-          class="relative z-10 flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 transition-transform duration-150 active:scale-90"
+          class="relative z-10 flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1 px-0.5 transition-transform duration-150 active:scale-90"
         >
           <img
             v-if="item.image"
@@ -464,19 +505,28 @@ const restApps = computed(() =>
            anywhere. `logoUrl` already swaps to the church's dark mark when one
            is set, so the artwork carries the theme without a tile doing it.
 
-           Taller than the bar on purpose: at 96px against a 64px strip it
+           Taller than the bar on purpose: at 96px against an 80px strip it
            stands well clear of the top edge, which is what makes it read as
            sitting on the bar rather than in it. The spacer beside it matches
            its width, so the tabs are never underneath it - and that is what
-           the size costs, since the four tabs share whatever is left. -->
+           the size costs, since the four tabs share whatever is left.
+
+           Lifted further than it used to be (36px rather than 28px) because
+           the strip grew and the centre slot now ends in a word: the mark has
+           to clear that line, the same way each tab's glyph clears its own.
+
+           The artwork box is smaller than the button: the bundled logo is
+           trimmed to the mark now, with none of the transparent margin the
+           96px was drawn against, so 68px puts the same mark in the same
+           place. The button keeps the full 96px - that is the tap target. -->
       <button
         @click="toggleMoreMenu"
-        class="more-button absolute -top-7 left-1/2 z-10 flex h-24 w-24 -translate-x-1/2 items-center justify-center transition-transform duration-150 active:scale-95"
+        class="more-button absolute -top-9 left-1/2 z-10 flex h-24 w-24 -translate-x-1/2 items-center justify-center transition-transform duration-150 active:scale-95"
         aria-label="Apps"
         aria-haspopup="dialog"
         :aria-expanded="showMoreMenu"
       >
-        <img :src="logoUrl" alt="" class="h-24 w-24 object-contain" />
+        <img :src="logoUrl" alt="" class="h-17 w-17 object-contain" />
       </button>
 
     </div>
@@ -522,8 +572,8 @@ const restApps = computed(() =>
   position: absolute;
   left: 0;
   top: 50%;
-  height: 2.75rem;
-  border-radius: 1rem;
+  height: 3.25rem;
+  border-radius: 1.125rem;
   background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
   box-shadow: 0 8px 18px -10px var(--color-primary);
   opacity: 0;
@@ -547,8 +597,8 @@ const restApps = computed(() =>
    selected tab is told apart by the sliding pill behind it and by the same
    size step the glyphs use; idle is simply dimmed. */
 .nav-art {
-  height: 1.5rem;
-  width: 1.5rem;
+  height: 1.75rem;
+  width: 1.75rem;
   object-fit: contain;
   transition:
     opacity 0.3s ease,
@@ -561,18 +611,20 @@ const restApps = computed(() =>
 }
 
 .nav-art-active {
-  height: 1.625rem;
-  width: 1.625rem;
+  height: 1.875rem;
+  width: 1.875rem;
   opacity: 1;
 }
 
-/* The tab's name. Narrow tabs, so it is small and never wraps - an ellipsis is
-   better than a second line pushing the icon out of the bar. */
+/* The tab's name. Narrow tabs, so it never wraps - an ellipsis is better than
+   a second line pushing the icon out of the bar. 9px was as small as a label
+   can be while still being read at arm's length rather than recognised by its
+   shape; the taller strip bought the room to stop asking. */
 .nav-label {
   max-width: 100%;
   overflow: hidden;
-  font-size: 0.5625rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 600;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -592,8 +644,8 @@ const restApps = computed(() =>
 }
 
 .nav-glyph {
-  height: 1.5rem;
-  width: 1.5rem;
+  height: 1.75rem;
+  width: 1.75rem;
   transition:
     color 0.3s ease,
     height 0.3s ease,
@@ -609,8 +661,8 @@ const restApps = computed(() =>
 }
 
 .nav-glyph-active {
-  height: 1.625rem;
-  width: 1.625rem;
+  height: 1.875rem;
+  width: 1.875rem;
   color: var(--color-primary);
 }
 

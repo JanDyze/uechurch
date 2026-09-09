@@ -69,7 +69,7 @@ const navigate = (path) => {
         aria-label="Home"
         class="flex items-center justify-center shrink-0 px-2 mb-8 overflow-hidden w-full"
       >
-        <img :src="logoUrl" :alt="church.shortName" class="h-15 w-auto shrink-0" />
+        <img :src="logoUrl" :alt="church.shortName" class="h-9 w-auto shrink-0" />
         <!-- The wordmark collapses by max-width instead of v-if, so it narrows
              and fades over the same 300ms the aside spends resizing. flex-1
              makes it fill the row while expanded, which keeps the parent's
