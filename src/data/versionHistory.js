@@ -8,6 +8,20 @@
 
 export const versionHistory = [
   {
+    version: '0.16.0',
+    date: '2026-09-09',
+    title: 'Put it on your home screen',
+    summary:
+      'The app now offers to install itself on your phone, pulls down to refresh with our own logo, and asks you to sign in with Google and nothing else.',
+    highlights: [
+      'Signing in is one button now. Passwords are gone — if you used one, tap Continue with Google with the same email address.',
+      'It finally works when the app is installed on an iPhone, where signing in used to hang forever.',
+      'Look for the offer to add the app to your home screen; from there it opens without the browser bar.',
+      'Drawers and sheets no longer let the page slide about behind them.',
+      'The public page has a swipeable photo deck, and it wishes you a happy birthday on the day.',
+    ],
+  },
+  {
     version: '0.15.0',
     date: '2026-09-09',
     title: 'A front door of our own',

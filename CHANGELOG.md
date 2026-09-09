@@ -11,6 +11,67 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.16.0] — 2026-09-09
+
+Google is the only way in, the app can be installed and pulled to refresh, and
+the church's logo learns to draw itself.
+
+### Added
+- **An offer to install.** Anyone still reading in a browser tab is shown how
+  to put the app on their home screen. Chrome and friends get the real install
+  dialog; iOS has no such API, so it gets Share → Add to Home Screen drawn out
+  step by step. It never appears once installed, once dismissed, or over the
+  projector.
+- **Pull down to refresh**, with the church's own logo turning under the
+  finger rather than the browser's bar. The platform gesture and the
+  rubber-band glow are switched off across every scroller — a flick at the top
+  of a bottom sheet used to reload the whole app.
+- **The mark over the gap between pages.** Every screen is fetched on first
+  visit, which on mobile data leaves the old page sitting there; the logo goes
+  over that instead.
+- **The logo as an animation.** A build script cuts two web-ready clips out of
+  the master GIF — a full reveal for the landing page and sign-in, a short loop
+  for everywhere else — at a fifth of its weight and with the black ends
+  thrown away.
+- **A photo deck on the public page**, swiped edge-on: the picture being
+  looked at in the middle, its neighbours tipped back to either side, wrapping
+  with no end to reach.
+- **A birthday that knows whose it is.** On the morning of it, the public page
+  greets the member by name instead of welcoming them, and drops confetti once
+  — the first load of that day, not every load.
+
+### Changed
+- **Sign-in is a single button on a full-bleed photograph** of the room the
+  church meets in, with the mark drawing itself in over it. The split-panel
+  layout and its stack of fields are gone.
+- **The centre of the bottom bar says where you are.** Pages opened from the
+  app drawer light no tab, so the mark carries the name of the page instead of
+  a blank space. The strip is taller to hold that line, and the app drawer now
+  stops at four fifths of the screen so the page stays visible behind it.
+- **The logo in the topbar is a link back to the public page**, while that
+  page is published.
+- **The bundled mark is trimmed** of the transparent margin it was drawn
+  against, so it sits the same size on screen at smaller numbers.
+- **The Events dock on the public page is a flat calendar** with the word
+  under it, rather than a block drawn in perspective — and it no longer
+  vanishes on a quiet fortnight, which read as a page that had failed to load.
+
+### Fixed
+- **Anything opened over the page holds the page still.** Drawers and modals
+  let the page scroll on underneath them, and on a phone they ate the flick
+  meant for the sheet's own list.
+- **Google sign-in works in the app installed to an iPhone home screen.** It
+  could not before — the button simply span forever. Needs two Firebase and
+  Google Cloud console changes and a flag; see README.
+
+### Removed
+- **Email and password sign-in, and the sign-up page. Breaking.** One provider
+  means one account per person, no password for a congregation to lose and
+  nothing to reset. Accounts made the old way still exist and still show as
+  "Email & password" on the Accounts page, but there is no door for them here
+  any more. `/register` redirects to `/login`. Email/Password must also be
+  switched off in the Firebase console, or the REST API still accepts it.
+
 ## [0.15.0] — 2026-09-09
 
 The public page becomes the church's own, in Tagalog, and every photograph in
