@@ -22,6 +22,7 @@ import { formatDate, formatDateTime, timeAgo } from '../utils/timeUtils'
 import { providerLabel, syncAccountsFromAuth } from '../api/userAccountsService'
 import ProviderBadge from '../components/people/ProviderBadge.vue'
 import MemberAvatar from '../components/members/MemberAvatar.vue'
+import { useScrollLock } from '../composables/useScrollLock'
 
 const router = useRouter()
 const toast = useToast()
@@ -115,6 +116,9 @@ const openDetails = (uid) => {
 const selectedAccount = computed(() =>
   selected.value ? accounts.value.find((a) => a.uid === selected.value) || null : null
 )
+
+// The details sheet covers the list; the list stays where it was left.
+useScrollLock(() => selectedAccount.value !== null)
 
 const openMemberProfile = (account) => {
   const member = account.member

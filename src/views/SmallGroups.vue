@@ -11,6 +11,7 @@ import SmallGroupCard from '../components/smallGroups/SmallGroupCard.vue'
 import AddEditGroupDrawer from '../components/smallGroups/AddEditGroupDrawer.vue'
 import SessionFormPrintable from '../components/smallGroups/SessionFormPrintable.vue'
 import { usePermissions } from '../composables/usePermissions'
+import { useScrollLock } from '../composables/useScrollLock'
 
 const router = useRouter()
 const toast = useToast()
@@ -37,6 +38,9 @@ const filteredGroups = computed(() => {
 // list page has no current group — so the button asks which one first.
 const showPrintPicker = ref(false)
 const printGroup = ref(null)
+
+// A sheet over the whole page, so the list underneath holds still.
+useScrollLock(showPrintPicker)
 
 const printBlankFor = async (group) => {
   showPrintPicker.value = false

@@ -1,4 +1,5 @@
 import { nextTick, onBeforeUnmount, watch } from "vue";
+import { useScrollLock } from "./useScrollLock";
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -10,13 +11,22 @@ const FOCUSABLE_SELECTOR =
  * container - pass { trap: false } for non-modal side panels (no backdrop,
  * part of a split-view layout) where the rest of the page stays reachable.
  *
+ * A trapping dialog also holds the page still while it is open: Tab staying
+ * inside and the page scrolling away underneath are the same question asked
+ * of two input devices, so they are answered in one place rather than being
+ * remembered separately at thirty call sites. A non-modal panel leaves the
+ * page scrollable, which is the point of it - pass { lockScroll: true } for
+ * the rare panel that is untrapped but still covers the screen.
+ *
  * @param {import('vue').Ref<HTMLElement|null>} containerRef - ref to the dialog root element (give it tabindex="-1" as a focus fallback)
  * @param {import('vue').Ref<boolean>} isActive - reactive open state
  * @param {() => void} onClose - called when Escape is pressed
- * @param {{ trap?: boolean }} [options]
+ * @param {{ trap?: boolean, lockScroll?: boolean }} [options]
  */
 export function useFocusTrap(containerRef, isActive, onClose, options = {}) {
-  const { trap = true } = options;
+  const { trap = true, lockScroll = trap } = options;
+
+  if (lockScroll) useScrollLock(isActive);
   let previouslyFocused = null;
 
   const getFocusable = () => {

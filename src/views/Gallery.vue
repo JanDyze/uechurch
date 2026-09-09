@@ -11,6 +11,7 @@ import { withAllOption } from '../data/appDefaults'
 import { compressImageToBase64 } from '../utils/imageUtils'
 import SearchBar from '../components/common/SearchBar.vue'
 import { usePermissions } from '../composables/usePermissions'
+import { useScrollLock } from '../composables/useScrollLock'
 
 const { canManage } = usePermissions()
 
@@ -32,6 +33,10 @@ const selectedCategory = ref('All')
 const searchQuery = ref('')
 const selectedEvent = ref(null) 
 const selectedImage = ref(null) 
+
+// The lightbox covers the screen and swipes between photos; the grid behind it
+// has no business moving while it is up.
+useScrollLock(() => selectedImage.value !== null)
 const showFilterDropdown = ref(false)
 const showDetails = ref(false) 
 const showDeleteModal = ref(false)

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { X, ZoomIn, ZoomOut, Move } from '../../icons'
+import { useScrollLock } from '../../composables/useScrollLock'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -15,6 +16,11 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:show', 'apply'])
+
+// Dragging the photo about must not drag the page about behind it. This one
+// has no focus trap to inherit the lock from — its own keys and pointer
+// handling are the whole component.
+useScrollLock(() => props.show)
 
 const MAX_ZOOM = 4
 

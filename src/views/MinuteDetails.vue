@@ -8,6 +8,7 @@ import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import { markdownToHtml } from '../utils/markdownUtils'
 import { enhanceMinutesWithClaude } from '../utils/minutesEnhancer'
 import { useMediaQuery } from '../composables/useMediaQuery'
+import { useScrollLock } from '../composables/useScrollLock'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,6 +26,11 @@ const editingContentIndex = ref(null)
 const editingContent = ref('')
 const editingAgendaIndex = ref(null)
 const editingAgendaName = ref('')
+// Anything covering the page holds it still underneath. The attendees panel
+// only covers it on a phone — on a wide screen it is a column beside the
+// minute, and the page it sits next to should still scroll.
+useScrollLock(() => showAddAgendaModal.value || showAgendaSheet.value || (isMobile.value && showAttendeesDrawer.value))
+
 const isEnhancing = ref(false)
 const isEnhancingOverall = ref(false)
 const toastMessage = ref('')
@@ -1185,11 +1191,15 @@ watch(() => minute.value, (newMinute, oldMinute) => {
       </Teleport>
     </div>
 
-    <!-- Add Agenda Modal -->
+    <!-- Add Agenda Modal. The only overlay on this page that is not teleported
+         out to the body, so it is also the only one a wheel over the backdrop
+         could chain past into the page behind: overflow-hidden makes the
+         backdrop a scroller of its own and overscroll-contain stops it
+         handing the gesture on. -->
     <Transition name="modal">
       <div
         v-if="showAddAgendaModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        class="fixed inset-0 z-50 flex items-center justify-center overflow-hidden overscroll-contain bg-black/50 backdrop-blur-sm p-4"
         @click.self="closeAddAgendaModal"
       >
         <div

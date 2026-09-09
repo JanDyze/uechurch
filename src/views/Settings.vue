@@ -27,6 +27,7 @@ import EmailDigestAdmin from '../components/settings/EmailDigestAdmin.vue'
 import LandingPageAdmin from '../components/settings/LandingPageAdmin.vue'
 import { useAppSettings } from '../composables/useAppSettings'
 import { useVersionCheck } from '../composables/useVersionCheck'
+import { useScrollLock } from '../composables/useScrollLock'
 
 const { categories: appCategories, church, saveChurch, saveCategories } = useAppSettings()
 const eventTypes = computed(() => appCategories.value.eventTypes)
@@ -96,6 +97,9 @@ const blankSchedule = () => ({
 
 const showEditor = ref(false)
 const editing = ref(null)
+
+// The schedule editor is a sheet over the settings list, so the list holds.
+useScrollLock(showEditor)
 const form = ref(blankSchedule())
 const saving = ref(false)
 
