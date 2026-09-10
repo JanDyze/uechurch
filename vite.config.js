@@ -35,6 +35,11 @@ const DEV_API_ROUTES = {
   '/api/song-lookup': './api/song-lookup.js',
   '/api/lyrics-structure': './api/lyrics-structure.js',
   '/api/enhance': './api/enhance.js',
+  // Reads everything and, with MCP_WRITE_TOOLS on, writes: it is here so the
+  // connector can be tried against the MCP Inspector before it is deployed.
+  // MCP_TOKEN has to be in .env.local or the endpoint stays shut, exactly as
+  // it does on Vercel.
+  '/api/mcp': './api/mcp.js',
 }
 
 /** Vercel's runtime hands the handler a parsed body; connect does not. */

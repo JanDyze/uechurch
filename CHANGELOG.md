@@ -11,6 +11,36 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.17.0] — 2026-09-10
+
+The records learn to answer questions. Nothing in the app itself moves.
+
+### Added
+- **The church's records as an MCP connector**, at `/api/mcp`. Connect Claude
+  to it and the congregation, the calendar, attendance, worship lineups, small
+  groups, minutes, tasks and the ledger can be asked about in conversation
+  instead of read page by page — "how has Sunday attendance been since June",
+  "who has a birthday next month", "when did we agree the medical mission
+  budget". Seventeen tools; fifteen of them only read.
+- **A written account of it** in `MCP.md` — what each tool answers, how to
+  generate a token, and how to add the connector to Claude.
+
+### Changed
+- The calendar is expanded for the connector by the same `collectOccurrences`
+  the app's own calendar and the digest email use, so a cancelled or edited
+  Sunday suppresses the generated one there too rather than appearing twice.
+
+### Security
+- **The endpoint is shut until `MCP_TOKEN` is set**, and refuses every request
+  until it is. It reads with the Admin SDK, so Firestore's rules do not apply
+  to it and that token is the whole of its protection — anyone holding the URL
+  holds every record the church keeps.
+- **Portraits and gallery photographs are never returned**, and contact numbers
+  and home addresses are withheld unless a question actually asks for them.
+- **The two tools that write** — adding an event, recording a prayer concern —
+  are off unless `MCP_WRITE_TOOLS=true`. Read-only, the worst the connector can
+  do is answer badly.
+
 ## [0.16.0] — 2026-09-09
 
 Google is the only way in, the app can be installed and pulled to refresh, and

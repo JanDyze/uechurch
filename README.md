@@ -4,6 +4,14 @@ This template should help get you started developing with Vue 3 in Vite. The tem
 
 Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
 
+## Ask Claude about the church records
+
+`/api/mcp` publishes the app's records as a Model Context Protocol connector,
+so the calendar, the roll, attendance, worship lineups, minutes, tasks and the
+ledger can be asked about in conversation. It is off until `MCP_TOKEN` is set.
+
+See [MCP.md](MCP.md) for the tools it offers and how to connect Claude to it.
+
 ## Google sign-in on an installed iOS app
 
 Signing in works everywhere out of the box **except** one case: the app
