@@ -12,7 +12,7 @@ Nothing is installed on your machine.
 
 ## What it can answer
 
-Fifteen read-only tools, and two that write which are off by default.
+Fifteen read tools, always available:
 
 | Tool | What it gives you |
 | --- | --- |
@@ -31,12 +31,58 @@ Fifteen read-only tools, and two that write which are off by default.
 | `get_minute` | One meeting: agenda, discussions, decisions, action items |
 | `list_tasks` | What is assigned, to whom, and what is overdue |
 | `finance_summary` | Money in, out and net for a period, by category, month or account |
-| `create_event` ⚠ | Adds a gathering to the calendar — **needs `MCP_WRITE_TOOLS=true`** |
-| `add_prayer_concern` ⚠ | Records a prayer concern — **needs `MCP_WRITE_TOOLS=true`** |
 
 Things it deliberately will not do: it never returns member portraits or gallery
 photos, and `search_members` withholds contact numbers and home addresses
 unless the question asks for them.
+
+## What it can change
+
+Twelve write tools, **all off unless `MCP_WRITE_TOOLS=true`**:
+
+| Tool | What it does |
+| --- | --- |
+| `add_member` | Puts a new member or attendee on the roll |
+| `update_member` | Corrects a record, adds a ministry, turns an attendee into a member |
+| `create_event` | Adds a one-off gathering to the calendar |
+| `update_event` | Moves, retitles or cancels one gathering — see the note below |
+| `record_attendance` | Saves a head count against a gathering |
+| `add_prayer_concern` | Records a prayer concern, optionally against a person |
+| `update_prayer_concern` | Marks one answered, or changes its priority |
+| `add_task` | Assigns a task to people by name |
+| `update_task` | Ticks a task off, reassigns or reschedules it |
+| `add_song` | Adds a song to the worship library |
+| `update_small_group_members` | Moves people in and out of a group |
+| `add_ledger_entry` | Records money in, money out, or a transfer |
+
+Four things hold across all of them:
+
+- **Nothing is ever deleted.** A gathering is cancelled, a task is ticked, a
+  concern is marked answered. Every one of those has an undo in the app; a
+  deletion made in a conversation does not.
+- **The controlled lists are enforced.** An invented ministry, event type or
+  ledger category is refused with the real list attached, so the next attempt
+  succeeds. A ministry is the only field that grants access, and this must not
+  become the way round that.
+- **Every write is signed.** Records carry "Claude (MCP connector)" in their
+  createdBy/updatedBy, so anything changed through a conversation can be told
+  from something a person typed.
+- **Nothing notifies anybody.** The app raises a push when a person saves an
+  event or a task; these do not. Ringing every phone in the congregation is not
+  a side effect a tool call should have — so if something needs announcing, it
+  still needs announcing.
+
+**Editing a recurring service.** A weekly service and a birthday have no
+document behind them — they are generated from the schedule. Asking to move one
+saves a *one-off override* for that date and leaves the rest of the series
+alone, which is how "move next Sunday to ten" works without moving every
+Sunday. Note that once an occurrence is overridden its generated id retires, so
+call `list_events` again before doing anything else with it.
+
+**Recording attendance twice** is the mistake this is most likely to make,
+since Claude cannot see what it already saved. `record_attendance` refuses a
+gathering that already has a figure and says so; correcting one needs an
+explicit `replace: true`.
 
 ---
 
@@ -59,7 +105,7 @@ Project → Settings → Environment Variables:
 | Name | Value | Environments |
 | --- | --- | --- |
 | `MCP_TOKEN` | the string from step 1 | Production |
-| `MCP_WRITE_TOOLS` | `false`, or omit it entirely | — |
+| `MCP_WRITE_TOOLS` | `true` to allow writes; omit it to stay read-only | Production |
 
 `FIREBASE_SERVICE_ACCOUNT` must already be set; the connector reads through it.
 
@@ -131,14 +177,17 @@ server here to find.
 
 ## Turning writes on
 
-`MCP_WRITE_TOOLS=true` adds `create_event` and `add_prayer_concern`. Read-only,
-the worst this connector can do is answer a question badly. With writes on it
-can put a gathering on the church calendar — so leave it off unless you want
-that, and turn it off again afterwards.
+`MCP_WRITE_TOOLS=true` adds the twelve tools in the table above. It is one
+switch for all of them.
 
-The write tools do not send push notifications. Those are raised by the app when
-a person saves an event, so anything added this way lands on the calendar
-quietly.
+Read-only, the worst this connector can do is answer a question badly. With
+writes on it edits the church's actual records — the roll, the calendar, the
+books. That is the point of turning it on, but it is worth being deliberate
+about: turn it on when you have work to do, and off again afterwards.
+
+Nothing it writes is destructive and nothing it writes is announced, so the
+worst realistic outcome is a wrong entry somebody has to correct in the app,
+not a lost record or a push to the whole congregation at midnight.
 
 ---
 
@@ -165,7 +214,7 @@ npx @modelcontextprotocol/inspector
 ```
 api/mcp.js         HTTP: CORS, the token check, and the POST/GET contract
 lib/mcp/server.js  the protocol: JSON-RPC dispatch, initialize, tools/list, tools/call
-lib/mcp/tools.js   the seventeen tools — schemas and handlers
+lib/mcp/tools.js   the twenty-seven tools — schemas and handlers
 lib/mcp/data.js    shared Firestore reads, the member index, formatting
 ```
 

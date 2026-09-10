@@ -11,6 +11,50 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.18.0] — 2026-09-10
+
+The connector learns to write. Still nothing in the app itself moves.
+
+### Added
+- **Twelve write tools on the MCP connector**, off unless `MCP_WRITE_TOOLS` is
+  set: put someone on the roll and correct their record, add a gathering, move
+  or cancel one, record a head count, raise a prayer concern and mark it
+  answered, assign a task and tick it off, add a song, move people in and out
+  of a small group, and write a line into the ledger.
+- **Moving one Sunday without moving every Sunday.** A recurring service has no
+  document behind it, so changing one saves a one-off override for that date —
+  the same thing the calendar does when somebody edits an occurrence by hand.
+  Asking twice amends that override rather than stacking a second one.
+- **A refusal that can be acted on.** An invented ministry, event type or
+  ledger category comes back with the real list attached, so the next attempt
+  succeeds instead of guessing again.
+
+### Fixed
+- **Developer tickets were showing up as church work.** They share the `tasks`
+  collection and the To-do page filters them out; the connector did not, so
+  "what is outstanding" answered with somebody's bug list mixed in. Three of
+  six tasks were not the church's.
+- **The song tools described fields that do not exist.** They offered to search
+  by artist and CCLI number and to filter by musical key, none of which a song
+  record carries — filtering by key silently returned nothing at all. They now
+  read what is really there, including the key each leader sings a song in.
+- **A gathering's expected attendance came back as a list of numbers** where a
+  count belonged, because that field is a head count on some records and a list
+  of member ids on others.
+- **The connector could answer from before its own last write.** Reads are
+  cached for half a minute; adding a member and asking who is on the roll in
+  the same breath gave the list from before the addition.
+
+### Security
+- Nothing the connector writes can delete a record: a gathering is cancelled, a
+  task is ticked, a concern is marked answered — each with an undo in the app.
+- Every write is signed "Claude (MCP connector)", so a record changed through a
+  conversation can be told from one somebody typed.
+- No write notifies anybody. The app raises a push when a person saves an event
+  or a task; the tools deliberately stay quiet.
+- Recording attendance twice is refused rather than silently doubling a month's
+  figures; correcting one takes an explicit flag.
+
 ## [0.17.0] — 2026-09-10
 
 The records learn to answer questions. Nothing in the app itself moves.
