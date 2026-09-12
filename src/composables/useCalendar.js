@@ -91,8 +91,18 @@ export function useCalendar() {
       })
     }
 
-    // Add next month's leading days to fill the grid
-    const totalCells = 42 // 6 rows * 7 days
+    // Fill out the last week, and no further.
+    //
+    // This used to pad to a fixed 42 cells — six rows, always — which meant
+    // that in a month needing only five (nine of the twelve in a typical year)
+    // the whole sixth row was next month, so September showed ten days of
+    // October under it. A calendar that spends a seventh of its height on a
+    // month you are not looking at is answering a question nobody asked.
+    //
+    // Not a fixed five either: a 31-day month starting on a Saturday really
+    // does span six weeks, and capping it would hide the 30th and the 31st.
+    // The month decides how many rows it needs.
+    const totalCells = Math.ceil(days.length / 7) * 7
     const remainingDays = totalCells - days.length
     for (let i = 1; i <= remainingDays; i++) {
       days.push({

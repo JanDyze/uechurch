@@ -35,6 +35,10 @@ const normalizeAttendance = (doc) => {
     audienceTags: Array.isArray(data.audienceTags) ? data.audienceTags : [],
     excludeTags: Array.isArray(data.excludeTags) ? data.excludeTags : [],
     notes: data.notes || '',
+    // A gathering somebody decided not to count. The document exists so the
+    // page stops asking for it; it holds no attendees and must never be read
+    // as a turnout of zero — see useAttendanceStats.js.
+    skipped: Boolean(data.skipped),
     createdBy: data.createdBy || '',
     createdAt: data.createdAt?.toDate?.() || new Date(),
     updatedAt: data.updatedAt?.toDate?.() || new Date()

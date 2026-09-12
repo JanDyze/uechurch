@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { Plus, CalendarPlus, CalendarDays, List, Calendar } from '../../icons'
+import { Plus, CalendarPlus, CalendarDays, List, Calendar, Search } from '../../icons'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import { usePermissions } from '../../composables/usePermissions'
 
@@ -15,14 +15,16 @@ const props = defineProps({
 
 const { canManage } = usePermissions()
 
-const emit = defineEmits(['add', 'toggleList', 'today'])
+const emit = defineEmits(['add', 'toggleList', 'today', 'search'])
 
 const open = ref(false)
 
 const canAdd = computed(() => canManage('events'))
 
 const actions = computed(() => {
-  const list = []
+  // Search leads, the way it does on the People page: it is the thing reached
+  // for most now that the calendar no longer carries a permanent bar for it.
+  const list = [{ key: 'search', label: 'Search', icon: Search, event: 'search' }]
   if (canAdd.value) {
     list.push({ key: 'add', label: 'Add event', icon: CalendarPlus, event: 'add' })
   }

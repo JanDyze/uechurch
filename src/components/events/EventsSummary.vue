@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
-import { CalendarClock, CalendarDays, Calendar } from '../../icons'
+import { CalendarClock, CalendarDays, Calendar, ChevronUp } from '../../icons'
+
+const emit = defineEmits(['hide'])
 
 const props = defineProps({
   stats: {
@@ -65,7 +67,25 @@ const hasMix = computed(() => !props.loading && props.typeMix.length > 0)
 </script>
 
 <template>
-  <div class="shrink-0 border-b border-gray-200 px-3 py-3 dark:border-gray-700">
+  <!-- Hideable: the summary is worth its height when you are taking stock of
+       the month and not when you are hunting for one event.
+
+       The whole block is the target, not just the chevron — a 14px icon in a
+       corner is a poor thing to ask a thumb for, and there is nothing else in
+       here to click, so the panel can simply be the button. The chevron stays
+       as the affordance that says so, and remains a real focusable control for
+       anyone not using a pointer. -->
+  <div
+    @click="emit('hide')"
+    class="group relative shrink-0 cursor-pointer border-b border-gray-200 px-3 py-3 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
+  >
+    <button
+      @click.stop="emit('hide')"
+      aria-label="Hide summary"
+      class="absolute right-1 top-1 rounded-md p-1 text-gray-300 transition-colors group-hover:text-gray-500 dark:text-gray-600 dark:group-hover:text-gray-400"
+    >
+      <ChevronUp class="h-3.5 w-3.5" />
+    </button>
     <!-- One row of three so the whole report is readable without scrolling,
          even on a phone. -->
     <div class="grid grid-cols-3 divide-x divide-gray-200 dark:divide-gray-700">

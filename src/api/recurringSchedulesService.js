@@ -113,6 +113,12 @@ const normalizeSchedule = (data, docId) => ({
   excludeTags: Array.isArray(data.excludeTags) ? data.excludeTags : [],
   enabled: data.enabled !== false,
   showBefore: normalizeShowBefore(data.showBefore),
+  // Whether this gathering produces minutes. Off unless asked for: most
+  // standing gatherings are services, and a minute is only visible to whoever
+  // holds minutes.view. Deliberately not inferred from `type` — a church can
+  // have two gatherings typed "meeting" where only one is minuted, and a type
+  // is a colour and an icon, not a behaviour.
+  keepsMinutes: data.keepsMinutes === true,
 });
 
 export const subscribeToRecurringSchedules = (callback) => {

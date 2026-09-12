@@ -7,12 +7,13 @@ import { useMemberSearch } from "../composables/useMemberSearch";
 import { useMemberSorting } from "../composables/useMemberSorting";
 import { useMemberStats } from "../composables/useMemberStats";
 import { useMemberForm } from "../composables/useMemberForm";
+import { useListScrollMemory } from "../composables/useListScrollMemory";
 import { useToast } from "../composables/useToast";
 import MembersToolbar from "../components/members/MembersToolbar.vue";
 import MembersSummary from "../components/members/MembersSummary.vue";
 import MembersFab from "../components/members/MembersFab.vue";
+import MembersSortSheet from "../components/members/MembersSortSheet.vue";
 import AddMemberDrawer from "../components/members/AddMemberDrawer.vue";
-import MemberDetailsDrawer from "../components/members/MemberDetailsDrawer.vue";
 import MemberContextMenu from "../components/members/MemberContextMenu.vue";
 import ExportDialog from "../components/members/ExportDialog.vue";
 import MemberCard from "../components/members/MemberCard.vue";
@@ -26,8 +27,7 @@ import { getFullName, mergeTagSources } from "../utils/memberUtils";
 import { usePermissions } from "../composables/usePermissions";
 import { useMinistries } from "../composables/useMinistries";
 import { areaLabel } from "../data/capabilities";
-import { groupByBand } from "../utils/ageBands";
-import { ChevronDown, Church, Tag, X } from "../icons";
+import { ArrowUpDown, ChevronDown, ChevronUp, Church, Tag, X } from "../icons";
 import {
   subscribeToCustomTags,
   addCustomTag,
@@ -48,7 +48,7 @@ const isMobile = useMediaQuery("(max-width: 1023px)");
 const searchQuery = ref("");
 
 // Member data management
-const { members, loading, addMemberToFirestore, updateMemberInFirestore, removeMember } = useMembers();
+const { members, loading, addMemberToFirestore, removeMember } = useMembers();
 
 // Search is the only way the list is narrowed - it matches tags, sex, civil
 // status, occupation and address as well as names.
@@ -75,7 +75,8 @@ onUnmounted(() => {
 const assignableTags = computed(() => mergeTagSources(allTags.value, customTags.value));
 
 // Sorting
-const { sortBy, sortOrder, sortMembers } = useMemberSorting();
+const { sortBy, sortOptions, currentSort, sortMembers, arrangeMembers } = useMemberSorting();
+const showSort = ref(false);
 
 // Apply sorting to the searched members
 const filteredMembers = computed(() => {
@@ -86,11 +87,16 @@ const filteredMembers = computed(() => {
 // reports on the youth rather than on everyone.
 const { stats, agedTotal, birthdayMonthLabel } = useMemberStats(filteredMembers);
 
-// The list is divided the way the summary bar above it already counts, and the
-// way the attendance recorder checks people off: kids, youth, adults, seniors,
-// then whoever has no age on record. Sorting still applies — it just applies
-// inside a band, which is where "who is missing" is actually asked.
-const memberGroups = computed(() => groupByBand(filteredMembers.value));
+// The sort decides the headings as well as the order.
+//
+// By default the list is divided the way the summary bar above it counts and
+// the way the attendance recorder checks people off — kids, youth, adults,
+// seniors, then whoever has no age on record. Sorting by ministry or tag
+// replaces those headings with its own, because you cannot group by age band
+// and by choir at once; sorting by birthday or by when somebody joined drops
+// the headings entirely, since those are questions about the whole roll.
+// A section with no band is a flat list and renders without a heading.
+const memberGroups = computed(() => arrangeMembers(filteredMembers.value));
 
 /* ------------------------------------------------------------ bulk tagging */
 // A tag is picked one person at a time in the details drawer, which is fine for
@@ -320,8 +326,6 @@ const applyBulk = async ({ value, mode, register }) => {
 };
 
 const showExport = ref(false);
-const selectedMember = ref(null);
-const showDetails = ref(false);
 
 // Member form
 const { showAddMember, newMember, canAddMember, addMemberTooltip, calculateAge, addMember } = useMemberForm(
@@ -351,10 +355,8 @@ const showAddMemberComputed = computed({
   get: () => route.query.add === 'true',
   set: (value) => {
     if (value) {
-      showDetails.value = false;
-      selectedMember.value = null;
       showAddMember.value = true;
-      updateQueryParams({ add: 'true', view: null });
+      updateQueryParams({ add: 'true' });
     } else {
       showAddMember.value = false;
       updateQueryParams({ add: null });
@@ -362,55 +364,10 @@ const showAddMemberComputed = computed({
   }
 });
 
-// Computed for details drawer with URL params
-const showDetailsComputed = computed({
-  get: () => !!route.query.view,
-  set: (value) => {
-    if (!value) {
-      showDetails.value = false;
-      selectedMember.value = null;
-      updateQueryParams({ view: null });
-    }
-  }
-});
-
-// Helper to sync view drawer from URL
-const syncViewDrawer = () => {
-  const viewId = route.query.view;
-  if (viewId && members.value.length > 0) {
-    const member = members.value.find(m =>
-      String(m.id) === String(viewId) ||
-      String(m.firestoreId) === String(viewId)
-    );
-    if (member) {
-      selectedMember.value = member;
-      showDetails.value = true;
-    }
-  } else if (!viewId) {
-    showDetails.value = false;
-    selectedMember.value = null;
-  }
-};
-
 // Watch URL params to sync state on navigation
 watch(() => route.query, (query) => {
-  // Sync add drawer
-  if (query.add === 'true') {
-    showAddMember.value = true;
-  } else {
-    showAddMember.value = false;
-  }
-
-  // Sync view drawer
-  syncViewDrawer();
+  showAddMember.value = query.add === 'true';
 }, { immediate: true });
-
-// Also watch members loading - when members load, check if we need to show view panel
-watch(() => members.value, () => {
-  if (route.query.view) {
-    syncViewDrawer();
-  }
-});
 
 // Add member handler - the drawer is driven by the `add` query param, so a
 // successful save has to close it there (not via the form's own ref).
@@ -427,11 +384,20 @@ const handleExport = (config) => {
   toast.success('Export downloaded successfully!');
 };
 
-// Member details handlers
-const handleMemberClick = (member) => {
-  const memberId = member.firestoreId || member.id;
-  updateQueryParams({ view: memberId, add: null });
+// Opening a record leaves the page, so the list has to remember where it was.
+const listScroller = ref(null);
+useListScrollMemory(listScroller);
+
+// One record, one destination: the focus page. It reads the record as facts
+// and carries its own way back, so there is nothing a drawer would add here
+// that the list does not already do better through search.
+const openMember = (member, { edit = false } = {}) => {
+  const memberId = member?.firestoreId || member?.id;
+  if (!memberId) return;
+  router.push({ path: `/members/${memberId}`, query: edit ? { edit: '1' } : {} });
 };
+
+const handleMemberClick = (member) => openMember(member);
 
 // Context menu state
 const contextMenu = ref({
@@ -450,23 +416,11 @@ const closeContextMenu = () => {
 };
 
 // Context menu action handlers
-const handleContextView = (member) => {
-  const id = member?.firestoreId || member?.id;
-  if (id) router.push(`/members/${id}`);
-};
+const handleContextView = (member) => openMember(member);
 
-const handleContextEdit = (member) => {
-  // Same as handleMemberClick: the drawer opens off the `view` query param
-  updateQueryParams({ view: member?.firestoreId || member?.id, add: null });
-  // Trigger edit mode in the drawer after it opens
-  setTimeout(() => {
-    const drawer = document.querySelector('.add-member-drawer');
-    if (drawer) {
-      const editBtn = drawer.querySelector('button[title="Edit"]');
-      if (editBtn) editBtn.click();
-    }
-  }, 100);
-};
+// `?edit=1` puts the page straight into edit mode. It used to be a timed
+// querySelector against the drawer's DOM; the record now owns that state.
+const handleContextEdit = (member) => openMember(member, { edit: true });
 
 const handleContextCall = (member) => {
   if (member?.contactNumber) {
@@ -508,19 +462,6 @@ const handleConfirmation = () => {
   }
 };
 
-const handleMemberUpdate = async (updatedMemberData) => {
-  try {
-    // Remove id and firestoreId from update data (they shouldn't be updated)
-    const { id, firestoreId, ...dataToUpdate } = updatedMemberData;
-    await updateMemberInFirestore(selectedMember.value, dataToUpdate);
-    toast.success('Changes saved');
-    // Panel stays open for inline editing - don't close it
-  } catch (error) {
-    console.error('Error updating member:', error);
-    toast.error('Failed to save changes. Please try again.');
-  }
-};
-
 const handleMemberDelete = async (member) => {
   const getFullName = (m) => {
     return `${m.firstName || ''} ${m.lastName || ''}`.trim() || 'this member';
@@ -535,9 +476,6 @@ const handleMemberDelete = async (member) => {
     onConfirm: async () => {
       try {
         await removeMember(member);
-        // Details drawer is driven by the `view` query param - clearing it
-        // also resets showDetails/selectedMember via the computed setter.
-        showDetailsComputed.value = false;
         toast.success('Member deleted');
       } catch (error) {
         console.error('Error deleting member:', error);
@@ -547,16 +485,8 @@ const handleMemberDelete = async (member) => {
   });
 };
 
-// Computed property for selected member ID
-const selectedMemberId = computed(() => {
-  return selectedMember.value?.id || selectedMember.value?.firestoreId || null;
-});
-
-// Check if any side drawer is open (member details uses modal on mobile)
-const isDrawerOpen = computed(() => {
-  const memberDetailsOpen = showDetailsComputed.value && !isMobile.value;
-  return showAddMemberComputed.value || memberDetailsOpen;
-});
+// Check if any side drawer is open
+const isDrawerOpen = computed(() => showAddMemberComputed.value);
 
 // The button would sit on top of whatever a drawer or the details modal is
 // showing, and both carry their own actions anyway.
@@ -592,7 +522,7 @@ watch(showSummary, (on) => {
 });
 
 const showFab = computed(
-  () => !showAddMemberComputed.value && !showDetailsComputed.value && !picking.value
+  () => !showAddMemberComputed.value && !picking.value
 );
 </script>
 
@@ -627,16 +557,33 @@ const showFab = computed(
             @hide="showSummary = false"
           />
         </Transition>
-        <button
-          v-if="!showSummary"
-          @click="showSummary = true"
-          class="flex w-full shrink-0 items-center justify-center gap-1.5 border-b border-gray-200 py-2 text-[11px] font-semibold text-gray-400 transition-colors hover:text-gray-600 dark:border-gray-700 dark:hover:text-gray-300"
+        <!-- One slim strip, always there: the summary toggle it used to hold
+             on its own, and the sort. Sort has to say which sort is on, so it
+             cannot live in the actions menu — a setting you cannot see the
+             state of is one you re-open just to check. -->
+        <div
+          class="flex shrink-0 items-center gap-2 border-b border-gray-200 px-2 py-1.5 dark:border-gray-700"
         >
-          <ChevronDown class="h-3.5 w-3.5" />
-          Show summary
-        </button>
+          <button
+            @click="showSummary = !showSummary"
+            class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+          >
+            <component :is="showSummary ? ChevronUp : ChevronDown" class="h-3.5 w-3.5" />
+            {{ showSummary ? 'Hide summary' : 'Show summary' }}
+          </button>
 
-        <div class="min-h-0 flex-1 overflow-y-auto pb-20">
+          <button
+            @click="showSort = true"
+            aria-haspopup="dialog"
+            class="ml-auto inline-flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+          >
+            <ArrowUpDown class="h-3.5 w-3.5 shrink-0" />
+            <span class="truncate">{{ currentSort.label }}</span>
+            <ChevronDown class="h-3 w-3 shrink-0 opacity-60" />
+          </button>
+        </div>
+
+        <div ref="listScroller" class="min-h-0 flex-1 overflow-y-auto pb-20">
 
       <!-- Grid on desktop, list on mobile - the viewport decides, not a toggle.
            Both are divided into age bands, each heading carrying its own count
@@ -649,8 +596,9 @@ const showFab = computed(
             <MemberCardSkeleton v-for="i in 12" :key="`skeleton-${i}`" />
           </div>
 
-          <section v-else v-for="group in memberGroups" :key="group.band.key">
+          <section v-else v-for="group in memberGroups" :key="group.band?.key || 'all'">
             <MemberBandHeader
+              v-if="group.band"
               :band="group.band"
               :count="group.members.length"
               :picking="picking"
@@ -664,7 +612,6 @@ const showFab = computed(
                 v-for="member in group.members"
                 :key="member.id"
                 :member="member"
-                :selected="selectedMemberId === member.id || selectedMemberId === member.firestoreId"
                 :picking="picking"
                 :checked="pickedIds.has(String(member.firestoreId || member.id))"
                 @click="handleMemberClick"
@@ -690,8 +637,9 @@ const showFab = computed(
             </div>
           </div>
 
-          <section v-else v-for="group in memberGroups" :key="group.band.key">
+          <section v-else v-for="group in memberGroups" :key="group.band?.key || 'all'">
             <MemberBandHeader
+              v-if="group.band"
               :band="group.band"
               :count="group.members.length"
               :picking="picking"
@@ -703,7 +651,6 @@ const showFab = computed(
                 v-for="member in group.members"
                 :key="member.id"
                 :member="member"
-                :selected="selectedMemberId === member.id || selectedMemberId === member.firestoreId"
                 :picking="picking"
                 :checked="pickedIds.has(String(member.firestoreId || member.id))"
                 @click="handleMemberClick"
@@ -730,16 +677,6 @@ const showFab = computed(
         @update:newMember="newMember = $event"
         @addMember="handleAddMember"
         @calculateAge="calculateAge"
-      />
-
-      <!-- Member Details Drawer -->
-      <MemberDetailsDrawer
-        v-model:showDetails="showDetailsComputed"
-        :member="selectedMember"
-        :allTags="assignableTags"
-        :loading="loading"
-        @update="handleMemberUpdate"
-        @delete="handleMemberDelete"
       />
 
       <!-- Confirmation Modal -->
@@ -834,6 +771,13 @@ const showFab = computed(
     </div>
 
     <!-- Floating actions -->
+    <MembersSortSheet
+      :show="showSort"
+      :options="sortOptions"
+      v-model="sortBy"
+      @close="showSort = false"
+    />
+
     <MembersFab
       v-if="showFab"
       @search="openSearch"

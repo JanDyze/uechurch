@@ -216,3 +216,196 @@ body {
     border-width: 1px;
   }
 }
+
+/* ------------------------------------------------------------------ minutes
+
+   The written page: the notes editor, the read view, and the draft arriving
+   from /api/enhance while it is being written.
+
+   Global rather than scoped to MinuteDetails because three components render
+   the same document and it has to look the same in all of them — the live
+   draft turning into the saved minute should be one continuous thing, not a
+   swap between two typographies. It replaced a wall of Tailwind arbitrary
+   variants repeated on each element, which is how the read view and the edit
+   view had drifted apart in the first place. */
+
+/* A minute is a long document read on a phone, so the whole thing is set a
+   step smaller than the app's default and the headings are pulled in with it.
+   The scale matters more than any single size: a heading only reads as a
+   heading against the text under it, and at 24px against 16px the page was
+   all announcement and no document. Line height goes the other way — smaller
+   text needs more air between the lines, not less. */
+.minute-body { font-size: 0.8125rem; }
+
+@media (min-width: 640px) {
+  .minute-body { font-size: 0.875rem; }
+}
+
+.minute-body h1 { font-size: 1.1875rem; font-weight: 700; margin: 1.125rem 0 0.5rem; }
+.minute-body h2 { font-size: 0.9375rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
+.minute-body h3 { font-size: 0.875rem; font-weight: 600; margin: 1rem 0 0.25rem; }
+.minute-body h1:first-child,
+.minute-body h2:first-child,
+.minute-body h3:first-child { margin-top: 0; }
+
+.minute-body p { margin: 0.5rem 0; line-height: 1.7; }
+.minute-body ul { list-style: disc; margin: 0.5rem 0 0.5rem 1.25rem; }
+.minute-body ol { list-style: decimal; margin: 0.5rem 0 0.5rem 1.25rem; }
+.minute-body li { margin: 0.25rem 0; line-height: 1.65; }
+.minute-body strong { font-weight: 700; }
+.minute-body em { font-style: italic; }
+.minute-body a { text-decoration: underline; }
+.minute-body hr { margin: 1.5rem 0; }
+
+/* Figures line up column-wise, so a total can be checked against the rows
+   above it without counting digits. */
+/* Tables run smaller again: four columns of a phone screen is the tightest
+   thing on the page, and the figures line up column-wise so a total can be
+   checked against the rows above it without counting digits. */
+.minute-body table { font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+
+/* The document never scrolls sideways; one table inside it may.
+
+   min-width:0 on both is the whole fix. Without it the box grows to fit its
+   widest child and hands the overflow up to the page, so a four-column Action
+   Items table dragged the entire minute off the side of the phone instead of
+   scrolling within its own frame. */
+.minute-body {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.minute-body .minute-table {
+  min-width: 0;
+  max-width: 100%;
+  margin: 1rem 0;
+  overflow-x: auto;
+  /* Momentum scrolling, and a hint that this box moves on its own. */
+  overscroll-behavior-x: contain;
+}
+
+/* A section heading and its mark. The rule under it does the separating so
+   the headings need less space above them, which matters most on a phone
+   where a minute is eleven sections deep. */
+.minute-body .minute-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid var(--color-gray-200, #e5e7eb);
+}
+
+.dark .minute-body .minute-section {
+  border-bottom-color: var(--color-gray-700, #374151);
+}
+
+.minute-body .minute-section-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.minute-body .minute-section-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* A highlighted name is a link to the person; a highlighted date is not a
+   link to anything, so it must not look like one. */
+.minute-body .uec-mention { cursor: pointer; }
+.minute-body .uec-mention:hover { text-decoration: underline; }
+.minute-body[contenteditable] .uec-mention { cursor: text; }
+
+/* The signature block. Long runs of underscores wrap mid-rule on a narrow
+   screen and look like damage. */
+.minute-body p { overflow-wrap: anywhere; }
+
+/* A four-column Action Items table does not fit a phone, and shrinking the
+   text until it does makes the one thing people open minutes for the hardest
+   thing to read. It scrolls sideways in its own box instead, with the Task
+   column holding its width so the row stays identifiable while you scroll. */
+.minute-body table th,
+.minute-body table td {
+  min-width: 6rem;
+}
+
+.minute-body table th:first-child,
+.minute-body table td:first-child {
+  min-width: 11rem;
+}
+
+/* The Total row a Financial Matters table ends on. Recognised by its bold
+   first cell rather than a class, since the table comes out of Markdown. */
+.minute-body table tr:last-child td strong {
+  font-weight: 700;
+}
+
+/* Zebra striping, so the eye stays on one row across four columns. */
+.minute-body table tbody tr:nth-child(even) {
+  background: rgb(0 0 0 / 0.02);
+}
+
+.dark .minute-body table tbody tr:nth-child(even) {
+  background: rgb(255 255 255 / 0.03);
+}
+
+/* "**Decided:**" / "**Unresolved:**" open the closing line of every agenda
+   item under Business. Bold alone is not enough separation when the two lines
+   above it also carry bold figures. */
+.minute-body li > strong:first-child {
+  color: var(--color-gray-900, #111827);
+}
+
+.dark .minute-body li > strong:first-child {
+  color: #fff;
+}
+
+/* Highlights while the notes are being typed.
+
+   Painted by the CSS Custom Highlight API over live Ranges — see
+   useLiveHighlights — so no element is inserted into the contenteditable and
+   the caret, the undo stack and the phone keyboard's autocorrect are all left
+   alone. ::highlight can only set colours and decoration, which is the whole
+   reason it is safe: there is no box to lay out, so nothing reflows as you
+   type and the text does not shift under your thumb mid-word.
+
+   Deliberately flatter than the read view's chips. A minute being typed should
+   not look finished, and a solid pill behind every third word while you are
+   still writing the sentence is noise. */
+
+::highlight(uec-person) {
+  background-color: rgb(59 130 246 / 0.18);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+::highlight(uec-date) {
+  background-color: rgb(245 158 11 / 0.2);
+}
+
+::highlight(uec-place) {
+  background-color: rgb(20 184 166 / 0.18);
+}
+
+/* A tap target, not just a colour. Every mark in a finished minute can be
+   argued with, so it has to look like something you can press. */
+.minute-body .uec-mark {
+  cursor: pointer;
+  transition: filter 0.12s ease;
+}
+
+.minute-body .uec-mark:hover {
+  filter: brightness(0.94);
+}
+
+.dark .minute-body .uec-mark:hover {
+  filter: brightness(1.25);
+}
+
+/* Not inside the editor: there a mark is feedback on what you typed, and a
+   pointer cursor over your own sentence is wrong. */
+.minute-body[contenteditable] .uec-mark {
+  cursor: text;
+}

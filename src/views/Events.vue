@@ -17,6 +17,10 @@ import DayEventsDrawer from '../components/events/DayEventsDrawer.vue'
 import AddEditEventDrawer from '../components/events/AddEditEventDrawer.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import EventDetailsDrawer from '../components/events/EventDetailsDrawer.vue'
+import EventStatusSheet from '../components/events/EventStatusSheet.vue'
+import { useEventStatus } from '../composables/useEventStatus'
+import { isCalledOff } from '../../lib/eventStatus'
+import { ChevronDown } from '../icons'
 
 // Events data management
 const {
@@ -39,9 +43,18 @@ const { recurringEvents } = useRecurringEvents(firestoreEvents, members)
 
 // Merge Firestore events with birthday events and recurring events
 const events = computed(() => {
-  // Filter out cancelled overrides from display (they exist only to hide virtual events)
-  const visibleFirestoreEvents = firestoreEvents.value.filter(e => !e.isCancelled)
-  
+  // A called-off gathering STAYS on the calendar, struck through and labelled.
+  // It used to be filtered out here, which meant cancelling the Sunday service
+  // made it silently disappear — and a service that vanishes without a word is
+  // how somebody drives to a locked building.
+  //
+  // The one exception is a birthday somebody hid: there is nothing to tell the
+  // church about a birthday being off, and a struck-through name would read as
+  // something much worse than "not shown".
+  const visibleFirestoreEvents = firestoreEvents.value.filter(
+    (e) => !(e.isCancelled && String(e.overrideOf || '').startsWith('birthday-'))
+  )
+
   return [
     ...visibleFirestoreEvents,
     ...birthdayEvents.value,
@@ -51,8 +64,35 @@ const events = computed(() => {
   })
 })
 
-// Search query
+// Search is a mode, opened from the floating button. Closing it clears the
+// query, because a bar you cannot see must not still be narrowing the month.
 const searchQuery = ref('')
+const searchOpen = ref(false)
+const openSearch = () => { searchOpen.value = true }
+const closeSearch = () => {
+  searchOpen.value = false
+  searchQuery.value = ''
+}
+
+// Whether the three tiles are worth their height is a per-person judgement, so
+// it is remembered per device rather than decided here — the same key shape
+// the People page uses.
+const SUMMARY_KEY = 'uec.events.showSummary'
+const readSummary = () => {
+  try {
+    return localStorage.getItem(SUMMARY_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+const showSummary = ref(readSummary())
+watch(showSummary, (on) => {
+  try {
+    localStorage.setItem(SUMMARY_KEY, on ? '1' : '0')
+  } catch {
+    /* the preference lasts the session */
+  }
+})
 
 // Calendar logic
 const {
@@ -86,8 +126,11 @@ const visibleEvents = computed(() =>
   searchQuery.value.trim() ? filteredEvents.value : events.value
 )
 
-// At-a-glance report, above whichever view is on screen.
-const { stats, typeMix } = useEventStats(visibleEvents, currentDate)
+// At-a-glance report, above whichever view is on screen. Called-off gatherings
+// are left out of it: "six events this month" has to mean six things that are
+// happening, or the number is worse than not having it.
+const countableEvents = computed(() => visibleEvents.value.filter((e) => !isCalledOff(e)))
+const { stats, typeMix } = useEventStats(countableEvents, currentDate)
 
 // Event form
 const {
@@ -103,7 +146,17 @@ const showEventDetails = ref(false)
 const showEditEvent = ref(false)
 const showDayEvents = ref(false)
 const showAddEvent = ref(false)
-const showMonthEvents = ref(true) // Open by default
+// The calendar is what the page is. A grid of the month answers "what is on,
+// and when" in one look — where it falls in the week, which days are empty,
+// how the weeks are shaped — and the month list answers only the first half of
+// that. The list is one tap away on the floating button for whoever wants it.
+const showMonthEvents = ref(false)
+
+// Where "Back" should return to. A day or an event can be reached from the
+// calendar or from the month list, and backing out should land where you
+// started. It used to force the list open, which was harmless when the list
+// was the only way in and wrong the moment the calendar became the default.
+const cameFromMonthList = ref(false)
 
 // Confirmation modal state
 const showConfirmation = ref(false)
@@ -151,6 +204,9 @@ const getEventsForDate = (date) => {
 // Event handlers
 const openEventDetails = (event) => {
   selectedEvent.value = event
+  // Only when it is the list we are coming from: an event opened out of the
+  // day drawer should not send you to the month list on the way back.
+  if (showMonthEvents.value) cameFromMonthList.value = true
   closeAllDrawers()
   showEventDetails.value = true
 }
@@ -165,43 +221,86 @@ const closeEventDetails = () => {
   selectedEvent.value = null
 }
 
+// Calling something off is not deleting it, and the two are deliberately kept
+// apart: delete throws the record away, this keeps it and says what happened.
+const { setStatus } = useEventStatus()
+const showStatusSheet = ref(false)
+const statusTarget = ref(null)
+
+const openStatusSheet = () => {
+  statusTarget.value = selectedEvent.value
+  showStatusSheet.value = true
+}
+
+const applyStatus = async (change) => {
+  const target = statusTarget.value
+  if (!target) return
+  try {
+    await setStatus(target, change)
+    showStatusSheet.value = false
+    statusTarget.value = null
+    closeEventDetails()
+  } catch (error) {
+    console.error('Error changing event status:', error)
+    showStatusSheet.value = false
+    showConfirmModal({
+      title: 'Error',
+      message: 'Could not change that. Please try again.',
+      confirmText: 'OK',
+      cancelText: '',
+      onConfirm: () => {},
+    })
+  }
+}
+
+// Three different things used to be one button. Deleting a stored event throws
+// the record away; a birthday is hidden, because it is generated from a member
+// and there is nothing to delete; and a weekly occurrence is not a document at
+// all, so the only honest thing to do with it is call it off — which is now its
+// own action rather than a delete wearing a different label.
 const deleteEvent = async () => {
   if (!selectedEvent.value) return
-  
+
+  const isBirthday = Boolean(selectedEvent.value.isBirthday || selectedEvent.value.memberId)
   const isVirtualEvent = selectedEvent.value.isVirtual
   const eventTitle = selectedEvent.value.title
-  
+
+  if (isVirtualEvent && !isBirthday) {
+    openStatusSheet()
+    return
+  }
+
   showConfirmModal({
-    title: isVirtualEvent ? 'Cancel Event' : 'Delete Event',
-    message: isVirtualEvent 
-      ? `Are you sure you want to cancel "${eventTitle}" for this date? This will hide it from the calendar.`
+    title: isBirthday ? 'Hide Birthday' : 'Delete Event',
+    message: isBirthday
+      ? `Hide "${eventTitle}" from the calendar for this date?`
       : `Are you sure you want to delete "${eventTitle}"?`,
-    confirmText: isVirtualEvent ? 'Cancel Event' : 'Delete',
+    confirmText: isBirthday ? 'Hide' : 'Delete',
     cancelText: 'Keep',
     confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
     onConfirm: async () => {
       try {
         if (isVirtualEvent) {
-          // Create a "cancelled" override for virtual events
+          // A birthday is generated from the member, so hiding it is an
+          // override that stands in for it and shows nothing.
           const cancelData = {
             title: eventTitle,
             type: selectedEvent.value.type,
             date: selectedEvent.value.date,
             time: selectedEvent.value.time,
             location: selectedEvent.value.location || '',
-            description: 'Cancelled',
+            description: 'Hidden',
             attendees: 0,
             icon: selectedEvent.value.icon || 'Calendar',
             overrideOf: selectedEvent.value.id,
             isOverride: true,
             isCancelled: true,
           }
-          
-          // Preserve memberId for birthday events
+
           if (selectedEvent.value.memberId) {
             cancelData.memberId = selectedEvent.value.memberId
           }
-          
+
           await addEventToFirestore(cancelData)
         } else {
           await removeEvent(selectedEvent.value)
@@ -224,6 +323,7 @@ const deleteEvent = async () => {
 const handleDayClick = (day) => {
   selectedDay.value = day.fullDate
   selectedDate.value = formatDateString(day.fullDate)
+  cameFromMonthList.value = showMonthEvents.value
   closeAllDrawers()
   showDayEvents.value = true
 }
@@ -459,22 +559,36 @@ const showFab = computed(
 
 <template>
   <div class="relative flex flex-col h-full">
-    <!-- Search - adding, switching views and jumping to today are on the
-         floating button -->
+    <!-- Opened from the floating button, alongside adding, switching views
+         and jumping to today -->
     <EventsToolbar
       :search-query="searchQuery"
+      :open="searchOpen"
       :result-count="filteredEvents.length"
       :total-count="events.length"
       @update:search-query="searchQuery = $event"
+      @close="closeSearch"
     />
 
     <!-- What is next, how heavy the week is, and what kind of month this is -->
-    <EventsSummary
-      :stats="stats"
-      :type-mix="typeMix"
-      :loading="loading"
-      :searching="!!searchQuery.trim()"
-    />
+    <Transition name="summary">
+      <EventsSummary
+        v-if="showSummary"
+        :stats="stats"
+        :type-mix="typeMix"
+        :loading="loading"
+        :searching="!!searchQuery.trim()"
+        @hide="showSummary = false"
+      />
+    </Transition>
+    <button
+      v-if="!showSummary"
+      @click="showSummary = true"
+      class="flex w-full shrink-0 items-center justify-center gap-1.5 border-b border-gray-200 py-2 text-[11px] font-semibold text-gray-400 transition-colors hover:text-gray-600 dark:border-gray-700 dark:hover:text-gray-300"
+    >
+      <ChevronDown class="h-3.5 w-3.5" />
+      Show summary
+    </button>
 
     <!-- Main Content -->
     <div class="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
@@ -513,7 +627,7 @@ const showFab = computed(
         @update:show="showDayEvents = $event"
         @event-click="openEventDetails"
         @add-event="handleAddEventFromDay"
-        @back="showDayEvents = false; showMonthEvents = true"
+        @back="showDayEvents = false; showMonthEvents = cameFromMonthList"
       />
 
       <!-- Month Events Drawer -->
@@ -554,14 +668,25 @@ const showFab = computed(
         @update:show="showEventDetails = $event; if (!$event) selectedEvent = null"
         @edit="startEditEvent"
         @delete="deleteEvent"
-        @back="showEventDetails = false; selectedEvent = null; showMonthEvents = true"
+        @status="openStatusSheet"
+        @back="showEventDetails = false; selectedEvent = null; showMonthEvents = cameFromMonthList"
       />
     </div>
+
+    <!-- Cancelled or postponed, from wherever you happen to be looking at it.
+         The same sheet opens on the Attendance page. -->
+    <EventStatusSheet
+      :show="showStatusSheet"
+      :event="statusTarget"
+      @close="showStatusSheet = false"
+      @apply="applyStatus"
+    />
 
     <!-- Floating actions -->
     <EventsFab
       v-if="showFab"
       :show-month-events="showMonthEvents"
+      @search="openSearch"
       @add="handleAddEvent"
       @toggle-list="handleToggleMonthEvents"
       @today="goToToday"
@@ -581,3 +706,40 @@ const showFab = computed(
     />
   </div>
 </template>
+
+<style scoped>
+/* Collapsing tiles: height and opacity together, from a fixed max rather than
+   a measured one — the block is three tiles on one row at every width, so the
+   ceiling is known and no JS hook is needed to find it. Same as the People
+   page, which is where this pattern comes from. */
+.summary-enter-active,
+.summary-leave-active {
+  transition:
+    max-height 0.25s ease,
+    opacity 0.2s ease;
+  overflow: hidden;
+}
+
+.summary-enter-from,
+.summary-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.summary-enter-to,
+.summary-leave-from {
+  /* Generous on purpose: the type legend wraps, so on a narrow phone with
+     several kinds of event in the month this block is taller than the People
+     page's. A ceiling below the real height clips instantly and then animates,
+     which reads as a jump. */
+  max-height: 16rem;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .summary-enter-active,
+  .summary-leave-active {
+    transition: none;
+  }
+}
+</style>

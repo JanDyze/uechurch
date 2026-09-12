@@ -4,6 +4,7 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import { initAppSettings } from './composables/useAppSettings'
+import { initAppOrder } from './composables/useAppOrder'
 
 // PWA service worker — auto-updates when a new version is deployed.
 //
@@ -38,6 +39,10 @@ registerSW({
 // Church name and category vocabularies come from Firestore; start listening
 // before the first render so nothing flashes the built-in defaults.
 initAppSettings()
+
+// The order the apps sit in belongs to the account, so this only has to start
+// watching who is signed in — the router's initAuth is what answers that.
+initAppOrder()
 
 const app = createApp(App)
 

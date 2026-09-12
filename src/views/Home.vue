@@ -28,6 +28,8 @@ import { useMemberClaims } from '../composables/useMemberClaims'
 import { useAllLineups } from '../composables/useLineups'
 import { subscribeToNotifications } from '../api/notifyService'
 import { getDisplayName } from '../utils/memberUtils'
+import { getEventTypeBar } from '../utils/eventColors'
+import { isCalledOff, eventStatusLabel, readEventStatus } from '../../lib/eventStatus'
 import { memberKey } from '../utils/sgUtils'
 import { formatServiceDate } from '../utils/lineupUtils'
 import { isAssignedTo, isDueToday, isOverdue } from '../utils/taskUtils'
@@ -78,18 +80,28 @@ const { recurringEvents } = useRecurringEvents(storedEvents, members)
 // it as empty.
 const calendarEvents = computed(() =>
   [
-    ...storedEvents.value.filter((e) => !e.isCancelled),
+    // A called-off gathering stays in the week ahead, struck through: somebody
+    // checking whether there is a service on Sunday needs to be told there is
+    // not. Only a hidden birthday drops out silently.
+    ...storedEvents.value.filter(
+      (e) => !(e.isCancelled && String(e.overrideOf || '').startsWith('birthday-'))
+    ),
     ...birthdayEvents.value,
     ...recurringEvents.value,
   ].sort((a, b) => String(a.date).localeCompare(String(b.date)))
 )
 
 const viewedMonth = ref(new Date())
-const { stats: eventStats } = useEventStats(calendarEvents, viewedMonth)
+// Counted tiles report on what is actually happening; the lists below still
+// show what was called off, because that is news in its own right.
+const countableEvents = computed(() => calendarEvents.value.filter((e) => !isCalledOff(e)))
+const { stats: eventStats } = useEventStats(countableEvents, viewedMonth)
 
 const { aggregatedAttendance } = useAttendance()
 const rosterSize = computed(() => members.value?.length || 0)
-const { stats: attendance, recentBars } = useAttendanceStats(aggregatedAttendance, rosterSize)
+// The roster itself, not just its size: the summary names the people it has
+// not seen in a while, which needs the members rather than a count of them.
+const { stats: attendance, recentBars } = useAttendanceStats(aggregatedAttendance, members)
 
 const { minutes } = useMinutes()
 const { prayerConcerns } = usePrayerConcerns()
@@ -164,7 +176,8 @@ const answeredPrayers = computed(
 const unrecorded = computed(
   () =>
     aggregatedAttendance.value.filter(
-      (row) => row.rowType !== 'attendance' && row.date && row.date < today
+      (row) =>
+        row.rowType !== 'attendance' && row.date && row.date < today && !isCalledOff(row)
     ).length
 )
 
@@ -278,7 +291,17 @@ const showActivityRow = computed(
 )
 
 /** A share of the roster as a height inside the 84px track above. */
-const barHeight = (share) => `${Math.max(3, Math.round((Number(share) || 0) * 0.84))}px`
+// Bars are already scaled against the busiest of them (useAttendanceStats), so
+// the tallest fills the track and the rest read against it.
+const barHeight = (width) => `${Math.max(3, Math.round((Number(width) || 0) * 0.84))}px`
+
+// People, not percentage points: "nine more people than last month" is a
+// sentence somebody can repeat out loud.
+const reachDelta = computed(() => {
+  const reach = attendance.value.reach
+  if (!reach || reach.priorCount === null) return null
+  return reach.count - reach.priorCount
+})
 </script>
 
 <template>
@@ -295,26 +318,29 @@ const barHeight = (share) => `${Math.max(3, Math.round((Number(share) || 0) * 0.
           <div class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-gray-400">
             <ClipboardCheck class="w-3.5 h-3.5 text-primary dark:text-primary-light" /> Attendance
           </div>
+          <!-- How many different people we saw at all this month. A count
+               rather than a share: it can be checked against the roster
+               everybody already knows the size of. -->
           <div class="mt-1.5 flex items-baseline gap-1.5">
             <span class="text-2xl font-black text-gray-900 dark:text-white tabular-nums">
-              {{ attendance.reachShare !== null ? attendance.reachShare + '%' : '—' }}
+              {{ attendance.reach ? attendance.reach.count : '—' }}
             </span>
             <span
-              v-if="attendance.trend !== null"
+              v-if="reachDelta !== null && reachDelta !== 0"
               class="flex items-center gap-0.5 text-[11px] font-black tabular-nums"
-              :class="attendance.trend >= 0
+              :class="reachDelta > 0
                 ? 'text-emerald-600 dark:text-emerald-400'
                 : 'text-[#bc1c09] dark:text-red-400'"
             >
-              <TrendingUp v-if="attendance.trend >= 0" class="w-3 h-3" />
+              <TrendingUp v-if="reachDelta > 0" class="w-3 h-3" />
               <TrendingDown v-else class="w-3 h-3" />
-              {{ Math.abs(attendance.trend) }}
+              {{ Math.abs(reachDelta) }}
             </span>
           </div>
           <div class="text-[11px] font-bold text-gray-400 truncate">
             {{
-              attendance.reachShare !== null
-                ? `came in ${attendance.monthShortLabel} · ${attendance.trendLabel}`
+              attendance.reach
+                ? `of ${rosterSize} people came in ${attendance.reach.monthLabel}`
                 : 'nothing recorded yet'
             }}
           </div>
@@ -493,11 +519,24 @@ const barHeight = (share) => `${Math.max(3, Math.round((Number(share) || 0) * 0.
               <span class="shrink-0 w-14 text-[11px] font-black text-primary dark:text-primary-light tabular-nums">
                 {{ e.date === today ? 'Today' : shortDate(e.date) }}
               </span>
-              <span class="min-w-0 flex-1 text-sm font-bold text-gray-900 dark:text-white truncate">
+              <span
+                :class="[
+                  'min-w-0 flex-1 text-sm font-bold truncate',
+                  isCalledOff(e)
+                    ? 'text-gray-400 line-through dark:text-gray-500'
+                    : 'text-gray-900 dark:text-white',
+                ]"
+              >
                 {{ e.title }}
               </span>
               <span
-                v-if="timeLabel(e.time)"
+                v-if="isCalledOff(e)"
+                class="shrink-0 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-black uppercase text-white"
+              >
+                {{ eventStatusLabel(readEventStatus(e)) }}
+              </span>
+              <span
+                v-else-if="timeLabel(e.time)"
                 class="shrink-0 text-[11px] font-bold text-gray-400 tabular-nums"
               >
                 {{ timeLabel(e.time) }}
@@ -517,7 +556,7 @@ const barHeight = (share) => `${Math.max(3, Math.round((Number(share) || 0) * 0.
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-bold text-primary">Recent gatherings</h3>
             <span class="text-[11px] font-black uppercase tracking-widest text-gray-400">
-              share of {{ rosterSize }}
+              how many came
             </span>
           </div>
           <!-- Bar heights are computed in pixels rather than percentages: a
@@ -528,15 +567,17 @@ const barHeight = (share) => `${Math.max(3, Math.round((Number(share) || 0) * 0.
               v-for="bar in recentBars"
               :key="bar.key"
               class="flex-1 flex flex-col items-center gap-1 min-w-0"
-              :title="`${bar.title} · ${bar.count} present`"
+              :title="`${bar.title} · ${bar.count} of ${bar.expected}`"
             >
               <span class="text-[10px] font-black text-gray-500 dark:text-gray-400 tabular-nums">
-                {{ bar.share }}
+                {{ bar.count }}
               </span>
               <span class="w-full h-[84px] flex items-end rounded bg-gray-100 dark:bg-gray-700/40">
+                <!-- The calendar's colour for that kind of gathering, so a
+                     prayer meeting is never mistaken for a thin Sunday. -->
                 <span
-                  class="w-full rounded bg-primary/80 dark:bg-primary-light/70"
-                  :style="{ height: barHeight(bar.share) }"
+                  :class="['w-full rounded opacity-80', getEventTypeBar(bar.type)]"
+                  :style="{ height: barHeight(bar.width) }"
                 ></span>
               </span>
               <span class="text-[9px] font-bold text-gray-400 truncate w-full text-center">

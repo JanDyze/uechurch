@@ -11,6 +11,104 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.19.0] — 2026-09-12
+
+The minutes become a document you write in during the meeting, and a gathering
+can be called off without vanishing.
+
+### Added
+- **A minute is a page now, not a drawer.** Opening one leaves the list and
+  fills the screen — no top or bottom bar, the same as recording attendance.
+  The agenda lives in a side drawer on a phone and the rail on a desktop, so
+  the notes and the write-up get the height. The preview drawer that used to
+  stand in front of the page is gone; it showed a shortened copy of the thing
+  behind it.
+- **Names and dates are found in the notes and marked.** "Joyce", "by Friday"
+  — matched against the church's own roster and highlighted as they are typed,
+  painted with the CSS Custom Highlight API so the caret, the undo stack and
+  the phone keyboard's autocorrect are never touched.
+- **Typing "@" offers the roster.** What it inserts is the person's plain name,
+  not a tag: a minute the church files should not carry an app's typing
+  shortcut.
+- **A highlight can be told it is wrong.** Tapping one opens what it was taken
+  for, and the ways to disagree — not a name after all, or a different person.
+  Corrections are kept per minute, because "Mark" is a name in one meeting and
+  a word in the next.
+- **Comments to whoever writes the minutes up, which is Claude.** A correction
+  from the person who was in the room survives "Write again" instead of being
+  thrown away by it, and stays on the record afterwards as the reason the
+  minute reads the way it does. Comments never appear in the minutes, the
+  export or the printed copy.
+- **The write-up arrives as it is written.** `/api/enhance` streams
+  newline-delimited JSON, so the page shows the Discussion section filling in
+  rather than a dimmed button. Two honest states: reading, then writing. No
+  progress bar — the endpoint cannot say how long it has left.
+- **Action Items become to-do items with a button.** Read back out of the
+  table in the minute rather than from a separate structured reply, so the
+  buttons can never disagree with the record above them, and every minute
+  already filed works without being re-enhanced. Nothing is added
+  automatically.
+- **Attendance is edited from the minute itself**, saving as it is tapped.
+  It could only be set in the editor drawer before the meeting — the one
+  moment nobody knows who is coming.
+- **Standing gatherings can keep minutes.** Tick it in Settings and the next
+  occurrence shows on the Minutes list as "Not started"; opening it starts the
+  record with that gathering's date, time, place and people already in.
+  Nothing is written until somebody opens it, and there is no back-fill.
+- **Calling a gathering off is its own action**, from the calendar or from the
+  attendance list: cancelled, postponed, or simply not counted, with a reason.
+- **A person's turnout is on their record** — the gatherings they were actually
+  expected at, oldest on the left, with "not recorded" kept distinct from
+  "absent".
+- **The People list can be sorted seven ways**, and the sort decides the
+  headings as well as the order: first name, last name, age, birthday,
+  ministry, tag, recently added.
+- **Swipe to turn the month** on the calendar, sideways or up and down — the
+  same direction the desktop's scroll wheel already meant.
+
+### Changed
+- **The minutes prompts are written in plain English.** The headings are
+  questions now — "What we talked about", "What we decided", "Who does what",
+  "Money", "Please pray for", "Still open" — and the brief is a tired person
+  reading it on a phone on a Tuesday night, not a board. Money and commitments
+  are always tables, with a bold total.
+- **A called-off gathering stays on the calendar**, struck through and
+  labelled. It used to be filtered out, which meant cancelling the Sunday
+  service made it silently disappear — and a service that vanishes without a
+  word is how somebody drives to a locked building. Counted tiles still report
+  only on what is happening.
+- **`status` carries what happened to a gathering**, replacing a boolean that
+  meant "hide this occurrence". `isCancelled` is still written alongside it,
+  true for both cancelled and postponed, so the public site, the digest, the
+  MCP tools and `lib/occurrences.js` stay correct without changing.
+- **A person's record is a page too**, not a drawer — the same as songs and
+  minutes. "Edit" from the list arrives as `?edit=1`, consumed once and dropped
+  from the URL.
+- **The arrangement of the apps follows the account**, in `userPrefs/{uid}`,
+  rather than the device. An order already arranged on a device is carried up
+  once, by the first account to sign in after the change.
+- **The calendar is the default view on Events**, with the month list one tap
+  away on the floating button.
+- **Search is a mode on Minutes and Events**, opened from the floating button
+  and cleared when closed — a bar you cannot see must not still be filtering.
+  One box reaches the whole minute: the agenda, the notes and the write-up.
+- **A minutes row says when, what, and how far it got**, instead of repeating
+  the hall and the start time on every line.
+
+### Fixed
+- **Reverting notes looked like it did nothing at all.** Sixteen call sites
+  used a `showToast` that was never defined, so each one threw a
+  `ReferenceError` instead of showing a message — including the ones inside a
+  `catch`, which then swallowed the error they were reporting.
+- **A minute's legacy `content` field went to `v-html` untouched** whenever it
+  held no "#", which is most of them. It goes through the renderer now.
+- **Going back to a list lands where you left it.** Our lists scroll an inner
+  box rather than the window, so the router had nothing to restore — and with
+  every record now opening as a full page, checking three people in a row put
+  you back at the top of the roll each time.
+- **Deleting a weekly occurrence** was a delete wearing a different label:
+  there is no document behind one, so it is called off instead.
+
 ## [0.18.0] — 2026-09-10
 
 The connector learns to write. Still nothing in the app itself moves.

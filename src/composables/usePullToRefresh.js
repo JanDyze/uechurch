@@ -40,8 +40,20 @@ const RELOAD_SPIN = 950
 // Matches the puck's transform transition, so it unmounts once it is offscreen.
 const RETRACT_MS = 260
 
+// How long the offer to reload stands. A reload throws away everything the
+// page is holding - a half-typed note, a scroll position, an open section -
+// so the gesture asks once before it does that, and the first pull only arms
+// the second. Long enough to read the pill and pull again without hurrying,
+// short enough that a pull five minutes later is its own first pull again.
+const ARM_WINDOW = 6000
+
 const distance = ref(0)
 const state = ref('idle') // idle | pulling | refreshing | returning
+
+// Set by a pull that would have reloaded: the pill is up and the next pull is
+// the one that goes through.
+const armed = ref(false)
+let armTimer = null
 
 let handler = null
 
@@ -58,6 +70,21 @@ export const onPullToRefresh = (fn) => {
   }
   onScopeDispose(off)
   return off
+}
+
+const disarm = () => {
+  clearTimeout(armTimer)
+  armTimer = null
+  armed.value = false
+}
+
+const arm = () => {
+  clearTimeout(armTimer)
+  armed.value = true
+  armTimer = setTimeout(() => {
+    armed.value = false
+    armTimer = null
+  }, ARM_WINDOW)
 }
 
 /** Rubber band: the first pixels track the finger, the last ones barely move,
@@ -146,16 +173,26 @@ export function usePullToRefresh() {
     cancel()
     if (distance.value < THRESHOLD) return retract()
 
-    state.value = 'refreshing'
-    distance.value = RESTING
-
-    // No handler means no view claimed the gesture, so do what the browser
-    // did: reload - but let the logo turn first. The puck keeps spinning
-    // through the wait and on until the new document paints over it.
+    // No handler means no view claimed the gesture, so the fallback is the
+    // browser's: reload. That is the one outcome the gesture can reach by
+    // accident and cannot take back, so the first pull only says what the next
+    // one will do; the second, inside the window, does it - and lets the logo
+    // turn first, because a reload is not something this code can wait on.
     if (!handler) {
+      if (!armed.value) {
+        arm()
+        return retract()
+      }
+      disarm()
+      state.value = 'refreshing'
+      distance.value = RESTING
       setTimeout(() => window.location.reload(), RELOAD_SPIN)
       return
     }
+
+    disarm()
+    state.value = 'refreshing'
+    distance.value = RESTING
 
     const started = Date.now()
     try {
@@ -171,6 +208,9 @@ export function usePullToRefresh() {
   return {
     state: readonly(state),
     distance: readonly(distance),
+    // True between the pull that offered the reload and the one that runs it.
+    armed: readonly(armed),
+    disarm,
     // 0 → 1 as the pull approaches the point where releasing refreshes.
     progress: computed(() => Math.min(1, distance.value / THRESHOLD)),
     isRefreshing: computed(() => state.value === 'refreshing'),

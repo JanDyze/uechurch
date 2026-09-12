@@ -116,8 +116,8 @@ const routes = [
       },
       {
         // Typing out a song needs the whole screen, the way recording
-        // attendance does — the list's drawer is for checking a key or a link.
-        // Viewing is enough to reach it; the editor is read-only without
+        // attendance does — and the list opens straight into it, the same as
+        // People and Minutes do. Viewing is enough to reach it; the editor is read-only without
         // songs.manage, so the worship team can read lyrics off it on a phone.
         path: 'songs/:id',
         name: 'SongDetails',
@@ -157,9 +157,13 @@ const routes = [
         component: () => import('../views/Minutes.vue')
       },
       {
+        // focus: no top or bottom bar, the same as recording attendance. A
+        // minute is a document — read on a phone, and written into during a
+        // meeting — and the agenda rail, the notes and the write-up want the
+        // height. It carries its own back arrow to the list.
         path: 'minutes/:id',
         name: 'MinuteDetails',
-        meta: { capability: 'minutes.view' },
+        meta: { capability: 'minutes.view', focus: true },
         component: () => import('../views/MinuteDetails.vue')
       },
       {
@@ -235,7 +239,13 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  // Going back to a list must land where you left it. Every list opens a record
+  // as a full page now, so "check three people in a row" is back-scroll-tap —
+  // and without this, each back lands at the top of the roll.
+  scrollBehavior(to, from, savedPosition) {
+    return savedPosition || { top: 0 }
+  }
 })
 
 // Wait for Firebase to restore the persisted session before resolving any

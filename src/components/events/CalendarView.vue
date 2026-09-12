@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { ChevronLeft, ChevronRight, List, LayoutGrid } from '../../icons'
-import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
+import { getEventIcon as getIconComponent, iconForEvent } from '../../utils/eventIcons'
 import { getEventTypeColor, getEventTypeDot } from '../../utils/eventColors'
+import { isCalledOff, eventStatusSummary } from '../../../lib/eventStatus'
 import philippineHolidays from '../../data/philippineHolidays.json'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
+import { useSwipePage } from '../../composables/useSwipePage'
 
 const props = defineProps({
   currentDate: {
@@ -40,19 +42,64 @@ const props = defineProps({
 
 const emit = defineEmits(['navigateMonth', 'dayClick', 'eventClick', 'goToToday', 'calendarWheel', 'setDate'])
 
+// Swipe to turn the month, the way the wheel already does on a desktop. The
+// arrows stay: a gesture nobody is told about cannot be the only way to do
+// something.
+//
+// Both axes in the grid, which scrolls in neither direction. The agenda keeps
+// sideways only — its up and down belong to the list it is scrolling.
+const { swipeRef } = useSwipePage({
+  axis: () => (showAgendaView.value ? 'horizontal' : 'both'),
+  onNext: () => emit('navigateMonth', 'next'),
+  onPrevious: () => emit('navigateMonth', 'prev'),
+})
+
+// The grid needs both the parent's scroll ref and the gesture's, and an
+// element takes one `ref`. This hands the node to each of them.
+const gridRef = (el) => {
+  swipeRef(el)
+  if (props.calendarScrollRef) props.calendarScrollRef.value = el
+}
+
 // On narrow phone screens, show fewer events per day so the ones shown stay readable
 const isCompact = useMediaQuery('(max-width: 639px)')
 
-// Short viewports (e.g. phones in landscape) can't fit a 6-row month grid either
-const isShort = useMediaQuery('(max-height: 500px)')
+// How many weeks this month actually occupies — five for most, six for a long
+// month that starts late, four for a February beginning on a Sunday. The rows
+// are declared from this rather than fixed at six, or a five-week month would
+// leave an empty band at the bottom and squash every cell to make room for it.
+const weekCount = computed(() => Math.max(1, Math.ceil(props.calendarDays.length / 7)))
 
-// Default to the agenda list on narrow/short screens, where a month grid is hard to scan.
-// Once the user manually toggles, their choice sticks regardless of viewport changes.
-const prefersAgendaView = computed(() => isCompact.value || isShort.value)
-const agendaViewOverride = ref(null)
-const showAgendaView = computed(() => agendaViewOverride.value ?? prefersAgendaView.value)
+/**
+ * The grid is the default at every size, phones included.
+ *
+ * This used to switch itself to the agenda list below 640px, on the reasoning
+ * that a six-row month is hard to scan on a phone. In practice the grid is the
+ * thing people come to a calendar for — where a date falls in the week, which
+ * days are free — and being given a list instead meant the grid was something
+ * you had to go and find on a device where most of the looking happens.
+ *
+ * The toggle is still in the header, and the choice is now remembered per
+ * device rather than reset on every visit, so whoever does prefer the list
+ * only has to say so once.
+ */
+const AGENDA_KEY = 'uec.events.agendaView'
+const readAgendaPreference = () => {
+  try {
+    return localStorage.getItem(AGENDA_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const showAgendaView = ref(readAgendaPreference())
 const toggleAgendaView = () => {
-  agendaViewOverride.value = !showAgendaView.value
+  showAgendaView.value = !showAgendaView.value
+  try {
+    localStorage.setItem(AGENDA_KEY, showAgendaView.value ? '1' : '0')
+  } catch {
+    /* the preference lasts the session */
+  }
 }
 
 // Month/Year picker state
@@ -90,6 +137,75 @@ const selectYear = (year) => {
 
 const holidays = philippineHolidays
 
+/**
+ * Events and holidays indexed by date, and every cell resolved once.
+ *
+ * The template used to call getEventsForDate(day) around twenty times per
+ * cell — for the count, for the first event, for the second, for each of the
+ * conditions in between — and each call filtered the whole events array. Over
+ * a 35-cell grid that is several hundred full scans on every render, and the
+ * markup that came out of it could not be read: the same expression repeated
+ * so often that conditions like `(!holiday && n > 1) || (holiday && n > 1)`
+ * went unnoticed for what they are, which is `n > 1`.
+ *
+ * One pass here, one plain object per cell, and the template only reads.
+ */
+const holidaysByDate = computed(() => {
+  const map = new Map()
+  for (const holiday of holidays) map.set(holiday.date, holiday)
+  return map
+})
+
+const eventsByDate = computed(() => {
+  const map = new Map()
+  for (const event of props.events || []) {
+    if (!event?.date) continue
+    const list = map.get(event.date)
+    if (list) list.push(event)
+    else map.set(event.date, [event])
+  }
+  return map
+})
+
+/**
+ * How many events a cell shows before it starts counting the rest.
+ *
+ * Three at both widths. On a phone they are overlapping discs, and the overlap
+ * buys back more width than a third disc costs; wider they are stacked chips
+ * with room for their titles.
+ */
+const CHIP_LIMIT = 3
+
+const dayCells = computed(() =>
+  props.calendarDays.map((day) => {
+    const dateString = formatDateString(day.fullDate)
+    const dayEvents = eventsByDate.value.get(dateString) || []
+    const holiday = holidaysByDate.value.get(dateString) || null
+    // Three discs fit across a phone cell. Where a fourth event exists the
+    // third disc becomes the counter instead, so the cluster is never more
+    // than three wide — the way a stack of faces ends in "+2".
+    //
+    // On a wider cell a holiday costs an event its place, because there the
+    // name is written out and takes a row. On a phone the holiday is a mark
+    // beside the date and takes nothing from the cluster below it.
+    const limit = isCompact.value
+      ? (dayEvents.length <= 3 ? 3 : 2)
+      : Math.max(1, CHIP_LIMIT - (holiday ? 1 : 0))
+    return {
+      day,
+      dateString,
+      holiday,
+      events: dayEvents,
+      shown: dayEvents.slice(0, limit),
+      // Only ever the events not on screen. The old "+N" counted differently
+      // depending on whether there was a holiday, and was right by accident.
+      overflow: Math.max(0, dayEvents.length - limit),
+      isToday: isToday(day.fullDate),
+      isSelected: props.selectedDate === dateString,
+    }
+  })
+)
+
 const formatDateString = (date) => {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -106,16 +222,11 @@ const isToday = (date) => {
   )
 }
 
-const getHolidayForDate = (date) => {
-  const dateString = formatDateString(date)
-  return holidays.find(holiday => holiday.date === dateString)
-}
+// Kept for the agenda view and the aria labels, but reading the same indexes
+// rather than scanning the arrays again.
+const getHolidayForDate = (date) => holidaysByDate.value.get(formatDateString(date)) || undefined
 
-const getEventsForDate = (date) => {
-  const dateString = formatDateString(date)
-  if (!props.events || !Array.isArray(props.events)) return []
-  return props.events.filter((event) => event.date === dateString)
-}
+const getEventsForDate = (date) => eventsByDate.value.get(formatDateString(date)) || []
 
 // Days in the current month that have a holiday or an event, in date order, for the agenda view
 const agendaDays = computed(() => {
@@ -276,7 +387,10 @@ const handleDayKeydown = (event, day) => {
     ></div>
 
     <!-- Agenda View: default on narrow/short screens where a month grid is hard to scan -->
-    <div v-if="showAgendaView" class="flex-1 overflow-y-auto p-3 pb-20 md:p-4 md:pb-20 min-h-0">
+    <!-- The agenda swipes between months too. A gesture that works in one of
+         two views and silently does nothing in the other reads as broken; the
+         vertical-scroll guard in useSwipePage keeps this list scrolling. -->
+    <div v-if="showAgendaView" :ref="swipeRef" class="flex-1 overflow-y-auto p-3 pb-20 md:p-4 md:pb-20 min-h-0">
       <div v-if="loading" aria-hidden="true" class="space-y-2">
         <div
           v-for="i in 6"
@@ -344,12 +458,33 @@ const handleDayKeydown = (event, day) => {
                 :key="event.id"
                 type="button"
                 @click="emit('eventClick', event)"
-                :class="['w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs sm:text-sm hover:opacity-90 transition-opacity', getEventTypeColor(event.type)]"
-                :title="event.title"
+                :class="[
+                  'w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs sm:text-sm hover:opacity-90 transition-opacity',
+                  isCalledOff(event)
+                    ? 'border border-dashed border-gray-400 text-gray-500 dark:border-gray-500 dark:text-gray-400'
+                    : getEventTypeColor(event.type),
+                ]"
+                :title="eventStatusSummary(event) || event.title"
               >
-                <component :is="getIconComponent(event.icon || 'Calendar')" class="h-3.5 w-3.5 shrink-0" />
-                <span class="flex-1 truncate font-medium">{{ event.title }}</span>
-                <span v-if="event.time" class="shrink-0 text-[10px] sm:text-xs opacity-90">{{ event.time }}</span>
+                <component :is="getIconComponent(iconForEvent(event))" class="h-3.5 w-3.5 shrink-0" />
+                <span :class="['flex-1 truncate font-medium', isCalledOff(event) ? 'line-through' : '']">
+                  {{ event.title }}
+                </span>
+                <!-- Struck through is not enough on its own: it reads as a
+                     style until it is named. Amber, matching how the day and
+                     month drawers name the same state. -->
+                <span
+                  v-if="isCalledOff(event)"
+                  class="shrink-0 rounded bg-amber-100 px-1 text-[9px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-400/15 dark:text-amber-400"
+                >
+                  {{ event.status === 'postponed' ? 'Moved' : 'Off' }}
+                </span>
+                <span
+                  v-if="event.time"
+                  :class="['shrink-0 text-[10px] sm:text-xs', isCalledOff(event) ? '' : 'opacity-90']"
+                >
+                  {{ event.time }}
+                </span>
               </button>
             </div>
           </div>
@@ -362,7 +497,7 @@ const handleDayKeydown = (event, day) => {
     </div>
 
     <!-- Calendar Grid -->
-    <div v-else :ref="calendarScrollRef" @wheel="emit('calendarWheel', $event)" class="flex-1 flex flex-col p-2 md:p-4 min-h-0">
+    <div v-else :ref="gridRef" @wheel="emit('calendarWheel', $event)" class="flex-1 flex flex-col p-2 md:p-4 min-h-0">
       <!-- Day Headers -->
       <div class="grid grid-cols-7 gap-1 md:gap-1.5 mb-1 md:mb-2 shrink-0">
         <div
@@ -376,9 +511,9 @@ const handleDayKeydown = (event, day) => {
 
       <!-- Calendar Days with transition -->
       <Transition name="calendar-month" mode="out-in">
-        <div v-if="loading" :key="`skeleton-${currentMonth}`" aria-hidden="true" class="calendar-grid flex-1 grid grid-cols-7 grid-rows-6 gap-1.5 min-h-0">
+        <div v-if="loading" :key="`skeleton-${currentMonth}`" aria-hidden="true" :style="{ gridTemplateRows: `repeat(${weekCount}, minmax(0, 1fr))` }" class="calendar-grid flex-1 grid grid-cols-7 gap-1.5 min-h-0">
           <div
-            v-for="i in 42"
+            v-for="i in weekCount * 7"
             :key="`skeleton-day-${i}`"
             class="min-h-0 p-1.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 overflow-hidden"
           >
@@ -386,119 +521,151 @@ const handleDayKeydown = (event, day) => {
             <div class="h-3 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
           </div>
         </div>
-        <div v-else :key="currentMonth" role="group" :aria-label="`${currentMonth} calendar`" class="calendar-grid flex-1 grid grid-cols-7 grid-rows-6 gap-1 md:gap-1.5 min-h-0">
+        <div v-else :key="currentMonth" role="group" :aria-label="`${currentMonth} calendar`" :style="{ gridTemplateRows: `repeat(${weekCount}, minmax(0, 1fr))` }" class="calendar-grid flex-1 grid grid-cols-7 gap-1 md:gap-1.5 min-h-0">
             <div
-              v-for="(day, index) in calendarDays"
+              v-for="(cell, index) in dayCells"
               :key="index"
               role="button"
               tabindex="0"
-              :aria-label="getDayAriaLabel(day)"
-              :aria-current="isToday(day.fullDate) ? 'date' : undefined"
-              :aria-pressed="selectedDate === formatDateString(day.fullDate) ? 'true' : undefined"
-              @click="emit('dayClick', day)"
-              @keydown.enter="handleDayKeydown($event, day)"
-              @keydown.space="handleDayKeydown($event, day)"
+              :aria-label="getDayAriaLabel(cell.day)"
+              :aria-current="cell.isToday ? 'date' : undefined"
+              :aria-pressed="cell.isSelected ? 'true' : undefined"
+              @click="emit('dayClick', cell.day)"
+              @keydown.enter="handleDayKeydown($event, cell.day)"
+              @keydown.space="handleDayKeydown($event, cell.day)"
               :class="[
-                'min-h-0 p-1 md:p-1.5 rounded-lg transition-all cursor-pointer overflow-hidden flex flex-col',
-                day.isCurrentMonth
-                  ? selectedDate === formatDateString(day.fullDate)
-                    ? 'bg-primary/10 dark:bg-primary/20 border-2 border-primary shadow-lg shadow-primary/20'
-                    : isToday(day.fullDate)
-                    ? 'bg-amber-500/10 dark:bg-amber-500/20 border-2 border-amber-500 shadow-lg shadow-amber-500/20'
-                    : getHolidayForDate(day.fullDate)
-                    ? 'bg-white dark:bg-gray-800 border-2 border-yellow-500 hover:bg-gray-50 dark:hover:bg-gray-700'
+                'min-h-0 p-1 md:p-1.5 rounded-lg transition-colors cursor-pointer overflow-hidden flex flex-col',
+                // A ring rather than a 2px border on the states that mark a
+                // day out: a border changes the box, so today's cell used to
+                // sit a pixel off from its neighbours and the whole row looked
+                // misaligned. A ring is drawn on top and costs no layout.
+                cell.day.isCurrentMonth
+                  ? cell.isSelected
+                    ? 'bg-primary/10 dark:bg-primary/20 ring-2 ring-primary ring-inset border border-transparent'
+                    : cell.isToday
+                    ? 'bg-amber-500/10 dark:bg-amber-500/15 ring-2 ring-amber-500 ring-inset border border-transparent'
+                    : cell.holiday
+                    ? 'bg-white dark:bg-gray-800 border border-yellow-400/70 dark:border-yellow-500/50 hover:bg-gray-50 dark:hover:bg-gray-700'
                     : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                : 'bg-gray-50 dark:bg-gray-900/50 text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800/50',
+                : 'bg-gray-50/60 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800/50',
               ]"
             >
-            <div
-              :class="[
-                'text-xs md:text-sm font-medium mb-0.5 md:mb-1',
-                isToday(day.fullDate) && day.isCurrentMonth
-                  ? 'text-amber-600 dark:text-amber-400 font-bold'
-                  : day.isCurrentMonth
-                  ? 'text-gray-900 dark:text-white'
-                  : 'text-gray-400 dark:text-gray-600',
-              ]"
-            >
-              {{ day.date }}
-            </div>
-            <!-- Compact phones: dot indicators instead of cramped text (tap the day to see full details) -->
-            <div
-              v-if="isCompact && (getHolidayForDate(day.fullDate) || getEventsForDate(day.fullDate).length > 0)"
-              class="flex-1 flex items-center justify-center flex-wrap gap-1 min-h-0"
-            >
+            <!-- Day number, with the holiday's mark beside it rather than
+                 below. The holiday used to take a whole row of the cell and
+                 push the events out; it is a property of the day, so it
+                 belongs on the day's own line. -->
+            <div class="mb-0.5 flex items-center justify-between gap-1 md:mb-1">
               <span
-                v-if="getHolidayForDate(day.fullDate)"
-                class="h-1.5 w-1.5 rounded-full bg-yellow-500 shrink-0"
-              ></span>
-              <span
-                v-for="event in getEventsForDate(day.fullDate).slice(0, 3)"
-                :key="event.id"
-                :class="['h-1.5 w-1.5 rounded-full shrink-0', getEventTypeDot(event.type)]"
-              ></span>
-              <span
-                v-if="getEventsForDate(day.fullDate).length > 3"
-                class="text-[9px] leading-none font-semibold text-gray-500 dark:text-gray-400"
+                :class="[
+                  'text-xs font-medium leading-none md:text-sm',
+                  cell.isToday && cell.day.isCurrentMonth
+                    ? 'font-bold text-amber-600 dark:text-amber-400'
+                    : cell.day.isCurrentMonth
+                    ? 'text-gray-900 dark:text-white'
+                    : 'text-gray-400 dark:text-gray-600',
+                ]"
               >
-                +{{ getEventsForDate(day.fullDate).length - 3 }}
+                {{ cell.day.date }}
+              </span>
+              <span
+                v-if="cell.holiday"
+                class="h-1.5 w-1.5 shrink-0 rounded-full bg-yellow-500"
+                :title="cell.holiday.name"
+              ></span>
+            </div>
+
+            <!-- The holiday's name, where there is width for it. Quiet text
+                 rather than a filled block: it is not something you can open,
+                 so it should not look like the chips that are. -->
+            <p
+              v-if="cell.holiday && !isCompact"
+              class="mb-0.5 truncate text-[10px] leading-tight text-yellow-700 dark:text-yellow-500"
+              :title="cell.holiday.name"
+            >
+              {{ cell.holiday.name }}
+            </p>
+            <!-- Phones: overlapping dots, the way a group of faces is stacked.
+                 Filled squares with a glyph inside were too much furniture at
+                 16px — six of them in a week read as a row of buttons rather
+                 than as a week. Overlapping costs less width than it saves, so
+                 three still fit, and the cluster reads as one answer to "how
+                 busy is this day" instead of three separate marks.
+
+                 Not tappable, deliberately: a 10px disc is not a target, and
+                 the whole cell already opens the day. -->
+            <div
+              v-if="isCompact && cell.events.length"
+              class="flex min-h-0 flex-1 items-center justify-center"
+            >
+              <span class="flex items-center">
+                <span
+                  v-for="(event, position) in cell.shown"
+                  :key="event.id"
+                  :title="eventStatusSummary(event) || event.title"
+                  :class="[
+                    // The ring is the cell showing through, which is what makes
+                    // the discs read as separate where they overlap.
+                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full ring-2 ring-white dark:ring-gray-800',
+                    position > 0 ? '-ml-2.5' : '',
+                    // Hollow, not faded. Dimming a filled disc muddies its
+                    // colour against the cell and reads as a rendering fault
+                    // rather than as a decision; an outline reads as absence,
+                    // which is what a called-off gathering is. It drops its
+                    // type colour with its fill — what kind of thing is not
+                    // happening matters less than that it is not.
+                    isCalledOff(event)
+                      ? 'border-2 border-dashed border-gray-400 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-800 dark:text-gray-500'
+                      : `text-white ${getEventTypeDot(event.type)}`,
+                  ]"
+                >
+                  <!-- Back now the disc is 20px: a 12px glyph sits inside it
+                       with room to breathe, where at 10px there was nothing to
+                       put an icon in. The colour still carries the type, so the
+                       glyph is white and only has to say which kind. -->
+                  <component :is="getIconComponent(iconForEvent(event))" class="h-3 w-3" />
+                </span>
+                <!-- The rest, as the last disc rather than as text beside the
+                     cluster: it belongs to the stack, and a loose number was
+                     the untidiest thing in the cell. -->
+                <span
+                  v-if="cell.overflow"
+                  :title="`${cell.overflow} more`"
+                  class="-ml-2.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-400 text-[9px] font-bold leading-none text-white ring-2 ring-white dark:bg-gray-500 dark:ring-gray-800"
+                >
+                  +{{ cell.overflow }}
+                </span>
               </span>
             </div>
 
-            <template v-else-if="!isCompact">
-              <!-- Show holiday as first item if exists -->
-              <div
-                v-if="getHolidayForDate(day.fullDate)"
-                class="px-1 sm:px-1.5 py-0.5 sm:py-1 text-[10px] sm:text-xs bg-yellow-500 text-white rounded truncate flex-1 flex items-center"
-                :class="{ 'mb-0.5': getEventsForDate(day.fullDate).length > 0 }"
-                :title="getHolidayForDate(day.fullDate).name"
+            <!-- Wider: the same events with room for their names. -->
+            <div v-else-if="cell.events.length" class="flex min-h-0 flex-1 flex-col gap-0.5" @click.stop>
+              <button
+                v-for="event in cell.shown"
+                :key="event.id"
+                @click.stop="emit('eventClick', event)"
+                :title="eventStatusSummary(event) || event.title"
+                :class="[
+                  'flex w-full shrink-0 items-center gap-1 rounded px-1 py-0.5 text-left text-[10px] leading-tight transition-opacity hover:opacity-80 sm:px-1.5 sm:text-xs',
+                  // Outlined rather than dimmed, the same reasoning as the
+                  // discs: a 60% chip sits between two legible states and
+                  // looks like neither.
+                  isCalledOff(event)
+                    ? 'border border-dashed border-gray-400 text-gray-500 dark:border-gray-500 dark:text-gray-400'
+                    : getEventTypeColor(event.type),
+                ]"
               >
-                {{ getHolidayForDate(day.fullDate).name }}
-              </div>
-              <!-- Show events (max 2 total items including holiday) -->
-              <div v-if="getEventsForDate(day.fullDate).length > 0" class="flex-1 flex flex-col gap-0.5 min-h-0" @click.stop>
-                <!-- First event -->
-                <button
-                  v-if="getEventsForDate(day.fullDate).length > 0"
-                  :key="getEventsForDate(day.fullDate)[0]?.id"
-                  @click.stop="emit('eventClick', getEventsForDate(day.fullDate)[0])"
-                  :class="[
-                    'w-full text-left px-1 sm:px-1.5 py-0.5 sm:py-1 text-[10px] sm:text-xs rounded truncate hover:opacity-80 transition-opacity flex items-center gap-1 flex-1',
-                    getEventTypeColor(getEventsForDate(day.fullDate)[0]?.type),
-                  ]"
-                  :title="getEventsForDate(day.fullDate)[0]?.title"
-                >
-                  <component :is="getIconComponent(getEventsForDate(day.fullDate)[0]?.icon || 'Calendar')" class="h-3 w-3 shrink-0" />
-                  <span class="truncate">{{ getEventsForDate(day.fullDate)[0]?.title }}</span>
-                </button>
-                <!-- Second row: second event + overflow indicator on same line -->
-                <div
-                  v-if="(!getHolidayForDate(day.fullDate) && getEventsForDate(day.fullDate).length > 1) || (getHolidayForDate(day.fullDate) && getEventsForDate(day.fullDate).length > 1)"
-                  class="flex items-center gap-0.5 sm:gap-1 flex-1"
-                >
-                  <button
-                    v-if="!getHolidayForDate(day.fullDate) && getEventsForDate(day.fullDate)[1]"
-                    :key="getEventsForDate(day.fullDate)[1]?.id"
-                    @click.stop="emit('eventClick', getEventsForDate(day.fullDate)[1])"
-                    :class="[
-                      'flex-1 text-left px-1 sm:px-1.5 py-0.5 sm:py-1 text-[10px] sm:text-xs rounded truncate hover:opacity-80 transition-opacity flex items-center gap-1 min-w-0',
-                      getEventTypeColor(getEventsForDate(day.fullDate)[1]?.type),
-                    ]"
-                    :title="getEventsForDate(day.fullDate)[1]?.title"
-                  >
-                    <component :is="getIconComponent(getEventsForDate(day.fullDate)[1]?.icon || 'Calendar')" class="h-3 w-3 shrink-0" />
-                    <span class="truncate">{{ getEventsForDate(day.fullDate)[1]?.title }}</span>
-                  </button>
-                  <!-- +X indicator -->
-                  <div
-                    v-if="(getHolidayForDate(day.fullDate) && getEventsForDate(day.fullDate).length > 1) || (!getHolidayForDate(day.fullDate) && getEventsForDate(day.fullDate).length > 2)"
-                    class="bg-gray-500 dark:bg-gray-600 text-white text-[10px] sm:text-xs px-1 sm:px-1.5 py-0.5 sm:py-1 rounded shrink-0"
-                  >
-                    +{{ getHolidayForDate(day.fullDate) ? getEventsForDate(day.fullDate).length - 1 : getEventsForDate(day.fullDate).length - 2 }}
-                  </div>
-                </div>
-              </div>
-            </template>
+                <component :is="getIconComponent(iconForEvent(event))" class="h-3 w-3 shrink-0" />
+                <span :class="['truncate', isCalledOff(event) ? 'line-through' : '']">{{ event.title }}</span>
+              </button>
+
+              <!-- A note about the cell, not another thing to press. -->
+              <span
+                v-if="cell.overflow"
+                class="shrink-0 px-1 text-[10px] font-semibold leading-tight text-gray-500 sm:px-1.5 dark:text-gray-400"
+              >
+                +{{ cell.overflow }} more
+              </span>
+            </div>
           </div>
         </div>
       </Transition>

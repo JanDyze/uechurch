@@ -64,7 +64,12 @@ function usedNames() {
       for (const spec of match[1].split(",")) {
         // `Image as ImageIcon` — the imported name is what we must export
         const name = spec.trim().split(/\s+as\s+/)[0].trim();
-        if (name) names.add(name);
+        if (!name) continue;
+        // `WalletSvg` is the path data for `Wallet`, emitted alongside it.
+        // Both come from one entry, so the suffix is stripped before the
+        // Phosphor lookup — otherwise the build hunts for a "WalletSvg" glyph
+        // and fails, which is how this was found.
+        names.add(name.endsWith("Svg") ? name.slice(0, -3) : name);
       }
     }
   }
@@ -118,12 +123,16 @@ function main() {
     process.exit(1);
   }
 
+  // The path data is exported as well as the component. Anything that has to
+  // put an icon inside an HTML string rather than a template — the section
+  // headings on a written-up minute, which are rendered from Markdown — needs
+  // the markup itself, and copying it into a second file by hand would mean a
+  // regenerated icon set silently leaving stale paths behind.
   const body = entries
     .map(
       ({ name, phosphor, inner }) =>
-        `/** Phosphor ${phosphor} */\nexport const ${name} = /*#__PURE__*/ icon(${JSON.stringify(
-          inner
-        )})\n`
+        `/** Phosphor ${phosphor} */\nexport const ${name}Svg = ${JSON.stringify(inner)}\n` +
+        `export const ${name} = /*#__PURE__*/ icon(${name}Svg)\n`
     )
     .join("\n");
 

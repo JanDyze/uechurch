@@ -8,6 +8,12 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { notify } from "./notifyService";
+import {
+  EVENT_STATUS,
+  eventStatusFields,
+  readEventStatus,
+  isCalledOff,
+} from "../../lib/eventStatus";
 
 const EVENTS_COLLECTION = "events";
 
@@ -36,6 +42,17 @@ const normalizeEvent = (data, docId) => {
     overrideOf: data.overrideOf || null,
     isOverride: data.isOverride || false,
     isCancelled: data.isCancelled || false,
+    // Whether it is still on. Derived rather than read straight off the
+    // document, so an occurrence called off before the field existed still
+    // says so — see lib/eventStatus.js.
+    status: readEventStatus(data),
+    statusNote: data.statusNote || '',
+    postponedTo: data.postponedTo || '',
+    // An override document that exists only to carry a cancellation, with no
+    // edit of its own behind it. Reinstating deletes it and the generated
+    // occurrence comes back; without this flag, reinstating could not tell
+    // "the service is off" from "the service moved to 10am and is off".
+    statusOnly: data.statusOnly || false,
     memberId: data.memberId || null,
   };
 };
@@ -114,12 +131,8 @@ const announceAddedEvent = (event) => {
   if (!isUpcoming(event)) return;
   const title = event.title || "Untitled";
 
-  if (event.isCancelled) {
-    notify("event.cancelled", {
-      title: `Cancelled: ${title}`,
-      body: whenAndWhere(event),
-      event: eventMark(event),
-    });
+  if (isCalledOff(event)) {
+    announceStatus(event);
     return;
   }
 
@@ -137,6 +150,55 @@ const announceAddedEvent = (event) => {
     body: whenAndWhere(event),
     event: eventMark(event),
   });
+};
+
+/**
+ * Calling something off is the one change everybody expecting to be there
+ * needs to hear about, so it is announced whichever way it was written — on
+ * the event itself or on an override standing in for a generated occurrence.
+ * Putting it back on is news of the same size.
+ */
+const announceStatus = (event) => {
+  if (!isUpcoming(event)) return;
+  const title = event.title || "Untitled";
+  const status = readEventStatus(event);
+
+  const heading =
+    status === EVENT_STATUS.CANCELLED
+      ? `Cancelled: ${title}`
+      : status === EVENT_STATUS.POSTPONED
+        ? `Postponed: ${title}`
+        : `Back on: ${title}`;
+
+  // The reason, when there is one, is the thing people actually want to read;
+  // the when-and-where is the fallback.
+  const body =
+    [event.statusNote, status === EVENT_STATUS.POSTPONED && event.postponedTo ? `Moved to ${event.postponedTo}` : ""]
+      .filter(Boolean)
+      .join(" · ") || whenAndWhere(event);
+
+  notify(status === EVENT_STATUS.SCHEDULED ? "event.changed" : "event.cancelled", {
+    title: heading,
+    body,
+    event: eventMark(event),
+  });
+};
+
+/**
+ * Calls a stored event off, moves it, or puts it back on. Separate from
+ * updateEvent because it is a different kind of edit: it changes whether the
+ * thing is happening, which is always worth telling people about, where a
+ * saved description is not.
+ */
+export const setEventStatus = async (firestoreId, event, { status, note = "", movedTo = "" }) => {
+  try {
+    const fields = eventStatusFields({ status, note, movedTo });
+    await updateDoc(doc(db, EVENTS_COLLECTION, firestoreId), fields);
+    announceStatus({ ...event, ...fields });
+  } catch (error) {
+    console.error("Error setting event status:", error);
+    throw error;
+  }
 };
 
 /**
@@ -163,6 +225,22 @@ export const updateEvent = async (firestoreId, eventData, previous = null) => {
     }
   } catch (error) {
     console.error("Error updating event:", error);
+    throw error;
+  }
+};
+
+/**
+ * Puts a generated occurrence back by removing the override that was standing
+ * in for it. Only for an override with nothing in it but the cancellation —
+ * one that also carries an edit is reinstated by clearing its status instead,
+ * or the edit would be thrown away with it.
+ */
+export const reinstateOccurrence = async (firestoreId, event) => {
+  try {
+    await deleteDoc(doc(db, EVENTS_COLLECTION, firestoreId));
+    announceStatus({ ...event, ...eventStatusFields({ status: EVENT_STATUS.SCHEDULED }) });
+  } catch (error) {
+    console.error("Error reinstating occurrence:", error);
     throw error;
   }
 };

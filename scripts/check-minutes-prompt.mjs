@@ -95,7 +95,34 @@ const expected = [
   ["booking left unresolved", /pending|not confirmed|unconfirmed|di pa sure/i],
   ["task attributed to Joyce", /Joyce/],
   ["prayer for Nanay Linda", /Linda/],
+  // The shape the app reads back: MinuteDetails parses this table to offer
+  // each row as a task, and it needs the header row to find the columns. A
+  // minute that drops the table still reads fine and silently loses every
+  // button, which is the failure worth catching here.
+  ["commitments as a table", /\|\s*Task\s*\|\s*Who\s*\|\s*By when\s*\|/i],
+  ["money as a table", /\|\s*What it is for\s*\|\s*Amount\s*\|/i],
+  ["a total was struck", /\*\*Total\*\*|\*\*₱/],
 ];
+
+// The plain-language rules, which are the first thing to drift the next time
+// the prompt is edited — and the whole point of the current wording.
+const plainEnglish = [
+  ["plain headings, not minute-book ones", /^##\s*(What we talked about|Who does what)\s*$/m],
+  ["no formal padding", /it was (resolved|noted|discussed) that/i, { absent: true }],
+  ["no 'Financial Matters'", /^##\s*Financial Matters/m, { absent: true }],
+];
+
+const readability =
+  mode === "meeting"
+    ? [
+        ["opens with In short", /^##\s*In short\s*$/m],
+        ["every item lands somewhere", /\*\*(Decided|Still deciding):\*\*/],
+        ["attendance is counted", /Present\s*\(\d+\)/i],
+      ]
+    : [
+        ["led with bullets, not prose", /^[-*]\s+/m],
+        ["decisions have their own section", /^##\s*What we decided\s*$/m],
+      ];
 const invented = [
   ["placeholder text", /\[(insert|name|date|tbd)/i],
   ["a venue was decided", /(decided|agreed|approved).{0,40}(gym|covered court)/i],
@@ -104,8 +131,9 @@ const invented = [
 
 console.log("\n─────────── checks ───────────");
 let failures = 0;
-for (const [label, pattern] of expected) {
-  const ok = pattern.test(text);
+for (const [label, pattern, options] of [...expected, ...readability, ...plainEnglish]) {
+  // Most checks want the pattern present; the plain-English ones want it gone.
+  const ok = options?.absent ? !pattern.test(text) : pattern.test(text);
   if (!ok) failures += 1;
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
 }

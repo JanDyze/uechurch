@@ -46,7 +46,7 @@ const isFocus = computed(() => Boolean(route.meta?.focus))
       >
         <!-- A focus route gets the raw box and handles its own padding and
              safe areas: the deck should reach the edges of the screen. -->
-        <div :class="['h-full print-main', isFocus ? '' : 'p-3 sm:p-4 lg:px-8 lg:py-3']">
+        <div :class="['h-full print-main', isFocus ? '' : 'p-0 sm:p-4 lg:px-8 lg:py-3']">
           <router-view />
         </div>
       </main>

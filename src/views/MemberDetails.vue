@@ -1,38 +1,143 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { AlertCircle, ArrowLeft, Check, Edit2, Trash2, Calendar, MapPin, Phone, Briefcase, Users, Tag, User, Image as ImageIcon } from '../icons'
+import {
+  AlertCircle,
+  ArrowLeft,
+  Briefcase,
+  Camera,
+  ChatCircleText,
+  Check,
+  Church,
+  Edit2,
+  Gift,
+  Mail,
+  MapPin,
+  Phone,
+  Tag,
+  Trash2,
+  User,
+  Users,
+} from '../icons'
 import { useMembers } from '../composables/useMembers'
-import { getFullName, getSexIcon, getSexIconColor, calculateAgeFromDate, mergeTagSources, missingMemberFields, CIVIL_STATUS_OPTIONS as civilStatusOptions } from '../utils/memberUtils'
+import { useMinistries } from '../composables/useMinistries'
+import { usePermissions } from '../composables/usePermissions'
+import { useMemberAttendance } from '../composables/useMemberAttendance'
+import {
+  getFullName,
+  calculateAgeFromDate,
+  mergeTagSources,
+  missingMemberFields,
+  CIVIL_STATUS_OPTIONS as civilStatusOptions,
+} from '../utils/memberUtils'
 import { subscribeToCustomTags } from '../api/tagsService'
 import MemberAvatar from '../components/members/MemberAvatar.vue'
 import YouBadge from '../components/members/YouBadge.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import ImageCropper from '../components/members/ImageCropper.vue'
+import InlineEditField from '../components/common/InlineEditField.vue'
 import { uploadImage } from '../api/blobService'
 import { useToast } from '../composables/useToast'
-import InlineEditField from '../components/common/InlineEditField.vue'
+
+const route = useRoute()
+const router = useRouter()
+const toast = useToast()
+const { members, loading, updateMemberInFirestore, removeMember } = useMembers()
+const { ministryNames } = useMinistries()
+
+// A ministry grants access, so editing this record is a manage capability even
+// though reading it is not. The route only asks for members.view, which is why
+// the gate has to be here rather than in the router.
+const { canManage } = usePermissions()
+const canEdit = computed(() => canManage('members'))
+
+// The record is edited as a record. Per-field pencils asked which field you
+// meant before you had decided you were editing anything.
+const isEditMode = ref(false)
+const showImageCropper = ref(false)
+
+// The header only says the name once the cover carrying it has scrolled away.
+const scrolled = ref(false)
+const onScroll = (e) => {
+  scrolled.value = e.target.scrollTop > 96
+}
+
+const member = computed(() => {
+  const id = route.params.id
+  return members.value.find(
+    (m) => String(m.id) === String(id) || String(m.firestoreId) === String(id)
+  )
+})
+
+const localMember = ref({})
+
+watch(
+  member,
+  (newMember) => {
+    if (newMember) localMember.value = { ...newMember }
+  },
+  { immediate: true, deep: true }
+)
+
+// Custom tags created from the People page toolbar's "Add tag" control
+const customTags = ref([])
+let unsubscribeCustomTags = null
+
+onMounted(() => {
+  unsubscribeCustomTags = subscribeToCustomTags((tags) => {
+    customTags.value = tags.map((t) => t.name)
+  })
+
+  // "Edit" on the People list's context menu arrives as ?edit=1. It is consumed
+  // once and dropped from the URL: it says how you got here, not what the
+  // record is, so a refresh or a back-and-forward should not re-open the form.
+  if (route.query.edit === '1' && canEdit.value) {
+    isEditMode.value = true
+    router.replace({ path: route.path, query: {} })
+  }
+})
+
+onUnmounted(() => {
+  if (unsubscribeCustomTags) unsubscribeCustomTags()
+})
+
+const allTags = computed(() => {
+  const tags = new Set()
+  members.value.forEach((m) => {
+    if (m.tags) m.tags.forEach((t) => tags.add(t))
+  })
+  return mergeTagSources(Array.from(tags), customTags.value)
+})
 
 // The list can only say a record is thin. Here there is room to say which
 // parts, so the person looking at it knows what to ask for.
 const gaps = computed(() => (localMember.value ? missingMemberFields(localMember.value) : []))
 
-// The record is edited as a record. Per-field pencils asked which field you
-// meant before you had decided you were editing anything.
-const isEditMode = ref(false)
+/* ------------------------------------------------------------- attendance */
+const { history, counted, presentCount, unrecordedCount } = useMemberAttendance(localMember)
 
-/**
- * What the record says, grouped and in plain language.
- *
- * Reading and editing want different shapes. A form is a column of one field
- * per row because every field needs a control; a record is not — "12 March
- * 1990 · 35 · Female · Single" is one fact about a person and belongs on one
- * line. The two-column grid of boxed rows was the form's shape borrowed for
- * reading, which is why it took a screen and a half to say very little.
- *
- * Empty values are kept and shown greyed rather than dropped: a record you can
- * see the holes in is the point, and the banner above only counts them.
- */
+const ATTENDANCE_STYLE = {
+  present: 'bg-green-500 dark:bg-green-500',
+  absent: 'bg-red-400 dark:bg-red-500',
+  unrecorded:
+    'bg-transparent border border-dashed border-gray-300 dark:border-gray-600',
+}
+
+const stateWord = { present: 'Came', absent: 'Did not come', unrecorded: 'Not recorded' }
+
+const shortDate = (iso) => {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+}
+
+/* ----------------------------------------------------------------- record */
+const sexOptions = [
+  { value: 'Male', label: 'Male' },
+  { value: 'Female', label: 'Female' },
+]
+
 const fmtDate = (iso) => {
   if (!iso) return ''
   const d = new Date(iso)
@@ -41,88 +146,110 @@ const fmtDate = (iso) => {
     : d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-const factGroups = computed(() => {
+const age = computed(() => calculateAgeFromDate(localMember.value?.dateOfBirth))
+
+/** A number a phone can actually dial: digits and a leading +, nothing else. */
+const dialable = (value) => {
+  const cleaned = String(value || '').replace(/[^\d+]/g, '')
+  return cleaned.length >= 4 ? cleaned : ''
+}
+
+/**
+ * The line under the name — nickname, standing, age, all the things that were
+ * separate chips and separate rows before. Saying "Member" in a chip, again in
+ * a Church row and a third time on a toggle is three chances to disagree.
+ */
+const introParts = computed(() => {
   const m = localMember.value || {}
-  const age = calculateAgeFromDate(m.dateOfBirth)
+  const parts = []
+  if (m.nickname) parts.push(`“${m.nickname}”`)
+  parts.push(m.isMember ? 'Church member' : 'Attendee')
+  if (age.value !== undefined) parts.push(`${age.value} years old`)
+  return parts
+})
+
+/**
+ * What you came here to do. A directory read on a phone is opened to reach
+ * somebody; the number used to be plain text you read out to yourself and
+ * retyped into the dialler.
+ */
+const contactActions = computed(() => {
+  const m = localMember.value || {}
+  const tel = dialable(m.contactNumber)
+  const out = []
+  if (tel) {
+    out.push({ key: 'call', label: 'Call', icon: Phone, href: `tel:${tel}` })
+    out.push({ key: 'text', label: 'Text', icon: ChatCircleText, href: `sms:${tel}` })
+  }
+  if (m.email) out.push({ key: 'email', label: 'Email', icon: Mail, href: `mailto:${m.email}` })
+  return out
+})
+
+/**
+ * About, in the shape a profile reads in: an icon and the fact, no column of
+ * grey captions repeating what the icon already says. Related facts share a
+ * line — "Female · Single" is one thing you know about somebody.
+ *
+ * Nickname, standing and age are deliberately absent: they are in the intro
+ * line above, and this is the same page.
+ */
+const about = computed(() => {
+  const m = localMember.value || {}
   return [
+    { key: 'dateOfBirth', icon: Gift, text: fmtDate(m.dateOfBirth), missing: 'Birthday not set' },
     {
-      key: 'personal',
-      label: 'Personal',
+      key: 'sex',
       icon: User,
-      lines: [
-        [
-          { text: fmtDate(m.dateOfBirth), missing: 'Birthday not set' },
-          { text: age !== undefined ? `${age} years old` : '' },
-          { text: m.sex, missing: 'Sex not set' },
-          { text: m.civilStatus },
-        ],
-        [{ text: m.nickname ? `Goes by “${m.nickname}”` : '' }],
-      ],
+      text: [m.sex, m.civilStatus].filter(Boolean).join(' · '),
+      missing: 'Sex not set',
     },
-    {
-      key: 'contact',
-      label: 'Contact',
-      icon: Phone,
-      lines: [
-        [{ text: m.contactNumber, missing: 'No contact number' }],
-        [{ text: m.address, missing: 'No address' }],
-        [{ text: m.occupation, missing: 'No occupation recorded' }],
-      ],
-    },
+    { key: 'occupation', icon: Briefcase, text: m.occupation, missing: 'No occupation recorded' },
+    { key: 'contactNumber', icon: Phone, text: m.contactNumber, missing: 'No contact number' },
+    { key: 'email', icon: Mail, text: m.email, missing: 'No email' },
+    { key: 'address', icon: MapPin, text: m.address, missing: 'No address' },
   ]
 })
 
-/** Drop the empties a line would otherwise render as stray separators. */
-const shownParts = (parts) => parts.filter((p) => p.text || p.missing)
+/** The same fields as controls, plus the ones that only make sense to edit. */
+const editFields = computed(() => [
+  { key: 'firstName', label: 'First name', type: 'text' },
+  { key: 'lastName', label: 'Last name', type: 'text' },
+  { key: 'nickname', label: 'Nickname', type: 'text' },
+  { key: 'dateOfBirth', label: 'Date of birth', type: 'date' },
+  { key: 'sex', label: 'Sex', type: 'select', options: sexOptions },
+  { key: 'civilStatus', label: 'Civil status', type: 'select', options: civilStatusOptions },
+  { key: 'occupation', label: 'Occupation', type: 'text' },
+  { key: 'contactNumber', label: 'Phone number', type: 'tel' },
+  { key: 'email', label: 'Email', type: 'email' },
+  { key: 'address', label: 'Address', type: 'textarea' },
+])
 
-const route = useRoute()
-const router = useRouter()
-const { members, loading, updateMemberInFirestore, removeMember } = useMembers()
+const handleFieldSave = async (field, value) => {
+  localMember.value[field] = value
 
-// Custom tags created from the Members page toolbar's "Add tag" control
-const customTags = ref([])
-let unsubscribeCustomTags = null
-
-onMounted(() => {
-  unsubscribeCustomTags = subscribeToCustomTags((tags) => {
-    customTags.value = tags.map((t) => t.name)
-  })
-})
-
-onUnmounted(() => {
-  if (unsubscribeCustomTags) unsubscribeCustomTags()
-})
-
-const showImageCropper = ref(false)
-
-// Get member from route param
-const member = computed(() => {
-  const id = route.params.id
-  return members.value.find(m => 
-    String(m.id) === String(id) || 
-    String(m.firestoreId) === String(id)
-  )
-})
-
-// Local copy for editing
-const localMember = ref({})
-
-watch(member, (newMember) => {
-  if (newMember) {
-    localMember.value = { ...newMember }
+  if (field === 'dateOfBirth' && value) {
+    localMember.value.age = calculateAgeFromDate(value)
   }
-}, { immediate: true, deep: true })
 
-// Get all unique tags
-const allTags = computed(() => {
-  const tags = new Set()
-  members.value.forEach(m => {
-    if (m.tags) m.tags.forEach(t => tags.add(t))
-  })
-  return mergeTagSources(Array.from(tags), customTags.value)
-})
+  try {
+    const { id, firestoreId, ...dataToUpdate } = localMember.value
 
-// Confirmation modal
+    Object.keys(dataToUpdate).forEach((key) => {
+      if (dataToUpdate[key] === undefined || dataToUpdate[key] === '') {
+        if (!['tags', 'ministries', 'isMember', 'image'].includes(key)) {
+          delete dataToUpdate[key]
+        }
+      }
+    })
+
+    await updateMemberInFirestore(member.value, dataToUpdate)
+  } catch (error) {
+    console.error('Error updating member:', error)
+    toast.error('Could not save that change. Please try again.')
+  }
+}
+
+/* -------------------------------------------------------------- deleting */
 const showConfirmation = ref(false)
 const confirmationConfig = ref({
   title: 'Confirm Action',
@@ -130,7 +257,7 @@ const confirmationConfig = ref({
   confirmText: 'Confirm',
   cancelText: 'Cancel',
   confirmButtonClass: 'bg-[#01779b] text-white hover:bg-[#015a77]',
-  onConfirm: null
+  onConfirm: null,
 })
 
 const showConfirmModal = (config) => {
@@ -139,36 +266,7 @@ const showConfirmModal = (config) => {
 }
 
 const handleConfirmation = () => {
-  if (confirmationConfig.value.onConfirm) {
-    confirmationConfig.value.onConfirm()
-  }
-}
-
-// Handle field save - immediately update
-const handleFieldSave = async (field, value) => {
-  localMember.value[field] = value
-  
-  // Calculate age if date of birth changed
-  if (field === 'dateOfBirth' && value) {
-    localMember.value.age = calculateAgeFromDate(value)
-  }
-  
-  try {
-    const { id, firestoreId, ...dataToUpdate } = localMember.value
-    
-    // Clean up undefined values
-    Object.keys(dataToUpdate).forEach(key => {
-      if (dataToUpdate[key] === undefined || dataToUpdate[key] === '') {
-        if (!['tags', 'isMember', 'image'].includes(key)) {
-          delete dataToUpdate[key]
-        }
-      }
-    })
-    
-    await updateMemberInFirestore(member.value, dataToUpdate)
-  } catch (error) {
-    console.error('Error updating member:', error)
-  }
+  if (confirmationConfig.value.onConfirm) confirmationConfig.value.onConfirm()
 }
 
 const handleDelete = () => {
@@ -184,12 +282,11 @@ const handleDelete = () => {
         router.push('/members')
       } catch (error) {
         console.error('Error deleting member:', error)
+        toast.error('Could not delete that person. Please try again.')
       }
-    }
+    },
   })
 }
-
-const toast = useToast()
 
 // The cropper hands back a full-quality PNG data URL. It goes to Blob storage
 // and the record keeps only the URL — a data URL is never written to Firestore.
@@ -205,366 +302,363 @@ const handleImageUpdate = async (base64Image) => {
     toast.error('Could not save that photo. Please try again.')
   }
 }
-
-// Options for select fields
-const sexOptions = [
-  { value: 'Male', label: 'Male' },
-  { value: 'Female', label: 'Female' },
-]
-
-
 </script>
 
 <template>
   <!-- A focus route gets the raw box, so the padding and the safe areas are
        this page's own - there is no layout chrome left to provide them. -->
-  <div
-    class="h-full flex flex-col px-3 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[env(safe-area-inset-bottom)] sm:px-4 lg:px-8 lg:pt-3"
-  >
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-4">
+  <div class="flex h-full flex-col bg-gray-50 dark:bg-gray-900">
+    <!-- Sticky, because a profile is longer than a phone screen and the way
+         back should not be something you scroll up to find. -->
+    <header
+      class="sticky top-0 z-30 flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white/90 px-2 py-2 backdrop-blur pt-[calc(0.5rem+env(safe-area-inset-top))] dark:border-gray-700 dark:bg-gray-800/90"
+    >
       <button
         @click="router.push('/members')"
-        class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+        class="flex items-center gap-1.5 rounded-lg px-2 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
       >
-        <ArrowLeft class="h-5 w-5" />
-        <span>Back to People</span>
+        <ArrowLeft class="h-5 w-5 shrink-0" />
+        <span class="hidden sm:inline">People</span>
       </button>
-      
-      <div v-if="member" class="flex items-center gap-2">
-        <span
-          v-if="isEditMode"
-          class="hidden text-xs text-gray-500 dark:text-gray-400 mr-1 sm:inline"
-        >
-          Changes save as you make them
-        </span>
-        <button
-          @click="isEditMode = !isEditMode"
-          :aria-label="isEditMode ? 'Done editing' : 'Edit this record'"
-          :title="isEditMode ? 'Done' : 'Edit'"
-          :class="[
-            'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-            isEditMode
-              ? 'bg-primary text-white hover:bg-primary-hover'
-              : 'border border-gray-200 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700',
-          ]"
-        >
-          <Check v-if="isEditMode" class="h-4 w-4" />
-          <Edit2 v-else class="h-4 w-4" />
-          {{ isEditMode ? 'Done' : 'Edit' }}
-        </button>
-        <button
-          @click="handleDelete"
-          class="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
-          title="Delete"
-          aria-label="Delete this person"
-        >
-          <Trash2 class="h-5 w-5" />
-        </button>
-      </div>
-    </div>
+
+      <p
+        :class="[
+          'min-w-0 flex-1 truncate px-1 text-sm font-semibold text-gray-900 transition-opacity dark:text-white',
+          scrolled ? 'opacity-100' : 'opacity-0',
+        ]"
+        aria-hidden="true"
+      >
+        {{ member ? getFullName(localMember) : '' }}
+      </p>
+
+      <button
+        v-if="member && canEdit"
+        @click="isEditMode = !isEditMode"
+        :aria-label="isEditMode ? 'Done editing' : 'Edit this profile'"
+        :class="[
+          'flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+          isEditMode
+            ? 'bg-primary text-white hover:bg-primary-hover'
+            : 'border border-gray-200 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700',
+        ]"
+      >
+        <Check v-if="isEditMode" class="h-4 w-4" />
+        <Edit2 v-else class="h-4 w-4" />
+        {{ isEditMode ? 'Done' : 'Edit' }}
+      </button>
+    </header>
 
     <!-- Loading -->
-    <div v-if="loading" class="flex-1 flex items-center justify-center">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    <div v-if="loading" class="flex flex-1 items-center justify-center">
+      <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
     </div>
 
     <!-- Not Found -->
-    <div v-else-if="!member" class="flex-1 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-      <Users class="h-16 w-16 mb-4 opacity-50" />
+    <div
+      v-else-if="!member"
+      class="flex flex-1 flex-col items-center justify-center px-6 text-gray-500 dark:text-gray-400"
+    >
+      <Users class="mb-4 h-16 w-16 opacity-50" />
       <p class="text-lg">Member not found</p>
       <button
         @click="router.push('/members')"
-        class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
+        class="mt-4 rounded-lg bg-primary px-4 py-2 text-white transition-colors hover:bg-primary-hover"
       >
         Back to People
       </button>
     </div>
 
-    <!-- Member Content with Inline Editing -->
-    <div v-else class="flex-1 overflow-y-auto">
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <!-- What is still missing. Above the record rather than beside each
-             field: the point is to be told before reading, so you know what to
-             ask for while the person is still in front of you. -->
-        <div
-          v-if="gaps.length"
-          class="flex items-start gap-2.5 border-b border-amber-200 bg-amber-50 px-6 py-3 dark:border-amber-500/25 dark:bg-amber-500/10"
+    <div
+      v-else
+      @scroll.passive="onScroll"
+      class="flex-1 overflow-y-auto pb-[calc(2rem+env(safe-area-inset-bottom))]"
+    >
+      <div class="mx-auto w-full max-w-2xl space-y-3 pb-3 sm:px-4 sm:pt-3">
+        <!-- ============ Cover + identity ============ -->
+        <section
+          class="overflow-hidden border-b border-gray-200 bg-white sm:rounded-2xl sm:border dark:border-gray-700 dark:bg-gray-800"
         >
-          <AlertCircle class="mt-0.5 h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" />
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-bold text-amber-800 dark:text-amber-300">
-              {{ gaps.length }} {{ gaps.length === 1 ? 'detail is' : 'details are' }} still missing
+          <div class="h-24 bg-linear-to-br from-primary/30 via-primary/15 to-transparent sm:h-28 dark:from-primary-light/25 dark:via-primary-light/10"></div>
+
+          <div class="px-4 pb-4">
+            <!-- The avatar rides the cover's edge, the way a profile does. -->
+            <div class="-mt-12 flex items-end justify-between gap-3">
+              <div class="relative shrink-0">
+                <MemberAvatar
+                  :member="localMember"
+                  size="h-24 w-24"
+                  plain-class="border-4 border-white dark:border-gray-800 shadow-lg"
+                />
+                <!-- Always drawn, not revealed on hover: there is no hover on a
+                     phone, and this was the only way to change a photo. -->
+                <button
+                  v-if="canEdit"
+                  @click="showImageCropper = true"
+                  aria-label="Change photo"
+                  class="absolute bottom-0.5 right-0.5 rounded-full border-2 border-white bg-primary p-1.5 text-white shadow-md transition-colors hover:bg-primary-hover dark:border-gray-800"
+                >
+                  <Camera class="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <YouBadge :member="localMember" class="mb-1" />
+            </div>
+
+            <h1 class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">
+              {{ getFullName(localMember) }}
+            </h1>
+            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+              <template v-for="(part, i) in introParts" :key="i">
+                <span v-if="i" class="px-1 text-gray-300 dark:text-gray-600">·</span>{{ part }}
+              </template>
             </p>
-            <div class="mt-1.5 flex flex-wrap gap-1.5">
-              <span
-                v-for="gap in gaps"
-                :key="gap.key"
-                class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold capitalize text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+
+            <div
+              v-if="contactActions.length"
+              class="mt-3 grid gap-2"
+              :style="{ gridTemplateColumns: `repeat(${contactActions.length}, minmax(0, 1fr))` }"
+            >
+              <a
+                v-for="action in contactActions"
+                :key="action.key"
+                :href="action.href"
+                class="flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
               >
-                {{ gap.label }}
+                <component :is="action.icon" class="h-4 w-4 shrink-0" />
+                {{ action.label }}
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <div class="space-y-3 px-3 sm:px-0">
+          <!-- ============ Gaps ============ -->
+          <div
+            v-if="gaps.length"
+            class="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-500/25 dark:bg-amber-500/10"
+          >
+            <AlertCircle class="mt-0.5 h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" />
+            <div class="min-w-0 flex-1">
+              <p class="text-xs font-bold text-amber-800 dark:text-amber-300">
+                {{ gaps.length }} {{ gaps.length === 1 ? 'detail is' : 'details are' }} still missing
+              </p>
+              <div class="mt-1.5 flex flex-wrap gap-1.5">
+                <span
+                  v-for="gap in gaps"
+                  :key="gap.key"
+                  class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold capitalize text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+                >
+                  {{ gap.label }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ Attendance ============ -->
+          <!-- Only the gatherings this person was expected at: a choir practice
+               is on a chorister's profile and nobody else's, a Sunday service
+               is on everyone's. -->
+          <section
+            v-if="history.length"
+            class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+          >
+            <div class="mb-3 flex items-baseline justify-between gap-2">
+              <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                Attendance
+              </h2>
+              <p v-if="counted.length" class="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                <span class="font-bold text-gray-900 dark:text-white">{{ presentCount }}</span>
+                of {{ counted.length }} recorded
+              </p>
+            </div>
+
+            <!-- Oldest on the left, so it reads as time passing. -->
+            <div class="flex flex-wrap gap-1.5">
+              <span
+                v-for="item in [...history].reverse()"
+                :key="item.key"
+                :title="`${shortDate(item.date)} — ${item.title} (${item.audience}): ${stateWord[item.state]}`"
+                :class="['h-6 w-6 shrink-0 rounded-md', ATTENDANCE_STYLE[item.state]]"
+              >
+                <span class="sr-only">
+                  {{ shortDate(item.date) }} {{ item.title }}: {{ stateWord[item.state] }}
+                </span>
               </span>
             </div>
-          </div>
-        </div>
 
-        <!-- Profile Header -->
-        <div class="p-8 bg-linear-to-br from-primary/10 via-primary/5 to-transparent dark:from-primary-light/15 dark:via-primary-light/5">
-          <div class="flex items-start gap-6">
-            <!-- Avatar with edit overlay -->
-            <MemberAvatar
-              :member="localMember"
-              size="h-28 w-28"
-              plain-class="border-4 border-white dark:border-gray-700 shadow-xl"
-              class="group"
-            >
-              <button
-                @click="showImageCropper = true"
-                class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-              >
-                <div class="text-center">
-                  <ImageIcon class="h-6 w-6 text-white mx-auto mb-1" />
-                  <span class="text-xs text-white">Change</span>
-                </div>
-              </button>
-            </MemberAvatar>
-            
-            <div class="flex-1 pt-2">
-              <div class="flex items-center gap-3 mb-2">
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-                  {{ getFullName(localMember) }}
-                </h1>
-                <span :class="['text-3xl', getSexIconColor(localMember.sex)]">
-                  {{ getSexIcon(localMember.sex) }}
-                </span>
-                <YouBadge :member="localMember" />
-              </div>
-              <p v-if="localMember.nickname" class="text-lg text-gray-500 dark:text-gray-400 mb-3">
-                "{{ localMember.nickname }}"
-              </p>
-              <div class="flex items-center gap-2 flex-wrap">
-                <span
+            <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+              <span class="inline-flex items-center gap-1.5">
+                <span class="h-3 w-3 rounded bg-green-500"></span>Came
+              </span>
+              <span class="inline-flex items-center gap-1.5">
+                <span class="h-3 w-3 rounded bg-red-400 dark:bg-red-500"></span>Did not come
+              </span>
+              <span v-if="unrecordedCount" class="inline-flex items-center gap-1.5">
+                <span class="h-3 w-3 rounded border border-dashed border-gray-300 dark:border-gray-600"></span>
+                No register kept
+              </span>
+            </div>
+
+            <!-- Said plainly, because a hollow square is easy to read as a
+                 fourth kind of absence. A head count says how many came, never
+                 who — those gatherings can be shown but never counted. -->
+            <p v-if="unrecordedCount" class="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
+              {{ unrecordedCount }} of these were counted as a head count only, so nobody's name
+              was written down.
+            </p>
+          </section>
+
+          <!-- ============ About ============ -->
+          <section class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+              About
+            </h2>
+
+            <!-- Reading -->
+            <div v-if="!isEditMode" class="space-y-2.5">
+              <div v-for="fact in about" :key="fact.key" class="flex items-start gap-3">
+                <component
+                  :is="fact.icon"
+                  class="mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500"
+                />
+                <p
                   :class="[
-                    'px-3 py-1.5 text-sm font-medium rounded-full',
-                    localMember.isMember 
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                    'min-w-0 flex-1 whitespace-pre-line break-words text-sm',
+                    fact.text ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500',
                   ]"
                 >
-                  {{ localMember.isMember ? 'Church Member' : 'Non-Member' }}
-                </span>
+                  {{ fact.text || fact.missing }}
+                </p>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Editable Fields -->
-        <div class="p-6">
-          <!-- Reading: the record as prose-shaped facts, grouped, one column,
-               related things on the same line. -->
-          <div v-if="!isEditMode" class="space-y-6">
-            <section v-for="group in factGroups" :key="group.key">
-              <h3
-                class="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500"
-              >
-                <component :is="group.icon" class="h-3.5 w-3.5" />
-                {{ group.label }}
-              </h3>
-              <div class="space-y-1.5 pl-5.5">
-                <p
-                  v-for="(line, i) in group.lines"
-                  :key="i"
-                  class="text-sm"
-                >
-                  <template v-for="(part, j) in shownParts(line)" :key="j">
-                    <span v-if="j" class="px-1.5 text-gray-300 dark:text-gray-600">·</span>
-                    <span
-                      :class="part.text ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'"
-                    >
-                      {{ part.text || part.missing }}
-                    </span>
-                  </template>
+            <!-- Editing -->
+            <div v-else class="space-y-4">
+              <InlineEditField
+                v-for="field in editFields"
+                :key="field.key"
+                :forceEdit="true"
+                :modelValue="localMember[field.key]"
+                :label="field.label"
+                :type="field.type"
+                :options="field.options"
+                @update:modelValue="localMember[field.key] = $event"
+                @save="handleFieldSave(field.key, $event)"
+              />
+            </div>
+          </section>
+
+          <!-- ============ Church ============ -->
+          <section class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <h2 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+              <Church class="h-3.5 w-3.5" />
+              Church
+            </h2>
+
+            <div class="space-y-4">
+              <!-- Standing. Read mode says it in the intro line already, so it
+                   only appears here as a control. -->
+              <div v-if="isEditMode">
+                <p class="mb-1.5 text-xs text-gray-400 dark:text-gray-500">Standing</p>
+                <div class="inline-flex rounded-lg border border-gray-200 p-0.5 dark:border-gray-600">
+                  <button
+                    v-for="opt in [
+                      { on: true, label: 'Member' },
+                      { on: false, label: 'Attendee' },
+                    ]"
+                    :key="opt.label"
+                    @click="handleFieldSave('isMember', opt.on)"
+                    :aria-pressed="!!localMember.isMember === opt.on"
+                    :class="[
+                      'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                      !!localMember.isMember === opt.on
+                        ? 'bg-primary text-white'
+                        : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700',
+                    ]"
+                  >
+                    {{ opt.label }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Ministries come from the controlled list in Settings because
+                   they grant access; tags are free text and grant nothing. -->
+              <div>
+                <p class="mb-1.5 flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                  <Users class="h-3.5 w-3.5" />
+                  Ministries
+                </p>
+                <InlineEditField
+                  v-if="isEditMode"
+                  :forceEdit="true"
+                  :modelValue="localMember.ministries"
+                  label="Ministries"
+                  type="tags"
+                  :allTags="ministryNames"
+                  emptyText="Not serving in any ministry"
+                  @update:modelValue="localMember.ministries = $event"
+                  @save="handleFieldSave('ministries', $event)"
+                />
+                <div v-else-if="(localMember.ministries || []).length" class="flex flex-wrap gap-1.5">
+                  <span
+                    v-for="name in localMember.ministries"
+                    :key="name"
+                    class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary dark:bg-primary-light/20 dark:text-primary-light"
+                  >
+                    {{ name }}
+                  </span>
+                </div>
+                <p v-else class="text-sm text-gray-400 dark:text-gray-500">
+                  Not serving in any ministry
                 </p>
               </div>
-            </section>
 
-            <!-- Ministries and tags keep their chips: a list of names is not a
-                 sentence, and reads faster as the things it is. -->
-            <section>
-              <h3
-                class="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500"
-              >
-                <Tag class="h-3.5 w-3.5" />
-                Church
-              </h3>
-              <div class="space-y-2 pl-5.5">
-                <p class="text-sm text-gray-900 dark:text-white">
-                  {{ localMember.isMember ? 'Church member' : 'Attendee' }}
+              <div>
+                <p class="mb-1.5 flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                  <Tag class="h-3.5 w-3.5" />
+                  Tags
                 </p>
-                <div v-if="(localMember.tags || []).length" class="flex flex-wrap gap-1.5">
+                <InlineEditField
+                  v-if="isEditMode"
+                  :forceEdit="true"
+                  :modelValue="localMember.tags"
+                  label="Tags"
+                  type="tags"
+                  :allTags="allTags"
+                  emptyText="No tags"
+                  @update:modelValue="localMember.tags = $event"
+                  @save="handleFieldSave('tags', $event)"
+                />
+                <div v-else-if="(localMember.tags || []).length" class="flex flex-wrap gap-1.5">
                   <span
                     v-for="tag in localMember.tags"
                     :key="tag"
-                    class="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary dark:bg-primary-light/20 dark:text-primary-light"
+                    class="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                   >
                     {{ tag }}
                   </span>
                 </div>
-                <p v-else class="text-sm text-gray-400 dark:text-gray-500">No tags assigned</p>
+                <p v-else class="text-sm text-gray-400 dark:text-gray-500">No tags</p>
               </div>
-            </section>
-          </div>
-
-          <!-- Editing: one control per field, which is what a form is for. -->
-          <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Left Column - Personal Information -->
-            <section class="space-y-5">
-              <h3 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                <User class="h-3.5 w-3.5" />
-                Personal Information
-              </h3>
-              
-              <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-5 space-y-5">
-                <!-- Name Fields -->
-                <div class="grid grid-cols-2 gap-4">
-                  <InlineEditField
-                    :forceEdit="isEditMode"
-                    v-model="localMember.firstName"
-                    label="First Name"
-                    type="text"
-                    @save="handleFieldSave('firstName', $event)"
-                  />
-                  <InlineEditField
-                    :forceEdit="isEditMode"
-                    v-model="localMember.lastName"
-                    label="Last Name"
-                    type="text"
-                    @save="handleFieldSave('lastName', $event)"
-                  />
-                </div>
-                
-                <!-- Nickname, Gender -->
-                <div class="grid grid-cols-2 gap-4">
-                  <InlineEditField
-                    :forceEdit="isEditMode"
-                    v-model="localMember.nickname"
-                    label="Nickname"
-                    type="text"
-                    emptyText="None"
-                    @save="handleFieldSave('nickname', $event)"
-                  />
-                  <InlineEditField
-                    :forceEdit="isEditMode"
-                    v-model="localMember.sex"
-                    label="Gender"
-                    type="select"
-                    :options="sexOptions"
-                    @save="handleFieldSave('sex', $event)"
-                  />
-                </div>
-                
-                <!-- Civil Status, Date of Birth -->
-                <div class="grid grid-cols-2 gap-4">
-                  <InlineEditField
-                    :forceEdit="isEditMode"
-                    v-model="localMember.civilStatus"
-                    label="Civil Status"
-                    type="select"
-                    :options="civilStatusOptions"
-                    @save="handleFieldSave('civilStatus', $event)"
-                  />
-                  <InlineEditField
-                    :forceEdit="isEditMode"
-                    v-model="localMember.dateOfBirth"
-                    label="Date of Birth"
-                    type="date"
-                    :displayFormatter="(val) => val ? `${new Date(val).toLocaleDateString()}${localMember.age ? ` (${localMember.age} years)` : ''}` : null"
-                    @save="handleFieldSave('dateOfBirth', $event)"
-                  />
-                </div>
-              </div>
-            </section>
-
-            <!-- Right Column - Contact & Church -->
-            <section class="space-y-5">
-              <h3 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                <Phone class="h-3.5 w-3.5" />
-                Contact & Church
-              </h3>
-              
-              <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-5 space-y-5">
-                <InlineEditField
-                    :forceEdit="isEditMode"
-                  v-model="localMember.contactNumber"
-                  label="Phone Number"
-                  type="tel"
-                  @save="handleFieldSave('contactNumber', $event)"
-                />
-                
-                <InlineEditField
-                    :forceEdit="isEditMode"
-                  v-model="localMember.address"
-                  label="Address"
-                  type="textarea"
-                  @save="handleFieldSave('address', $event)"
-                />
-                
-                <InlineEditField
-                    :forceEdit="isEditMode"
-                  v-model="localMember.occupation"
-                  label="Occupation"
-                  type="text"
-                  @save="handleFieldSave('occupation', $event)"
-                />
-                
-                <InlineEditField
-                    :forceEdit="isEditMode"
-                  v-model="localMember.tags"
-                  label="Ministry Tags"
-                  type="tags"
-                  emptyText="No tags assigned"
-                  :allTags="allTags"
-                  @save="handleFieldSave('tags', $event)"
-                />
-              </div>
-            </section>
-          </div>
-
-          <!-- Member Status Toggle -->
-          <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between p-5 bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-800/50">
-              <div class="flex items-center gap-4">
-                <div class="p-3 bg-green-100 dark:bg-green-900/50 rounded-xl">
-                  <Users class="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p class="font-semibold text-gray-900 dark:text-white">Church Membership</p>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">Official church member status</p>
-                </div>
-              </div>
-              <button
-                @click="handleFieldSave('isMember', !localMember.isMember)"
-                aria-label="Church Membership"
-                :aria-pressed="localMember.isMember"
-                :class="[
-                  'relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
-                  localMember.isMember ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                ]"
-              >
-                <span
-                  :class="[
-                    'inline-block h-6 w-6 transform rounded-full bg-white transition-transform shadow-md',
-                    localMember.isMember ? 'translate-x-7' : 'translate-x-1'
-                  ]"
-                ></span>
-              </button>
             </div>
+          </section>
+
+          <!-- Destructive last, and only while editing. -->
+          <div v-if="isEditMode && canEdit">
+            <button
+              @click="handleDelete"
+              class="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
+            >
+              <Trash2 class="h-4 w-4" />
+              Delete this person
+            </button>
+            <p class="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
+              Changes save as you make them.
+            </p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Confirmation Modal -->
     <ConfirmationModal
       :show="showConfirmation"
       :title="confirmationConfig.title"
@@ -577,11 +671,10 @@ const sexOptions = [
       @cancel="showConfirmation = false"
     />
 
-    <!-- Image Cropper -->
-      <!-- :modelValue, not v-model. v-model registers a second listener that
-           writes the cropper's base64 straight into the record, racing the
-           upload beside it and winning whenever the upload fails. The handler
-           is the only thing allowed to set this field. -->
+    <!-- :modelValue, not v-model. v-model registers a second listener that
+         writes the cropper's base64 straight into the record, racing the
+         upload beside it and winning whenever the upload fails. The handler
+         is the only thing allowed to set this field. -->
     <ImageCropper
       v-model:show="showImageCropper"
       :modelValue="localMember.image"

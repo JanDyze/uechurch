@@ -8,6 +8,21 @@
 
 export const versionHistory = [
   {
+    version: '0.19.0',
+    date: '2026-09-12',
+    title: 'Minutes you can write in',
+    summary:
+      'A meeting now opens as a full page you type into as it happens — names and dates light up as you go, and the write-up arrives in plain English while you watch.',
+    highlights: [
+      'Type “@” in the notes to reach for someone on the roll. Tap a highlighted name to open their record, or to say it got the wrong person.',
+      'Leave a note for the write-up — “the hall was confirmed after this” — and it is applied every time, not just once.',
+      'Anything under “Who does what” can be put on the To-do list with a button, and who was there is ticked off from the minute itself.',
+      'Mark a gathering in Settings to keep minutes, and the next one waits on the Minutes page ready to be opened.',
+      'Calling off a service no longer makes it disappear: it stays on the calendar, struck through, so nobody drives to a locked building.',
+      'The People list sorts seven ways, a person’s record shows the gatherings they have been to, and your apps now stay arranged the way you left them on any device you sign in on.',
+    ],
+  },
+  {
     version: '0.16.0',
     date: '2026-09-09',
     title: 'Put it on your home screen',

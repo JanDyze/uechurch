@@ -4,7 +4,8 @@ import { useEvents } from './useEvents'
 import { useMembers } from './useMembers'
 import { useMinutes } from './useMinutes'
 import { useRecurringEvents } from './useRecurringEvents'
-import { readProvenance, ATTENDANCE_START_DATE, ATTENDANCE_SOURCES } from '../../lib/attendance'
+import { readProvenance, provenanceForRow, ATTENDANCE_START_DATE, ATTENDANCE_SOURCES } from '../../lib/attendance'
+import { readEventStatus, isCalledOff } from '../../lib/eventStatus'
 import { readExpectedAttendance, audienceTagsOf, excludeTagsOf } from '../utils/audience'
 
 export function useAttendance() {
@@ -73,11 +74,31 @@ export function useAttendance() {
     // Which occurrences already have a record, so the loops below know what
     // still needs recording. Keyed on occurrenceKey rather than the old
     // overloaded eventId — a one-off has no key and so can never collide.
+    //
+    // One key, one row. Two documents can legitimately describe the same
+    // gathering — a double tap, or two people marking the same service from
+    // different phones — and rendering both put the same Saturday on the list
+    // twice. The map picks a winner and the render loop below shows only that
+    // one, so a duplicate write is invisible rather than confusing.
     const minuteIds = new Set(minutes.value.map(m => m.firestoreId || m.id))
     const recordedKeys = new Map()
+    const timeOf = (record) => new Date(record.updatedAt || record.createdAt || 0).getTime()
     attendance.value.forEach(record => {
       const { occurrenceKey } = readProvenance(record, { knownMinuteIds: minuteIds })
-      if (occurrenceKey) recordedKeys.set(occurrenceKey, record)
+      if (!occurrenceKey) return
+      const held = recordedKeys.get(occurrenceKey)
+      if (!held) {
+        recordedKeys.set(occurrenceKey, record)
+        return
+      }
+      // A real record always beats a skip: somebody counted the room, and a
+      // stray "not counted" marker must never be what hides it. Between two of
+      // the same kind, the one saved last is the one they meant.
+      const better =
+        Boolean(held.skipped) !== Boolean(record.skipped)
+          ? !record.skipped
+          : timeOf(record) > timeOf(held)
+      if (better) recordedKeys.set(occurrenceKey, record)
     })
 
     // Add attendance records from dedicated attendance collection.
@@ -87,6 +108,11 @@ export function useAttendance() {
     // whether or not it was recorded against an event. Only the placeholder
     // rows synthesised below from events/minutes are read-only here.
     attendance.value.forEach(record => {
+      // A duplicate of an occurrence already spoken for: the winner above is
+      // the row, this one is not shown.
+      const { occurrenceKey: recordKey } = readProvenance(record, { knownMinuteIds: minuteIds })
+      if (recordKey && recordedKeys.get(recordKey) !== record) return
+
       // Find the event or meeting this record was recorded against, if any
       let linkedEvent = null
       let linkedMinute = null
@@ -179,6 +205,17 @@ export function useAttendance() {
             totalAttendees: 0, // Actual recorded attendance (0 for events)
             notes: event.description || '',
             rowType: 'event',
+            // Cancelled or postponed, carried through so the list can say so
+            // and the summary can stop counting it as work owed.
+            status: readEventStatus(event),
+            statusNote: event.statusNote || '',
+            postponedTo: event.postponedTo || '',
+            // A cancelled weekly service is a stored override standing in for
+            // the generated occurrence. Both fields come along so putting it
+            // back on from this page removes the override rather than leaving
+            // an empty duplicate of the occurrence behind.
+            overrideOf: event.overrideOf || null,
+            statusOnly: event.statusOnly || false,
             createdAt: new Date(),
             updatedAt: new Date()
           })
@@ -222,6 +259,9 @@ export function useAttendance() {
         totalAttendees: 0,
         notes: event.description || '',
         rowType: 'recurring',
+        status: readEventStatus(event),
+        statusNote: event.statusNote || '',
+        postponedTo: event.postponedTo || '',
         createdAt: new Date(),
         updatedAt: new Date()
       })
@@ -239,6 +279,71 @@ export function useAttendance() {
     return await addAttendance(attendanceData)
   }
 
+  /**
+   * "It happened; we are not counting it." Not a cancellation — the calendar is
+   * untouched — and not a record either: the document holds no attendees and is
+   * left out of every figure. It exists so the page stops asking.
+   *
+   * Written as an attendance document rather than a flag on the event because
+   * it is a decision about the paperwork, and because it then rides the same
+   * de-duplication every real record does: the prompt disappears by the same
+   * mechanism, for both stored events and generated occurrences.
+   */
+  const skipRecording = async (row) => {
+    if (!row) return
+
+    // Already marked — a second tap, or another phone got there first. Writing
+    // again would put the same gathering on the list twice, which is exactly
+    // what this is meant to stop.
+    const { occurrenceKey } = provenanceForRow(row)
+    if (occurrenceKey) {
+      const existing = attendance.value.find(
+        (record) => readProvenance(record).occurrenceKey === occurrenceKey
+      )
+      if (existing) return existing.firestoreId || existing.id
+    }
+
+    return await addAttendance({
+      ...provenanceForRow(row),
+      eventId: row.eventId || '',
+      eventType: row.eventType || '',
+      eventTitle: row.eventTitle || 'Untitled',
+      date: row.date || '',
+      time: row.time || '',
+      location: row.location || '',
+      attendees: [],
+      totalAttendees: 0,
+      expectedAttendees: row.expectedAttendees || 0,
+      audienceTags: row.audienceTags || [],
+      excludeTags: row.excludeTags || [],
+      notes: '',
+      skipped: true,
+    })
+  }
+
+  /**
+   * Undo the above: the gathering goes back on the list to record.
+   *
+   * Every skip marker for that occurrence goes, not just the one behind the
+   * row. A duplicate written before this was guarded is invisible in the list,
+   * and leaving it behind would mean un-skipping appeared to do nothing.
+   */
+  const resumeRecording = async (row) => {
+    if (!row?.firestoreId && !row?.id) return
+
+    const key = row.occurrenceKey || readProvenance(row).occurrenceKey
+    const markers = key
+      ? attendance.value.filter(
+          (record) => record.skipped && readProvenance(record).occurrenceKey === key
+        )
+      : []
+
+    const targets = markers.length ? markers : [row]
+    for (const target of targets) {
+      await deleteAttendance(target)
+    }
+  }
+
   const updateAttendanceInFirestore = async (attendance, updatedData) => {
     return await updateAttendance(attendance, updatedData)
   }
@@ -253,7 +358,9 @@ export function useAttendance() {
     loading,
     addAttendanceToFirestore,
     updateAttendanceInFirestore,
-    removeAttendance
+    removeAttendance,
+    skipRecording,
+    resumeRecording
   }
 }
 

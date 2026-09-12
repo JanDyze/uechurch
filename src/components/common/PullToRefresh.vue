@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAppSettings } from '../../composables/useAppSettings'
 import { usePullToRefresh } from '../../composables/usePullToRefresh'
 
@@ -7,8 +8,33 @@ import { usePullToRefresh } from '../../composables/usePullToRefresh'
 // and the bottom bar draw, so a rebranded install spins its own logo here too.
 const { logoUrl } = useAppSettings()
 
-const { state, distance, progress, isRefreshing, onTouchStart, onTouchMove, onTouchEnd } =
-  usePullToRefresh()
+const {
+  state,
+  distance,
+  progress,
+  isRefreshing,
+  armed,
+  disarm,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
+} = usePullToRefresh()
+
+// The offer belongs to the page it was made on. Navigating away answers it as
+// surely as waiting does, so the pill never follows the user to a page they
+// did not ask to reload.
+const route = useRoute()
+watch(() => route.fullPath, disarm)
+
+// The front door speaks Tagalog and the signed-in app speaks English; this
+// pill is the one piece of chrome that shows up on both sides of that line.
+const hint = computed(() => {
+  const release = progress.value >= 1 && state.value === 'pulling'
+  if (route.meta.public) {
+    return release ? 'Bitawan para mag-reload' : 'I-swipe ulit para mag-reload'
+  }
+  return release ? 'Release to reload' : 'Swipe down again to reload'
+})
 
 // App.vue owns the listeners; this component owns the gesture's state.
 defineExpose({ onTouchStart, onTouchMove, onTouchEnd })
@@ -26,8 +52,9 @@ const dashOffset = computed(() => RING * (1 - progress.value))
 <template>
   <!-- aria-hidden: the gesture is a touch affordance, and the refresh it runs
        announces itself through whatever the view already shows. -->
-  <div v-if="state !== 'idle'" class="ptr" aria-hidden="true">
+  <div v-if="state !== 'idle' || armed" class="ptr" aria-hidden="true">
     <div
+      v-if="state !== 'idle'"
       class="ptr-puck"
       :class="{ 'ptr-settling': state !== 'pulling' }"
       :style="{
@@ -57,6 +84,18 @@ const dashOffset = computed(() => RING * (1 - progress.value))
           :style="isRefreshing ? null : { transform: `rotate(${rotation}deg)` }"
         />
       </div>
+    </div>
+
+    <!-- The first pull past the threshold puts this up instead of reloading.
+         It rides just under the puck so the second pull reads as an answer to
+         it rather than as something happening somewhere else on the screen. -->
+    <div
+      v-if="armed && !isRefreshing"
+      class="ptr-hint"
+      :class="{ 'ptr-hint-settling': state !== 'pulling' }"
+      :style="{ transform: `translate3d(-50%, ${distance}px, 0)` }"
+    >
+      {{ hint }}
     </div>
   </div>
 </template>
@@ -139,6 +178,47 @@ const dashOffset = computed(() => RING * (1 - progress.value))
   height: 1.5rem;
   object-fit: contain;
   will-change: transform;
+}
+
+.ptr-hint {
+  position: absolute;
+  top: 0.25rem;
+  left: 0;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #334155;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  animation: ptr-hint-in 0.24s ease-out;
+}
+
+:global(.dark) .ptr-hint {
+  color: #e2e8f0;
+  background: #1f2937;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Same rule as the puck: pinned to the finger during the drag, eased on the
+   release, so the two travel together. */
+.ptr-hint-settling {
+  transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ptr-hint-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-50%, -0.5rem, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptr-hint {
+    animation: none;
+  }
 }
 
 /* Armed: the ring has closed, so the puck gives the one bit of feedback a

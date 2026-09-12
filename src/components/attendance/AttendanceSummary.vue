@@ -1,162 +1,145 @@
 <script setup>
 import { computed } from 'vue'
-import { UserCheck, CalendarDays, TrendingUp, TrendingDown } from '../../icons'
+import { ChevronUp, ChevronRight, UserX, Users } from '../../icons'
+
+// Three lines, none of which the list below can say.
+//
+// The list is the page: a row per gathering, each with its own count, colour
+// and gauge. So the summary carries only what is invisible there — the union
+// across gatherings (how many people we saw at all), the people who have
+// stopped turning up, and the size of the recording backlog. Leading with the
+// last gathering's turnout, as this once did, was the first row of the list
+// printed twice.
+//
+// The panel is also the button that collapses it, as on People. The two real
+// actions in here stop the click themselves.
 
 const props = defineProps({
   stats: {
     type: Object,
     required: true,
   },
-  recentBars: {
-    type: Array,
-    default: () => [],
-  },
   loading: {
+    type: Boolean,
+    default: false,
+  },
+  canRecord: {
     type: Boolean,
     default: false,
   },
 })
 
-const dash = '—'
+const emit = defineEmits(['hide', 'record'])
 
-const percent = (value) => (value === null || value === undefined ? dash : `${value}%`)
+const reach = computed(() => props.stats.reach)
+const quiet = computed(() => props.stats.quiet)
+const awaiting = computed(() => props.stats.awaiting)
 
-// Percentage points, signed, because the direction is the whole message.
-const trendValue = computed(() => {
-  const trend = props.stats.trend
-  if (trend === null || trend === undefined) return dash
-  if (trend === 0) return 'Level'
-  return `${trend > 0 ? '+' : '−'}${Math.abs(trend)}`
+// "Ana and Ben +7" reads; a list of nine names in a 10px line does not.
+const quietNames = computed(() => {
+  const people = quiet.value
+  if (!people) return ''
+  const names = people.names.join(', ')
+  return people.others ? `${names} +${people.others}` : names
 })
 
-const tiles = computed(() => [
-  {
-    key: 'latest',
-    icon: UserCheck,
-    label: 'Last time',
-    value: percent(props.stats.latestShare),
-    // Out of who was expected at that gathering, not out of the church: the
-    // tile beside it is the one reporting on the whole roster.
-    hint:
-      props.stats.latestCount === null
-        ? 'nothing recorded yet'
-        : `${props.stats.latestCount} of ${props.stats.latestExpected}`,
-  },
-  {
-    key: 'reach',
-    icon: CalendarDays,
-    // Not an average turnout: the share of people who came to at least one
-    // thing that month. Mixed gathering types cannot move it.
-    label: 'Reached',
-    value: percent(props.stats.reachShare),
-    hint: props.stats.monthLongLabel ? `in ${props.stats.monthLongLabel}` : 'no gatherings yet',
-  },
-  {
-    key: 'trend',
-    // Up and down are the same size of news, so the icon flips rather than
-    // the number turning into a warning.
-    icon: (props.stats.trend ?? 0) < 0 ? TrendingDown : TrendingUp,
-    label: 'Trend',
-    value: trendValue.value,
-    hint: props.stats.trendLabel,
-    valueClass:
-      props.stats.trend === null || props.stats.trend === undefined || props.stats.trend === 0
-        ? ''
-        : props.stats.trend > 0
-          ? 'text-emerald-600 dark:text-emerald-400'
-          : 'text-amber-600 dark:text-amber-400',
-  },
-])
-
-// A gathering nobody came to is still a fact worth seeing, so an empty bar
-// keeps a sliver of width rather than vanishing off the axis.
-const barWidth = (share) => `${Math.max(share, 3)}%`
-
-// Newest at the top: the row people look for first should not be the one they
-// have to scan to the end to find.
-const bars = computed(() => [...props.recentBars].reverse())
-
-const hasBars = computed(() => !props.loading && props.recentBars.length > 0)
+const handlePrompt = (event) => {
+  if (!props.canRecord) return
+  event.stopPropagation()
+  emit('record', props.stats.awaiting.key)
+}
 </script>
 
 <template>
-  <div class="shrink-0 border-b border-gray-200 px-3 py-3 dark:border-gray-700">
-    <!-- One row of three, readable without scrolling even on a phone. -->
-    <div class="grid grid-cols-3 divide-x divide-gray-200 dark:divide-gray-700">
-      <div
-        v-for="tile in tiles"
-        :key="tile.key"
-        class="flex flex-col items-center px-1 text-center"
-      >
-        <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500">
-          <component :is="tile.icon" class="h-3 w-3 shrink-0" />
-          <span class="whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide">
-            {{ tile.label }}
-          </span>
-        </div>
-        <p
-          :class="[
-            'text-xl font-bold tabular-nums text-gray-900 dark:text-white sm:text-2xl',
-            tile.valueClass,
-          ]"
-        >
-          {{ loading ? dash : tile.value }}
-        </p>
-        <p class="truncate text-[10px] text-gray-500 dark:text-gray-400">
-          {{ loading ? '' : tile.hint }}
-        </p>
-      </div>
+  <div
+    @click="emit('hide')"
+    class="group relative shrink-0 cursor-pointer border-b border-gray-200 px-3 py-2.5 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
+  >
+    <button
+      @click.stop="emit('hide')"
+      aria-label="Hide summary"
+      class="absolute right-1 top-1 rounded-md p-1 text-gray-300 transition-colors group-hover:text-gray-500 dark:text-gray-600 dark:group-hover:text-gray-400"
+    >
+      <ChevronUp class="h-3.5 w-3.5" />
+    </button>
+
+    <div v-if="loading" class="space-y-2">
+      <div class="h-4 w-52 animate-pulse rounded bg-gray-200 dark:bg-gray-600"></div>
+      <div class="h-2 w-full animate-pulse rounded bg-gray-200 dark:bg-gray-600"></div>
+      <div class="h-3 w-40 animate-pulse rounded bg-gray-200 dark:bg-gray-600"></div>
     </div>
 
-    <!-- Rows, not columns: a column chart hides its labels in a tooltip and
-         there is no hover on a phone. Here the date sits in the layout, and
-         one gathering reads as well as eight. -->
-    <div v-if="hasBars" class="mt-3 space-y-1">
-      <div
-        v-for="(bar, index) in bars"
-        :key="bar.key"
-        class="flex items-center gap-2"
-        :title="`${bar.title} · ${bar.dateLabel} · ${bar.count} present (${bar.share}%)`"
-      >
-        <span
-          class="w-12 shrink-0 truncate text-[10px] tabular-nums text-gray-400 dark:text-gray-500"
-        >
-          {{ bar.dateLabel }}
-        </span>
-        <div
-          class="h-2.5 min-w-0 flex-1 overflow-hidden rounded-sm bg-gray-100 dark:bg-gray-700/60"
-        >
+    <template v-else>
+      <!-- 1. The one figure that really is out of the whole church: different
+           people seen at all this month. No single row knows it. -->
+      <div v-if="reach" class="pr-5">
+        <div class="flex items-baseline justify-between gap-2">
+          <p class="min-w-0 truncate text-xs text-gray-600 dark:text-gray-300">
+            <Users class="mr-1 inline h-3.5 w-3.5 -translate-y-px text-gray-400" />
+            <span class="font-bold tabular-nums text-gray-900 dark:text-white">
+              {{ reach.count }}
+            </span>
+            of {{ stats.roster }} people came in {{ reach.monthLabel }}
+          </p>
+          <p
+            class="shrink-0 text-xs font-semibold tabular-nums text-primary dark:text-primary-light"
+          >
+            {{ reach.share === null ? '—' : `${reach.share}%` }}
+          </p>
+        </div>
+
+        <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-600">
           <div
-            :class="['h-full rounded-sm', index === 0 ? 'bg-primary' : 'bg-primary/40']"
-            :style="{ width: barWidth(bar.share) }"
+            class="h-full rounded-full bg-linear-to-r from-primary to-emerald-400 transition-[width] duration-700 ease-out"
+            :style="{ width: `${Math.max(reach.share || 0, 2)}%` }"
           ></div>
         </div>
-        <span
-          class="w-14 shrink-0 text-right text-[10px] tabular-nums text-gray-500 dark:text-gray-400"
+
+        <p
+          v-if="reach.priorCount !== null"
+          class="mt-1 truncate text-[10px] text-gray-400 dark:text-gray-500"
         >
-          {{ bar.count }} · {{ bar.share }}%
-        </span>
+          {{ reach.priorCount }} in {{ reach.priorLabel }}
+        </p>
       </div>
-    </div>
 
-    <div v-if="hasBars" class="mt-2 flex items-baseline justify-between gap-3">
-      <p class="min-w-0 truncate text-[10px] text-gray-500 dark:text-gray-400 sm:text-xs">
-        <span class="font-medium text-gray-700 dark:text-gray-200">{{ stats.latestTitle }}</span>
-        <span v-if="stats.latestDateLabel"> · {{ stats.latestDateLabel }}</span>
-      </p>
-      <p class="shrink-0 text-[10px] text-gray-400 dark:text-gray-500 sm:text-xs">
-        <span v-if="stats.monthGatherings">
-          {{ stats.monthGatherings }} in {{ stats.monthShortLabel }} ·
+      <!-- 2. The only pastoral fact on the page. A list arranged by gathering
+           can never show who has quietly stopped coming. -->
+      <p
+        v-if="quiet"
+        :class="['flex items-start gap-1.5 text-[11px] leading-snug', reach ? 'mt-2' : '']"
+      >
+        <UserX class="mt-px h-3.5 w-3.5 shrink-0 text-gray-400" />
+        <span class="min-w-0 text-gray-600 dark:text-gray-300">
+          <span class="font-semibold text-gray-900 dark:text-white">{{ quiet.count }}</span>
+          not seen in {{ quiet.weeks }} weeks
+          <span class="text-gray-400 dark:text-gray-500">— {{ quietNames }}</span>
         </span>
-        of {{ stats.roster }} people
       </p>
-    </div>
 
-    <p
-      v-else-if="!loading"
-      class="mt-3 text-[10px] text-gray-400 dark:text-gray-500 sm:text-xs"
-    >
-      Record a gathering and its turnout starts showing up here.
-    </p>
+      <!-- 3. The backlog, and the way in to clearing it. -->
+      <component
+        :is="canRecord ? 'button' : 'div'"
+        v-if="awaiting"
+        @click="handlePrompt"
+        :class="[
+          'mt-2 flex w-full items-center gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-left transition-colors dark:bg-amber-500/10',
+          canRecord ? 'hover:bg-amber-100 dark:hover:bg-amber-500/20' : '',
+        ]"
+      >
+        <span class="min-w-0 flex-1 truncate text-[11px] text-amber-800 dark:text-amber-300">
+          <span class="font-semibold">{{ awaiting.count }}</span>
+          {{ awaiting.count === 1 ? 'gathering' : 'gatherings' }} still to record
+          <span class="text-amber-700/70 dark:text-amber-300/60">
+            · {{ awaiting.title }}, {{ awaiting.whenLabel }}
+          </span>
+        </span>
+        <ChevronRight v-if="canRecord" class="h-3.5 w-3.5 shrink-0 text-amber-500" />
+      </component>
+
+      <p v-if="!reach && !awaiting" class="pr-5 text-xs text-gray-400 dark:text-gray-500">
+        Nothing recorded yet. A gathering turns up here to record once it has passed.
+      </p>
+    </template>
   </div>
 </template>

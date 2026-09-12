@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { Clock, MapPin, X, Plus, ArrowLeft, PartyPopper } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import { getEventTypeColor } from '../../utils/eventColors'
+import { isCalledOff, eventStatusLabel, readEventStatus } from '../../../lib/eventStatus'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 
@@ -118,9 +119,24 @@ useFocusTrap(dialogRef, () => props.show, () => emit('back'), { trap: false })
               <component :is="getIconComponent(event.icon || 'Calendar')" class="h-6 w-6" />
             </div>
             <div class="flex-1 min-w-0">
-              <h3 class="font-medium text-sm text-gray-900 dark:text-white truncate">
+              <h3
+                :class="[
+                  'font-medium text-sm truncate',
+                  isCalledOff(event)
+                    ? 'text-gray-400 line-through dark:text-gray-500'
+                    : 'text-gray-900 dark:text-white',
+                ]"
+              >
                 {{ event.title }}
               </h3>
+              <!-- Named, not just struck through: somebody scanning the day
+                   needs to know whether to turn up. -->
+              <p
+                v-if="isCalledOff(event)"
+                class="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-400"
+              >
+                {{ eventStatusLabel(readEventStatus(event)) }}<span v-if="event.statusNote" class="font-normal"> · {{ event.statusNote }}</span>
+              </p>
               <div class="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
                 <Clock class="h-3 w-3" />
                 <span>{{ event.time }}</span>

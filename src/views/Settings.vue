@@ -87,6 +87,8 @@ const blankSchedule = () => ({
   icon: 'Calendar',
   enabled: true,
   showBefore: DEFAULT_SHOW_BEFORE,
+  // Whether the Minutes list offers the next occurrence of this gathering.
+  keepsMinutes: false,
   // Empty means everyone, which is what a Sunday service is.
   audienceTags: [],
   excludeTags: [],
@@ -124,6 +126,7 @@ const openEdit = (schedule) => {
     icon: schedule.icon,
     enabled: schedule.enabled,
     showBefore: schedule.showBefore ?? DEFAULT_SHOW_BEFORE,
+    keepsMinutes: schedule.keepsMinutes === true,
     audienceTags: [...(schedule.audienceTags || [])],
     excludeTags: [...(schedule.excludeTags || [])],
     occasions: (schedule.occasions || []).map((occasion) => ({
@@ -858,6 +861,30 @@ const formatTime = (time) => {
                 :members="members"
                 label-class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
               />
+
+              <!-- Sits under the audience because that is what it inherits:
+                   a minute started from this gathering opens with the same
+                   people already picked out for attendance. Asked for rather
+                   than inferred from the type — two gatherings can both be
+                   "meeting" and only one of them minuted. -->
+              <label
+                class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-600"
+              >
+                <input
+                  v-model="form.keepsMinutes"
+                  type="checkbox"
+                  class="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <span class="min-w-0">
+                  <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                    Keep minutes for this gathering
+                  </span>
+                  <span class="mt-0.5 block text-xs text-gray-400 dark:text-gray-500">
+                    The next one shows on the Minutes page as “Not started”. Opening it starts
+                    the record with this gathering’s date, time, place and people already in.
+                  </span>
+                </span>
+              </label>
 
               <div>
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">

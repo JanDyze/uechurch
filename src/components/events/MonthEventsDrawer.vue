@@ -2,6 +2,7 @@
 import { MapPin, X, ChevronDown, ChevronLeft, ChevronRight } from '../../icons'
 import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
 import { getEventTypeColor } from '../../utils/eventColors'
+import { isCalledOff, eventStatusLabel, readEventStatus } from '../../../lib/eventStatus'
 import EventCardSkeleton from './EventCardSkeleton.vue'
 import { computed, ref } from 'vue'
 import { useFocusTrap } from '../../composables/useFocusTrap'
@@ -287,7 +288,12 @@ const weekdayLabel = (dateStr) => {
                   <span class="text-[10px] uppercase tracking-wide opacity-90">{{ weekdayLabel(event.date) }}</span>
                 </div>
                 <div class="flex-1 min-w-0">
-                  <h3 class="font-medium text-sm text-gray-500 dark:text-gray-400 truncate">
+                  <h3
+                    :class="[
+                      'font-medium text-sm text-gray-500 dark:text-gray-400 truncate',
+                      isCalledOff(event) ? 'line-through' : '',
+                    ]"
+                  >
                     {{ event.title }}
                   </h3>
                   <div class="flex items-center gap-2 mt-1 text-xs text-gray-400 dark:text-gray-500 flex-wrap">
@@ -337,10 +343,25 @@ const weekdayLabel = (dateStr) => {
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
-                  <h3 class="font-medium text-sm text-gray-900 dark:text-white truncate">
+                  <h3
+                    :class="[
+                      'font-medium text-sm truncate',
+                      isCalledOff(event)
+                        ? 'text-gray-400 line-through dark:text-gray-500'
+                        : 'text-gray-900 dark:text-white',
+                    ]"
+                  >
                     {{ event.title }}
                   </h3>
-                  <span v-if="isToday(event.date)" class="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-amber-500 text-white rounded">Today</span>
+                  <!-- An upcoming gathering that is off is the one thing on
+                       this list somebody must not miss. -->
+                  <span
+                    v-if="isCalledOff(event)"
+                    class="shrink-0 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white"
+                  >
+                    {{ eventStatusLabel(readEventStatus(event)) }}
+                  </span>
+                  <span v-else-if="isToday(event.date)" class="text-[10px] font-bold uppercase px-1.5 py-0.5 bg-amber-500 text-white rounded">Today</span>
                 </div>
                 <div class="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
                   <span>{{ event.time }}</span>
