@@ -10,11 +10,15 @@ import { memberKey } from '../../utils/sgUtils'
 import {
   readExpectedAttendance,
   membersInAudience,
+  membersAtMeeting,
+  meetingTagOptions,
+  meetingTagOf,
   audienceTagsOf,
   excludeTagsOf,
   audienceLabel
 } from '../../utils/audience'
 import { groupByBand, bandIndexOf } from '../../utils/ageBands'
+import { ATTENDANCE_SOURCES } from '../../../lib/attendance'
 import MemberAvatar from '../members/MemberAvatar.vue'
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
@@ -42,11 +46,19 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  // 'event' | 'minute' when this drawer was opened from a generated
-  // "Not recorded" row, which can only be removed by deleting its source.
+  // 'event' | 'minute' | 'recurring' when this drawer was opened from a
+  // generated "Not recorded" row, which can only be removed by deleting its
+  // source — for a weekly occurrence, that means dropping this one date.
   placeholderKind: {
     type: String,
     default: null
+  },
+  // Whether there is a count here to wipe. Not the same question as `isEdit`:
+  // a meeting keeps its register on the minute rather than in a saved record,
+  // so it is marked like a placeholder and cleared like a record.
+  canClear: {
+    type: Boolean,
+    default: false
   },
   // 'drawer' slides over the list; 'page' fills a route of its own, which is
   // what taking attendance actually wants — a hundred names and a swipe deck
@@ -74,7 +86,18 @@ const isNewAttendance = computed(() => !props.eventData && !props.isEdit)
 // How many were expected, recounted from the roster as the record is written:
 // the tags are what a gathering is for, the number saved on it is only a
 // snapshot of them on the day.
-const expectedFor = (source) => readExpectedAttendance(source, members.value)
+//
+// A meeting is the exception, and not by accident: it names its group as a tag
+// or a ministry, because that is what the minute's own attendance drawer picks
+// from. Counting it on tags alone put the CSL meeting out of the whole church.
+const expectedFor = (source) => {
+  const tag =
+    source?.source === ATTENDANCE_SOURCES.MINUTE
+      ? meetingTagOf(source, meetingTagOptions(members.value))
+      : ''
+  if (tag) return membersAtMeeting(members.value, tag).length
+  return readExpectedAttendance(source, members.value)
+}
 
 // Initialize form data
 const formData = computed({
@@ -137,17 +160,22 @@ const audienceSource = computed(() => {
 const audienceTags = computed(() => audienceTagsOf(audienceSource.value))
 const audienceExcludes = computed(() => excludeTagsOf(audienceSource.value))
 
+/** The group, when this is a meeting — matched across tags and ministries. */
+const meetingTag = computed(() =>
+  audienceSource.value?.source === ATTENDANCE_SOURCES.MINUTE
+    ? meetingTagOf(audienceSource.value, meetingTagOptions(members.value))
+    : ''
+)
+
 /** True once the tags actually narrow the roll to fewer than everyone. */
 const isNarrowed = computed(() =>
-  Boolean(audienceTags.value.length || audienceExcludes.value.length)
+  Boolean(audienceTags.value.length || audienceExcludes.value.length || meetingTag.value)
 )
 
 const audienceRoster = computed(() => {
-  const inAudience = membersInAudience(
-    members.value,
-    audienceTags.value,
-    audienceExcludes.value
-  )
+  const inAudience = meetingTag.value
+    ? membersAtMeeting(members.value, meetingTag.value)
+    : membersInAudience(members.value, audienceTags.value, audienceExcludes.value)
 
   // Anyone already marked present stays on the roll even if they fall outside
   // the audience — someone marked before the tags changed, or found through
@@ -272,7 +300,28 @@ useFocusTrap(menuRef, showMenu, () => { showMenu.value = false }, { trap: false 
 
 // props.isEdit, not isEdit — the template unwraps props for you, script setup
 // does not, and the bare name is simply undefined here.
-const hasMenuActions = computed(() => Boolean(props.isEdit) || Boolean(props.placeholderKind))
+const hasMenuActions = computed(
+  () => Boolean(props.isEdit) || Boolean(props.canClear) || Boolean(props.placeholderKind)
+)
+
+// A meeting and an event are deleted outright; one date of a weekly service is
+// dropped out of a series that carries on without it. Worth saying which, on
+// the menu item itself, because the three are not the same size of decision.
+const deleteSourceLabel = computed(() =>
+  props.placeholderKind === 'minute'
+    ? 'Delete meeting'
+    : props.placeholderKind === 'recurring'
+      ? 'Delete this date'
+      : 'Delete event'
+)
+
+const deleteSourceHint = computed(() =>
+  props.placeholderKind === 'minute'
+    ? 'Removes it from the Minutes page too.'
+    : props.placeholderKind === 'recurring'
+      ? 'Takes this one date off the calendar. The weekly schedule keeps running.'
+      : 'Removes it from the Events page too.'
+)
 
 const runMenuAction = (action) => {
   showMenu.value = false
@@ -421,7 +470,7 @@ const panelClass = computed(() => {
               class="absolute right-0 top-full mt-1 z-50 w-60 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl overflow-hidden"
             >
               <button
-                v-if="isEdit"
+                v-if="isEdit || canClear"
                 role="menuitem"
                 @click="runMenuAction('clear')"
                 class="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/60"
@@ -446,10 +495,10 @@ const panelClass = computed(() => {
                 <Trash2 class="h-4 w-4 shrink-0 mt-0.5 text-red-500" />
                 <span>
                   <span class="block text-sm font-medium text-gray-900 dark:text-white">
-                    Delete {{ placeholderKind === 'minute' ? 'meeting' : 'event' }}
+                    {{ deleteSourceLabel }}
                   </span>
                   <span class="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Removes it from the {{ placeholderKind === 'minute' ? 'Minutes' : 'Events' }} page too.
+                    {{ deleteSourceHint }}
                   </span>
                 </span>
               </button>

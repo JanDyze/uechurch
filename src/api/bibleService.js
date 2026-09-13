@@ -107,3 +107,114 @@ export const lookupReference = async (input) => {
 
 /** Drops the cached books. Only of interest to a translation switch. */
 export const clearBibleCache = () => books.clear()
+
+/**
+ * One book, whole, off the same cache the reference lookup fills.
+ *
+ * The reader pages through chapters, so handing it the book rather than a
+ * chapter means the first chapter costs a fetch and the other forty-nine cost
+ * nothing — and a passage already looked up on the Presentation page is
+ * already here, and the other way round.
+ */
+export const getBook = (slug) => loadBook(slug)
+
+/**
+ * Folds away everything that stops a typed word matching a printed one: case,
+ * the accents this translation sets on a handful of words, and the curly
+ * quotes it uses throughout — somebody searching for "kaya't" types a straight
+ * apostrophe, and the text has ’.
+ *
+ * Every substitution here replaces one character with one character, so an
+ * index into the folded string is an index into the original. That is what
+ * lets the reader highlight the matched span inside a verse it is showing
+ * unfolded: fold, find, then slice the *original* at what was found.
+ *
+ * Exported for that, rather than copied there, so the rule that finds a match
+ * and the rule that marks it cannot drift apart.
+ */
+export const foldText = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[‘’‚‛]/g, "'")
+    .replace(/[“”„‟]/g, '"')
+    .replace(/[‐-―−]/g, '-')
+
+/**
+ * The same fold with the run of the typed phrase tidied up — collapsing the
+ * double space somebody leaves between two words, and the one they leave on
+ * the end.
+ *
+ * For the needle only. Doing it to the haystack too would change its length
+ * and so break the index foldText exists to keep honest.
+ */
+export const fold = (value) => foldText(value).replace(/\s+/g, ' ').trim()
+
+/**
+ * Verses containing a phrase.
+ *
+ * `slugs` is the search's whole cost: one book is instant and offline, because
+ * the reader has already loaded it, while all sixty-six is five megabytes the
+ * person has to ask for. So the caller decides the scope and this reports
+ * progress rather than guessing at either.
+ *
+ * Books are fetched one at a time on purpose: sixty-six parallel requests on
+ * church wifi is how you turn a search into a stall. The walk is in canonical
+ * order, so `onProgress` can honestly say how far through the Bible it is.
+ *
+ * @param query      what was typed
+ * @param slugs      which books to look in, in the order to look
+ * @param options    limit: stop after this many hits.
+ *                   onProgress({done, total, hits}): after each book.
+ *                   isCancelled(): checked between books, to abandon the walk.
+ * @returns {Promise<{hits: Array, truncated: boolean, cancelled: boolean, searched: number}>}
+ */
+export const searchBooks = async (query, slugs, options = {}) => {
+  const { limit = 200, onProgress, isCancelled } = options
+  const needle = fold(query)
+  const hits = []
+  let truncated = false
+  let searched = 0
+
+  if (needle.length < 2) return { hits, truncated, cancelled: false, searched }
+
+  for (const slug of slugs) {
+    if (isCancelled?.()) return { hits, truncated, cancelled: true, searched }
+
+    let book
+    try {
+      book = await loadBook(slug)
+    } catch {
+      // One missing book must not end the search — the other sixty-five are
+      // still worth reading.
+      searched += 1
+      onProgress?.({ done: searched, total: slugs.length, hits: hits.length })
+      continue
+    }
+
+    book.chapters.forEach((chapter) => {
+      chapter.verses.forEach((verse) => {
+        if (hits.length >= limit) {
+          truncated = true
+          return
+        }
+        if (foldText(verse.text).includes(needle)) {
+          hits.push({
+            slug,
+            book: book.book_localized || book.book || slug,
+            chapter: chapter.chapter,
+            verse: verse.verse,
+            text: verse.text,
+          })
+        }
+      })
+    })
+
+    searched += 1
+    onProgress?.({ done: searched, total: slugs.length, hits: hits.length })
+    if (truncated) break
+  }
+
+  return { hits, truncated, cancelled: false, searched }
+}

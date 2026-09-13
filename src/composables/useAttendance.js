@@ -4,9 +4,23 @@ import { useEvents } from './useEvents'
 import { useMembers } from './useMembers'
 import { useMinutes } from './useMinutes'
 import { useRecurringEvents } from './useRecurringEvents'
-import { readProvenance, provenanceForRow, ATTENDANCE_START_DATE, ATTENDANCE_SOURCES } from '../../lib/attendance'
+import {
+  readProvenance,
+  provenanceForRow,
+  mergeAttendanceRecords,
+  hasRegister,
+  ATTENDANCE_START_DATE,
+  ATTENDANCE_SOURCES,
+} from '../../lib/attendance'
 import { readEventStatus, isCalledOff } from '../../lib/eventStatus'
-import { readExpectedAttendance, audienceTagsOf, excludeTagsOf } from '../utils/audience'
+import {
+  readExpectedAttendance,
+  audienceTagsOf,
+  excludeTagsOf,
+  meetingTagOptions,
+  meetingTagOf,
+  membersAtMeeting,
+} from '../utils/audience'
 
 export function useAttendance() {
   const attendance = ref([])
@@ -20,7 +34,9 @@ export function useAttendance() {
   const now = ref(Date.now())
 
   const { events } = useEvents()
-  const { minutes } = useMinutes()
+  // Meetings keep their register on the minute itself, so this is a store of
+  // attendance as much as it is a list of write-ups — see lib/attendance.js.
+  const { minutes, updateMinuteInFirestore } = useMinutes()
   // The roster every expected count is read off: a gathering names the tags it
   // is for, and how many that is depends on who carries them today.
   const { members } = useMembers()
@@ -65,53 +81,46 @@ export function useAttendance() {
   const awaitsRecording = (dateString) =>
     isPastOrToday(dateString) && String(dateString) >= ATTENDANCE_START_DATE
 
-  // Aggregate attendance from events and minutes
+  /**
+   * Every gathering somebody has counted, whichever store holds it: the
+   * attendance collection, or a minute's own register. One row per gathering —
+   * lib/attendance.js owns the question of which store speaks for it, so no
+   * screen can answer it differently and call the same meeting unrecorded.
+   */
+  const recorded = computed(() => mergeAttendanceRecords(attendance.value, minutes.value))
+
+  // Aggregate what has been recorded with what is still waiting to be
   const aggregatedAttendance = computed(() => {
     const records = []
     const today = new Date(now.value)
     today.setHours(0, 0, 0, 0)
 
-    // Which occurrences already have a record, so the loops below know what
+    // Which occurrences are already spoken for, so the loops below know what
     // still needs recording. Keyed on occurrenceKey rather than the old
     // overloaded eventId — a one-off has no key and so can never collide.
-    //
-    // One key, one row. Two documents can legitimately describe the same
-    // gathering — a double tap, or two people marking the same service from
-    // different phones — and rendering both put the same Saturday on the list
-    // twice. The map picks a winner and the render loop below shows only that
-    // one, so a duplicate write is invisible rather than confusing.
-    const minuteIds = new Set(minutes.value.map(m => m.firestoreId || m.id))
-    const recordedKeys = new Map()
-    const timeOf = (record) => new Date(record.updatedAt || record.createdAt || 0).getTime()
-    attendance.value.forEach(record => {
-      const { occurrenceKey } = readProvenance(record, { knownMinuteIds: minuteIds })
-      if (!occurrenceKey) return
-      const held = recordedKeys.get(occurrenceKey)
-      if (!held) {
-        recordedKeys.set(occurrenceKey, record)
-        return
-      }
-      // A real record always beats a skip: somebody counted the room, and a
-      // stray "not counted" marker must never be what hides it. Between two of
-      // the same kind, the one saved last is the one they meant.
-      const better =
-        Boolean(held.skipped) !== Boolean(record.skipped)
-          ? !record.skipped
-          : timeOf(record) > timeOf(held)
-      if (better) recordedKeys.set(occurrenceKey, record)
-    })
+    const recordedKeys = new Set(
+      recorded.value.map((record) => record.occurrenceKey).filter(Boolean)
+    )
 
-    // Add attendance records from dedicated attendance collection.
+    // The vocabulary a meeting's group is read against — every tag and
+    // ministry anybody carries. Built once: it is the same for every row.
+    const meetingTags = meetingTagOptions(members.value)
+
     // `rowType` describes where a row LIVES, not what it points at (that is
-    // `source`, from lib/attendance.js): every saved
-    // attendance document is owned by this page and stays editable/deletable,
-    // whether or not it was recorded against an event. Only the placeholder
-    // rows synthesised below from events/minutes are read-only here.
-    attendance.value.forEach(record => {
-      // A duplicate of an occurrence already spoken for: the winner above is
-      // the row, this one is not shown.
-      const { occurrenceKey: recordKey } = readProvenance(record, { knownMinuteIds: minuteIds })
-      if (recordKey && recordedKeys.get(recordKey) !== record) return
+    // `source`, from lib/attendance.js): 'attendance' is a saved document this
+    // page owns and may edit or delete, 'minute' is a meeting whose register is
+    // written on the minute. Whether either has been COUNTED is a different
+    // question again, and `isRecorded` is the only thing allowed to answer it.
+    recorded.value.forEach(record => {
+      if (record.derived) {
+        // A minute can carry names before the meeting happens - they are who
+        // is expected, not who came - so a meeting joins this list on its own
+        // day and not before.
+        if (!isPastOrToday(record.date)) return
+        // And a meeting nobody has marked is a prompt rather than a record: it
+        // belongs here only while it is work still owed.
+        if (!hasRegister(record) && !awaitsRecording(record.date)) return
+      }
 
       // Find the event or meeting this record was recorded against, if any
       let linkedEvent = null
@@ -144,46 +153,39 @@ export function useAttendance() {
       // out of ten, not out of the hundred it was written with.
       const audience = linkedEvent || linkedSchedule || record
 
+      // A meeting's group is read exactly as the minute itself reads it: the
+      // tag stored on it, or the one its title plainly names, matched across
+      // tags and ministries because that is the vocabulary a minute picks from
+      // (utils/audience.js). Without this the CSL monthly meeting was counted
+      // out of its own register — twelve of twelve — instead of out of the
+      // nine people it is for.
+      const meetingTag =
+        record.source === ATTENDANCE_SOURCES.MINUTE
+          ? meetingTagOf(linkedMinute || record, meetingTags)
+          : ''
+
       records.push({
         ...record,
-        rowType: 'attendance',
+        rowType: record.derived ? 'minute' : 'attendance',
         // Title/date belong to the event or meeting, so they are shown read-only
-        linkedSource: linkedEvent ? 'event' : linkedMinute ? 'minute' : null,
-        expectedAttendees: readExpectedAttendance(audience, members.value),
+        linkedSource: linkedEvent ? 'event' : (linkedMinute || record.derived) ? 'minute' : null,
+        expectedAttendees: meetingTag
+          ? membersAtMeeting(members.value, meetingTag).length
+          : readExpectedAttendance(audience, members.value),
         // Who the gathering was for, so the recorder shows the same roll and
         // the list the same denominator.
-        audienceTags: audienceTagsOf(audience),
-        excludeTags: excludeTagsOf(audience)
+        audienceTags: meetingTag ? [meetingTag] : audienceTagsOf(audience),
+        excludeTags: meetingTag ? [] : excludeTagsOf(audience)
       })
-    })
-
-    // Add attendance from minutes (only if past or today), unless attendance
-    // has already been recorded for that meeting - same de-duplication the
-    // events loop below does, otherwise the meeting shows up twice.
-    minutes.value.forEach(minute => {
-      const minuteId = minute.firestoreId || minute.id
-      if (awaitsRecording(minute.date) && !recordedKeys.has(minuteId)) {
-        records.push({
-          id: `minute-${minute.id || minute.firestoreId}`,
-          firestoreId: minute.firestoreId || minute.id,
-          eventId: minute.firestoreId || minute.id,
-          eventType: 'meeting',
-          eventTitle: minute.title || 'Meeting',
-          date: minute.date || '',
-          time: minute.startTime || '',
-          location: minute.location || '',
-          attendees: minute.attendees || [],
-          totalAttendees: minute.attendees?.length || 0,
-          notes: '',
-          rowType: 'minute',
-          createdAt: minute.createdAt || new Date(),
-          updatedAt: minute.updatedAt || new Date()
-        })
-      }
     })
 
     // Add events that are past or today, but only if no attendance record exists for them
     events.value.forEach(event => {
+      // An override written only to take a date off the calendar. The document
+      // exists so the schedule stops generating that occurrence; asking anyone
+      // to record attendance for it would be asking about a gathering that was
+      // deleted.
+      if (event.hidden) return
       if (awaitsRecording(event.date)) {
         const eventId = event.firestoreId || event.id
         // Only add event if there's no attendance record for it
@@ -348,8 +350,36 @@ export function useAttendance() {
     return await updateAttendance(attendance, updatedData)
   }
 
-  const removeAttendance = async (attendance) => {
-    return await deleteAttendance(attendance)
+  /**
+   * True when this row's register lives on a minute rather than in a document
+   * of its own — the one question that decides where a write has to go.
+   */
+  const isMeetingRegister = (row) =>
+    Boolean(row?.derived) && row?.source === ATTENDANCE_SOURCES.MINUTE
+
+  /**
+   * The single way a meeting's attendance is written, whether it is being
+   * marked on the minute itself or recorded from the Attendance page.
+   *
+   * There is deliberately no second copy in the `attendance` collection: two
+   * stores for one fact is what made a meeting read "Not recorded" on the list
+   * while its minute showed thirty names.
+   */
+  const saveMeetingRegister = async (row, attendees = []) => {
+    const id = row?.sourceId || row?.firestoreId || row?.id
+    const minute = minutes.value.find((m) => (m.firestoreId || m.id) === id)
+    if (!minute) throw new Error('That meeting is no longer on the Minutes page')
+    return await updateMinuteInFirestore(minute, {
+      attendees: (attendees || []).map(String),
+    })
+  }
+
+  const removeAttendance = async (record) => {
+    // Wiping a meeting's count means emptying its register: there is no
+    // document to delete, and deleting the minute would take the write-up with
+    // it.
+    if (isMeetingRegister(record)) return await saveMeetingRegister(record, [])
+    return await deleteAttendance(record)
   }
 
   return {
@@ -359,6 +389,8 @@ export function useAttendance() {
     addAttendanceToFirestore,
     updateAttendanceInFirestore,
     removeAttendance,
+    isMeetingRegister,
+    saveMeetingRegister,
     skipRecording,
     resumeRecording
   }

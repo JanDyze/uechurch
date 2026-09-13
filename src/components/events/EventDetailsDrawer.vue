@@ -38,6 +38,17 @@ const isOff = computed(() => status.value !== EVENT_STATUS.SCHEDULED)
 const canCallOff = computed(() => Boolean(props.event) && !props.event.isBirthday)
 const statusHeading = computed(() => eventStatusLabel(status.value))
 
+// A birthday is hidden, a single date of a weekly schedule is dropped, and a
+// stored event is deleted outright. Three different sizes of the same button,
+// so the tooltip says which one this is.
+const deleteLabel = computed(() => {
+  if (props.event?.isBirthday) return 'Hide'
+  const occurrence =
+    (props.event?.isVirtual && props.event?.isRecurring) ||
+    String(props.event?.overrideOf || '').startsWith('recurring-')
+  return occurrence ? 'Delete this date' : 'Delete'
+})
+
 // Recounted from the roster every time this opens rather than read off the
 // event, so an event tagged for the choir reports the choir as it stands today.
 // An event saved before audiences existed has no tags and keeps the number it
@@ -241,15 +252,16 @@ const formatDate = (dateStr) => {
         >
           <Edit2 class="h-5 w-5" />
         </button>
-        <!-- Only where there is something to delete. A weekly occurrence is
-             generated from a schedule and has no document of its own, so it is
-             called off above rather than deleted here; a birthday is hidden. -->
+        <!-- Deleting is the other answer to "this is not happening", and a
+             different one: calling off leaves the gathering on the calendar
+             marked, deleting takes the date away. A weekly occurrence has no
+             document of its own, so deleting it writes the override that
+             stands in for it; a birthday is hidden rather than deleted. -->
         <button
-          v-if="!event.isVirtual || event.isBirthday"
           @click="$emit('delete')"
           class="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors shadow-lg shadow-red-500/25"
-          :title="event.isBirthday ? 'Hide' : 'Delete'"
-          :aria-label="event.isBirthday ? 'Hide' : 'Delete'"
+          :title="deleteLabel"
+          :aria-label="deleteLabel"
         >
           <Trash2 class="h-5 w-5" />
         </button>

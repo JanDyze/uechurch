@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import { isCalledOff } from '../../lib/eventStatus'
+import { isRecorded } from '../../lib/attendance'
 import { getDisplayName } from '../utils/memberUtils'
 
 // What the page should say before anybody scrolls.
@@ -90,12 +91,18 @@ const seriesKeyOf = (row) => String(row.eventTitle || '').trim().toLowerCase()
 export function useAttendanceStats(rows, members) {
   const roster = computed(() => (members.value || []).length)
 
-  // Only saved records carry a real count, and a skipped one is not a record:
-  // it is somebody saying "do not ask me for this again". Counting either the
-  // prompts or the skips at zero would report a slump that never happened.
+  // Only counted gatherings carry a real number, and a skipped one is not a
+  // count: it is somebody saying "do not ask me for this again". Counting
+  // either the prompts or the skips at zero would report a slump that never
+  // happened.
+  //
+  // Whether a gathering was counted is lib/attendance.js's question, not this
+  // file's: a meeting's register lives on its minute, and asking "did this row
+  // come from the attendance collection" left every meeting out of the month's
+  // reach.
   const recorded = computed(() =>
     (rows.value || [])
-      .filter((row) => row.rowType === 'attendance' && !row.skipped && row.date)
+      .filter((row) => isRecorded(row) && !row.skipped && row.date)
       .sort((a, b) => String(a.date).localeCompare(String(b.date)))
   )
 
@@ -107,7 +114,7 @@ export function useAttendanceStats(rows, members) {
    */
   const awaiting = computed(() =>
     (rows.value || [])
-      .filter((row) => row.rowType !== 'attendance' && row.date && !isCalledOff(row))
+      .filter((row) => !isRecorded(row) && !row.skipped && row.date && !isCalledOff(row))
       .sort((a, b) => String(a.date).localeCompare(String(b.date)))
   )
 

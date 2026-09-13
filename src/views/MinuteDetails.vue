@@ -19,6 +19,7 @@ import MinuteComments from '../components/minutes/MinuteComments.vue'
 import { markdownToHtml, htmlToMarkdown, isStoredHtml } from '../utils/markdownUtils'
 import { buildPeopleIndex, buildPlaceIndex, makeDecorator } from '../utils/minuteAnnotations'
 import { sectionIcon } from '../utils/minuteSections'
+import { meetingTagOptions, meetingTagOf } from '../utils/audience'
 import { extractActionItems, toTaskDraft } from '../utils/minuteActionItems'
 import { enhanceMinutesWithClaude } from '../utils/minutesEnhancer'
 import { useMediaQuery } from '../composables/useMediaQuery'
@@ -606,31 +607,11 @@ const handleToggleAttendee = async (memberId) => {
 
 /* -------------------------------------------------------- who this is for */
 
-// Every tag and ministry anyone on the roster carries. Both, because a church
-// files "Council" as a ministry and "Ushers" as a tag and neither distinction
-// means anything to the person taking attendance.
-const rosterTags = computed(() => {
-  const seen = new Map()
-  for (const member of members.value || []) {
-    for (const entry of [...(member.tags || []), ...(member.ministries || [])]) {
-      const name = String(entry || '').trim()
-      if (name && !seen.has(name.toLowerCase())) seen.set(name.toLowerCase(), name)
-    }
-  }
-  return [...seen.values()].sort((a, b) => a.localeCompare(b))
-})
-
-/**
- * The group this meeting is for. Stored on the minute once chosen; until then
- * guessed from the title, because "Church Council Meeting" and a Council tag
- * are the same word and asking would be asking about something already known.
- */
-const attendanceTag = computed(() => {
-  const stored = minute.value?.attendanceTag
-  if (stored !== undefined && stored !== null) return stored
-  const title = String(minute.value?.title || '').toLowerCase()
-  return rosterTags.value.find((tag) => title.includes(tag.toLowerCase())) || ''
-})
+// Both of these come from utils/audience.js rather than being worked out here:
+// the Attendance list counts a meeting out of the same group this page shows,
+// and it can only do that if there is one rule about what that group is.
+const rosterTags = computed(() => meetingTagOptions(members.value))
+const attendanceTag = computed(() => meetingTagOf(minute.value, rosterTags.value))
 
 const handleAttendanceTag = async (tag) => {
   if (!minute.value || !canEditMinute.value) return

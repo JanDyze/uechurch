@@ -86,3 +86,72 @@ export const audienceLabel = (tags = [], excludeTags = []) => {
   const base = tags?.length ? tags.join(' · ') : 'Everyone'
   return excludeTags?.length ? `${base} except ${excludeTags.join(' · ')}` : base
 }
+
+/* ------------------------------------------------------------- meetings */
+
+// A meeting names its group differently from the rest of the calendar, and the
+// difference is not a mistake to be tidied away.
+//
+// An event picks from member tags (AudiencePicker). A meeting picks from tags
+// AND ministries, because a church files "Council" as a ministry and "Ushers"
+// as a tag and neither distinction means anything to the person taking
+// attendance in the room. So a meeting's group has to be matched against both,
+// and these helpers are that rule — one definition, used by the minute's own
+// attendance drawer, by the Attendance list's expected count, by the recorder's
+// roll and by a member's history, so no two of them can report a different
+// denominator for the same meeting.
+
+/** Carries `tag`, filed as either a tag or a ministry. */
+export const carriesTag = (member, tag) => {
+  const wanted = normalize(tag)
+  if (!wanted) return true
+  return [...(member?.tags || []), ...(member?.ministries || [])].some(
+    (entry) => normalize(entry) === wanted
+  )
+}
+
+/** Every tag and ministry anybody on the roster carries, in one sorted list. */
+export const meetingTagOptions = (members = []) => {
+  const seen = new Map()
+  for (const member of members || []) {
+    for (const entry of [...(member?.tags || []), ...(member?.ministries || [])]) {
+      const name = String(entry || '').trim()
+      if (name && !seen.has(name.toLowerCase())) seen.set(name.toLowerCase(), name)
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b))
+}
+
+/**
+ * The group a meeting is for.
+ *
+ * Stored on the minute once somebody chooses; until then guessed from the
+ * title, because "Church Council Meeting" and a Council tag are the same word
+ * and asking would be asking about something already known.
+ *
+ * The guess is deliberately not saved. It is a reading of the title, and the
+ * moment it is written down it stops tracking a title that gets corrected.
+ * That is why it lives here rather than on the record: every screen applies the
+ * same reading to the same minute, and a meeting counted out of nine on the
+ * Attendance list is counted out of nine on the minute too.
+ *
+ * `null`/`undefined` means nobody has said; an empty string means somebody said
+ * "everyone", which is an answer and is left alone.
+ */
+export const meetingTagOf = (minute, options = []) => {
+  const stored = minute?.attendanceTag
+  if (stored !== undefined && stored !== null) return String(stored).trim()
+
+  // Records carry the chosen tag in `audienceTags` instead — a meeting names
+  // one group, so the first is the whole answer.
+  const carried = audienceTagsOf(minute)
+  if (carried.length) return String(carried[0]).trim()
+
+  const title = String(minute?.title || minute?.eventTitle || '').toLowerCase()
+  if (!title) return ''
+  return (options || []).find((tag) => title.includes(String(tag).toLowerCase())) || ''
+}
+
+/** Who a meeting is for: its group, or everyone when it names none. */
+export const membersAtMeeting = (members = [], tag = '') =>
+  tag ? (members || []).filter((member) => carriesTag(member, tag)) : members || []

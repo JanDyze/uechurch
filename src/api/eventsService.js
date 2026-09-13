@@ -53,6 +53,10 @@ const normalizeEvent = (data, docId) => {
     // occurrence comes back; without this flag, reinstating could not tell
     // "the service is off" from "the service moved to 10am and is off".
     statusOnly: data.statusOnly || false,
+    // An override that stands in for a generated occurrence purely to take it
+    // off the calendar. The document has to exist - it is what stops the
+    // schedule generating that date again - but nothing renders it.
+    hidden: data.hidden || false,
     memberId: data.memberId || null,
   };
 };
@@ -241,6 +245,63 @@ export const reinstateOccurrence = async (firestoreId, event) => {
     announceStatus({ ...event, ...eventStatusFields({ status: EVENT_STATUS.SCHEDULED }) });
   } catch (error) {
     console.error("Error reinstating occurrence:", error);
+    throw error;
+  }
+};
+
+/**
+ * Deletes one date out of a weekly schedule.
+ *
+ * A generated occurrence has no document to delete, and calling it off is a
+ * different answer: that leaves it on the calendar struck through, which is
+ * right for a service that was called off and wrong for a date that should
+ * never have been there. So the delete is written the only way it can be - an
+ * override standing in for the occurrence, flagged `hidden`, which stops the
+ * schedule generating that date and is itself left out of every list.
+ *
+ * A date already overridden by an edit keeps that document and has the flag
+ * added: deleting the document would hand the date straight back to the
+ * schedule, and the thing just deleted would reappear.
+ */
+export const hideOccurrence = async (event) => {
+  const fields = {
+    ...eventStatusFields({ status: EVENT_STATUS.CANCELLED }),
+    hidden: true,
+    // Not a cancellation waiting to be undone: the document is the deletion,
+    // and clearing statusOnly keeps the reinstate path — which deletes the
+    // document — from handing the date back to the schedule.
+    statusOnly: false,
+  };
+
+  try {
+    const firestoreId = event?.firestoreId || null;
+
+    if (firestoreId) {
+      await updateDoc(doc(db, EVENTS_COLLECTION, firestoreId), fields);
+    } else {
+      await addDoc(collection(db, EVENTS_COLLECTION), {
+        title: event?.title || "Untitled",
+        type: event?.type || "worship",
+        date: event?.date || "",
+        time: event?.time || "",
+        location: event?.location || "",
+        description: event?.description || "",
+        attendees: 0,
+        icon: event?.icon || "Calendar",
+        audienceTags: event?.audienceTags || [],
+        excludeTags: event?.excludeTags || [],
+        overrideOf: event?.id,
+        isOverride: true,
+        ...fields,
+      });
+    }
+
+    // A gathering that disappears off the calendar is how somebody drives to a
+    // locked building, so the church is told - unless it was already off, in
+    // which case they have been told once already.
+    if (!isCalledOff(event)) announceStatus({ ...event, ...fields });
+  } catch (error) {
+    console.error("Error removing occurrence:", error);
     throw error;
   }
 };

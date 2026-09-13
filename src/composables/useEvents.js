@@ -4,6 +4,7 @@ import {
   addEvent,
   updateEvent,
   deleteEvent as deleteEventDoc,
+  hideOccurrence,
 } from "../api/eventsService";
 
 export function useEvents() {
@@ -54,6 +55,18 @@ export function useEvents() {
     }
   };
 
+  // Delete one date of a weekly schedule. There is no document to remove - the
+  // occurrence is generated - so this writes the override that stands in for
+  // it. The schedule itself is untouched and next week still happens.
+  const removeOccurrence = async (event) => {
+    try {
+      await hideOccurrence(event);
+    } catch (error) {
+      console.error('Error removing occurrence:', error);
+      throw error;
+    }
+  };
+
   // Initialize: Set up real-time listeners
   onMounted(() => {
     // See useMembers: onSnapshot failures arrive through its error callback,
@@ -74,5 +87,6 @@ export function useEvents() {
     addEventToFirestore,
     updateEventInFirestore,
     removeEvent,
+    removeOccurrence,
   };
 }

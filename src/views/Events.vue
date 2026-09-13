@@ -29,6 +29,7 @@ const {
   addEventToFirestore,
   updateEventInFirestore,
   removeEvent,
+  removeOccurrence,
 } = useEvents()
 
 // Members data for birthdays
@@ -48,11 +49,15 @@ const events = computed(() => {
   // made it silently disappear — and a service that vanishes without a word is
   // how somebody drives to a locked building.
   //
-  // The one exception is a birthday somebody hid: there is nothing to tell the
-  // church about a birthday being off, and a struck-through name would read as
-  // something much worse than "not shown".
+  // The exceptions are the two overrides that exist only to take something off
+  // the calendar: a birthday somebody hid — there is nothing to tell the church
+  // about a birthday being off, and a struck-through name would read as
+  // something much worse than "not shown" — and an occurrence somebody deleted,
+  // where the document is only there to stop the schedule generating that date
+  // again.
   const visibleFirestoreEvents = firestoreEvents.value.filter(
-    (e) => !(e.isCancelled && String(e.overrideOf || '').startsWith('birthday-'))
+    (e) =>
+      !e.hidden && !(e.isCancelled && String(e.overrideOf || '').startsWith('birthday-'))
   )
 
   return [
@@ -253,34 +258,43 @@ const applyStatus = async (change) => {
   }
 }
 
-// Three different things used to be one button. Deleting a stored event throws
-// the record away; a birthday is hidden, because it is generated from a member
-// and there is nothing to delete; and a weekly occurrence is not a document at
-// all, so the only honest thing to do with it is call it off — which is now its
-// own action rather than a delete wearing a different label.
+// One occurrence of a weekly schedule, whether it is still generated or has
+// already been overridden by an edit for that date. Both are deleted the same
+// way — see hideOccurrence in eventsService.js — and neither touches the
+// schedule itself.
+const isOccurrence = (event) =>
+  Boolean(event?.isVirtual && event?.isRecurring) ||
+  String(event?.overrideOf || '').startsWith('recurring-')
+
+// Three different things behind one button. Deleting a stored event throws the
+// record away; a birthday is hidden, because it is generated from a member and
+// there is nothing to delete; and a weekly occurrence is not a document at all,
+// so deleting it writes the override that stands in for it. Calling it off is
+// still the other answer, on its own button — a service that was cancelled
+// belongs on the calendar marked, not gone.
 const deleteEvent = async () => {
   if (!selectedEvent.value) return
 
   const isBirthday = Boolean(selectedEvent.value.isBirthday || selectedEvent.value.memberId)
   const isVirtualEvent = selectedEvent.value.isVirtual
+  const occurrence = !isBirthday && isOccurrence(selectedEvent.value)
   const eventTitle = selectedEvent.value.title
 
-  if (isVirtualEvent && !isBirthday) {
-    openStatusSheet()
-    return
-  }
-
   showConfirmModal({
-    title: isBirthday ? 'Hide Birthday' : 'Delete Event',
+    title: isBirthday ? 'Hide Birthday' : occurrence ? 'Delete This Date' : 'Delete Event',
     message: isBirthday
       ? `Hide "${eventTitle}" from the calendar for this date?`
-      : `Are you sure you want to delete "${eventTitle}"?`,
+      : occurrence
+        ? `Remove "${eventTitle}" from ${selectedEvent.value.date}? Only this date goes — the weekly schedule keeps running. To leave it on the calendar marked as not happening, call it off instead.`
+        : `Are you sure you want to delete "${eventTitle}"?`,
     confirmText: isBirthday ? 'Hide' : 'Delete',
     cancelText: 'Keep',
     confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
     onConfirm: async () => {
       try {
-        if (isVirtualEvent) {
+        if (occurrence) {
+          await removeOccurrence(selectedEvent.value)
+        } else if (isVirtualEvent) {
           // A birthday is generated from the member, so hiding it is an
           // override that stands in for it and shows nothing.
           const cancelData = {

@@ -151,6 +151,20 @@ const routes = [
         component: () => import('../views/Lineups.vue')
       },
       {
+        // Both params optional: bare /bible means "carry on from where I was",
+        // and the full form is what a reference shared with somebody else
+        // looks like. No capability — Scripture is not church data to be
+        // granted by ministry tag, and every signed-in account may read it.
+        path: 'bible/:slug?/:chapter?',
+        name: 'Bible',
+        // The page's own header already says which chapter you are in and
+        // carries the search, so the app bar above it would only repeat the
+        // word "Bible" and cost a reader a line of text. Not `focus`: the
+        // bottom bar stays, because this is a page you browse from.
+        meta: { hideTopbar: true },
+        component: () => import('../views/Bible.vue')
+      },
+      {
         path: 'minutes',
         name: 'Minutes',
         meta: { capability: 'minutes.view' },

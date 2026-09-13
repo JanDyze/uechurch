@@ -7,7 +7,8 @@ import {
   eventTypeLabel,
 } from '../../utils/eventColors'
 import { isCalledOff, eventStatusLabel, readEventStatus } from '../../../lib/eventStatus'
-import { CalendarClock } from '../../icons'
+import { isRecorded } from '../../../lib/attendance'
+import { CalendarClock, Trash2 } from '../../icons'
 
 const props = defineProps({
   record: {
@@ -19,6 +20,12 @@ const props = defineProps({
     default: () => []
   },
   selected: {
+    type: Boolean,
+    default: false
+  },
+  // Whether this person may change the record. Passed down rather than asked
+  // for here, so the list and the row cannot disagree about it.
+  canManage: {
     type: Boolean,
     default: false
   }
@@ -66,10 +73,11 @@ const type = computed(() =>
 
 const category = computed(() => (type.value ? eventTypeLabel(type.value) : 'Event'))
 
-// Rows synthesised from an event/meeting that has no saved attendance behind
-// it yet. Nothing is stored, so there is nothing to open in edit mode or
-// delete - they are prompts, not records.
-const isPlaceholder = computed(() => props.record.rowType !== 'attendance')
+// A gathering nobody has counted yet: a prompt, not a record. Asked of
+// lib/attendance.js rather than decided here, because "recorded" used to mean
+// "came from the attendance collection" — and a meeting's register is written
+// on its minute, so a meeting with thirty names on it read "Not recorded".
+const isPlaceholder = computed(() => !isRecorded(props.record))
 
 // Cancelled or postponed on the calendar. The row stays — a service that is
 // off is a fact about that Sunday, and hiding it is how somebody ends up
@@ -88,6 +96,14 @@ const isQuiet = computed(() => calledOff.value || skipped.value)
 // cancel, and a gathering already recorded is history rather than a plan.
 const canMark = computed(
   () => props.record.rowType === 'event' || props.record.rowType === 'recurring' || isPlaceholder.value
+)
+
+// Throwing away a count somebody took. Only ever offered where there is one:
+// a placeholder has nothing behind it, and a skipped gathering is undone by
+// asking to be prompted again rather than by deleting the marker. A meeting
+// qualifies — what goes is the register on its minute, not the minute.
+const canDelete = computed(
+  () => props.canManage && !isPlaceholder.value && !skipped.value
 )
 
 const roster = computed(() => props.members.length)
@@ -215,6 +231,18 @@ const share = computed(() => {
     <!-- The way to say "this one is not happening" without leaving the list.
          A tap target of its own, because the row itself already means
          "record this". -->
+    <!-- The count was wrong, or was never this gathering's to begin with. The
+         row stays tappable for editing it; this is the way to be rid of it. -->
+    <button
+      v-if="canDelete"
+      @click.stop="emit('delete', record)"
+      aria-label="Delete this record"
+      title="Delete this record"
+      class="relative shrink-0 rounded-lg p-2 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-gray-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+    >
+      <Trash2 class="h-4 w-4" />
+    </button>
+
     <button
       v-if="canMark && !isQuiet"
       @click.stop="emit('mark', record)"

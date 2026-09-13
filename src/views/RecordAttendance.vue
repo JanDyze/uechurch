@@ -32,9 +32,11 @@ const {
   addAttendanceToFirestore,
   updateAttendanceInFirestore,
   removeAttendance,
+  isMeetingRegister,
+  saveMeetingRegister,
 } = useAttendance()
 
-const { removeEvent } = useEvents()
+const { removeEvent, removeOccurrence } = useEvents()
 const { removeMinute } = useMinutes()
 
 // Autosave. Marking attendance is dozens of small decisions, and a Save button
@@ -76,6 +78,15 @@ const persist = async () => {
 
   saveState.value = 'saving'
   try {
+    // A meeting's register belongs to its minute — the same list the officer
+    // is ticking names on in the meeting itself. Writing a second copy here is
+    // what used to leave this page and the Minutes page disagreeing about who
+    // was there, so there is only ever the one.
+    if (isMeetingRegister(target.value)) {
+      await saveMeetingRegister(target.value, payload.attendees)
+      saveState.value = 'saved'
+      return
+    }
     if (existing) {
       await updateAttendanceInFirestore(existing, payload)
     } else {
@@ -88,6 +99,14 @@ const persist = async () => {
     saveState.value = 'error'
     toast.error('Could not save. Your marks are still on screen — try again.')
   }
+}
+
+/** Drop a queued write. Used when what it would save is being thrown away. */
+const cancelPendingSave = () => {
+  clearTimeout(saveTimer)
+  clearTimeout(maxWaitTimer)
+  maxWaitTimer = null
+  saveState.value = 'clean'
 }
 
 const scheduleSave = () => {
@@ -156,6 +175,15 @@ const target = computed(() => {
 })
 
 const isEdit = computed(() => target.value?.rowType === 'attendance')
+// A meeting is recorded like a placeholder — the minute owns its title and
+// date — but once names are marked there is a count to wipe, same as a saved
+// record has.
+const canClear = computed(() => {
+  if (isEdit.value || createdRecord.value) return true
+  // A meeting's marks are on the minute the moment they are made, so there is
+  // something to wipe without anything having been created here.
+  return isMeetingRegister(target.value) && Boolean(attendanceData.value?.attendees?.length)
+})
 /** A saved record owns its own title and date; a placeholder inherits them. */
 const eventData = computed(() => (isEdit.value ? null : target.value))
 const detailsLocked = computed(() => Boolean(target.value) && !isEdit.value)
@@ -224,13 +252,14 @@ watch(
   { immediate: true }
 )
 
-// A "Not recorded" row is generated from an event or meeting, so the only way
-// to make it go away is to delete the thing generating it. Recurring
-// occurrences come from a Settings schedule with no document behind them and
-// so offer no delete — they are managed in Settings instead.
+// A "Not recorded" row is generated from an event, a meeting or a weekly
+// schedule, so the only way to make it go away is to delete the thing
+// generating it. A recurring occurrence has no document behind it, so deleting
+// it writes the override that stands in for it — this one date goes and the
+// schedule keeps running.
 const placeholderKind = computed(() => {
   const kind = target.value?.rowType
-  return kind === 'event' || kind === 'minute' ? kind : null
+  return kind === 'event' || kind === 'minute' || kind === 'recurring' ? kind : null
 })
 
 // Two different destructive actions, deliberately kept apart: one throws away
@@ -244,6 +273,8 @@ const showConfirmClear = ref(false)
 const handleClear = async () => {
   const record = createdRecord.value || target.value
   if (!record) return
+  // Otherwise the debounced write lands after the wipe and puts everyone back.
+  cancelPendingSave()
   try {
     await removeAttendance(record)
     toast.success('Attendance cleared')
@@ -264,23 +295,44 @@ const confirmClearMessage = computed(() => {
 
 const confirmDeleteMessage = computed(() => {
   const title = target.value?.eventTitle || target.value?.title || 'this item'
-  return placeholderKind.value === 'minute'
-    ? `Delete the meeting "${title}"? This also removes it and its minutes from the Minutes page. This cannot be undone.`
-    : `Delete the event "${title}"? This also removes it from the Events page. This cannot be undone.`
+  const when = target.value?.date ? ` on ${target.value.date}` : ''
+  if (placeholderKind.value === 'minute') {
+    return `Delete the meeting "${title}"? This also removes it and its minutes from the Minutes page. This cannot be undone.`
+  }
+  if (placeholderKind.value === 'recurring') {
+    return `Remove "${title}"${when} from the calendar? Only this date goes — the weekly schedule keeps running.`
+  }
+  return `Delete the event "${title}"? This also removes it from the Events page. This cannot be undone.`
+})
+
+// The row carries the shape the attendance list works in; deleting an
+// occurrence needs the shape the calendar works in — same translation the
+// Attendance page does before calling something off.
+const asCalendarEntry = (row) => ({
+  ...row,
+  id: row.occurrenceKey || row.id,
+  firestoreId: null,
+  title: row.eventTitle || row.title,
+  type: row.eventType || row.type,
+  isVirtual: true,
+  isRecurring: true,
 })
 
 const handleDeleteSource = async () => {
   const record = target.value
   if (!record) return
-  const isMeeting = placeholderKind.value === 'minute'
+  const kind = placeholderKind.value
   try {
-    if (isMeeting) await removeMinute(record)
+    if (kind === 'minute') await removeMinute(record)
+    else if (kind === 'recurring') await removeOccurrence(asCalendarEntry(record))
     else await removeEvent(record)
-    toast.success(isMeeting ? 'Meeting deleted' : 'Event deleted')
+    toast.success(
+      kind === 'minute' ? 'Meeting deleted' : kind === 'recurring' ? 'Date removed' : 'Event deleted'
+    )
     leave()
   } catch (error) {
     console.error('Error deleting source item:', error)
-    toast.error(`Failed to delete ${isMeeting ? 'meeting' : 'event'}. Please try again.`)
+    toast.error('Could not delete that. Please try again.')
   }
 }
 
@@ -327,6 +379,7 @@ const leave = () => {
       :event-data="eventData"
       :details-locked="detailsLocked"
       :placeholder-kind="placeholderKind"
+      :can-clear="canClear"
       :save-state="saveState"
       @update:attendance-data="handleChange"
       @clear="showConfirmClear = true"
@@ -347,7 +400,13 @@ const leave = () => {
 
     <ConfirmationModal
       :show="showConfirmDelete"
-      :title="placeholderKind === 'minute' ? 'Delete Meeting' : 'Delete Event'"
+      :title="
+        placeholderKind === 'minute'
+          ? 'Delete Meeting'
+          : placeholderKind === 'recurring'
+            ? 'Delete This Date'
+            : 'Delete Event'
+      "
       :message="confirmDeleteMessage"
       confirm-text="Delete"
       cancel-text="Cancel"

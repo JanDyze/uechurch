@@ -30,6 +30,7 @@ import { subscribeToNotifications } from '../api/notifyService'
 import { getDisplayName } from '../utils/memberUtils'
 import { getEventTypeBar } from '../utils/eventColors'
 import { isCalledOff, eventStatusLabel, readEventStatus } from '../../lib/eventStatus'
+import { isRecorded } from '../../lib/attendance'
 import { memberKey } from '../utils/sgUtils'
 import { formatServiceDate } from '../utils/lineupUtils'
 import { isAssignedTo, isDueToday, isOverdue } from '../utils/taskUtils'
@@ -82,9 +83,11 @@ const calendarEvents = computed(() =>
   [
     // A called-off gathering stays in the week ahead, struck through: somebody
     // checking whether there is a service on Sunday needs to be told there is
-    // not. Only a hidden birthday drops out silently.
+    // not. Only the two that were taken off the calendar outright — a hidden
+    // birthday, a deleted occurrence — drop out silently.
     ...storedEvents.value.filter(
-      (e) => !(e.isCancelled && String(e.overrideOf || '').startsWith('birthday-'))
+      (e) =>
+        !e.hidden && !(e.isCancelled && String(e.overrideOf || '').startsWith('birthday-'))
     ),
     ...birthdayEvents.value,
     ...recurringEvents.value,
@@ -170,14 +173,15 @@ const answeredPrayers = computed(
   () => prayerConcerns.value.filter((c) => c.status === 'answered').length
 )
 
-// A gathering that has already happened and still has no record against it.
-// `aggregatedAttendance` carries these as placeholder rows — everything whose
-// rowType is not 'attendance' is a prompt, not a record.
+// A gathering that has already happened and nobody has counted. Whether it has
+// been counted is lib/attendance.js's question — a meeting's register lives on
+// its minute, so "did this row come from the attendance collection" called
+// every marked meeting unrecorded.
 const unrecorded = computed(
   () =>
     aggregatedAttendance.value.filter(
       (row) =>
-        row.rowType !== 'attendance' && row.date && row.date < today && !isCalledOff(row)
+        !isRecorded(row) && !row.skipped && row.date && row.date < today && !isCalledOff(row)
     ).length
 )
 
@@ -275,7 +279,7 @@ const isMyService = computed(() => {
 const latestAttendance = computed(
   () =>
     [...aggregatedAttendance.value]
-      .filter((r) => r.rowType === 'attendance' && r.date)
+      .filter((r) => isRecorded(r) && !r.skipped && r.date)
       .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0]
 )
 const latestMinutes = computed(

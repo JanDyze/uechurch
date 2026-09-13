@@ -8,6 +8,20 @@
 
 export const versionHistory = [
   {
+    version: '0.20.0',
+    date: '2026-09-13',
+    title: 'A Bible to read',
+    summary:
+      'The Bible is now somewhere to sit and read, in Tagalog, and it opens where you left off. Attendance for a meeting is kept in one place at last.',
+    highlights: [
+      'Open Bible and carry on from the chapter you were last in — on your phone, on a laptop, wherever you sign in.',
+      'Search for a phrase and it finds the verse, whether or not you type the accents and curly quotes the way the text prints them.',
+      'A meeting marked off on its minute now shows as recorded on the Attendance page too, and a committee is counted out of its own members rather than the whole church.',
+      'A count taken against the wrong Sunday can be deleted, and one date of a weekly service can be taken off the calendar without stopping the rest.',
+      'A person’s record now opens with their turnout and their next birthday, and the gatherings they have been to are grouped by month.',
+    ],
+  },
+  {
     version: '0.19.0',
     date: '2026-09-12',
     title: 'Minutes you can write in',

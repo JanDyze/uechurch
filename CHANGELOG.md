@@ -11,6 +11,60 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.20.0] — 2026-09-13
+
+The Bible arrives as somewhere to read, and a meeting's attendance stops being
+kept in two places that disagreed.
+
+### Added
+- **A Bible reader.** `/bible` opens the Tagalog translation as a book to read
+  rather than a verse to look up: a chapter of text, a way to the next one, and
+  a picker and a search folded away until they are asked for. Both the reader
+  and the Presentation page go through the same cached books, so a passage
+  found in one is already loaded in the other.
+- **It remembers where you were.** Bare `/bible` means "carry on", against the
+  account rather than the device — a phone and a laptop agree about where you
+  are up to, and the office tablet does not hand the last reader's place to the
+  next one. The full form, `/bible/juan/3`, is what a reference shared with
+  somebody else looks like.
+- **Search that matches what was typed against what is printed.** Case, the
+  accents this translation sets on a handful of words, and its curly quotes are
+  all folded away, so "kaya't" typed with a straight apostrophe finds the verse.
+  The scope is the reader's choice — this book is instant and offline, all
+  sixty-six is five megabytes it asks for and reports progress through.
+- **One date of a weekly service can be deleted.** Not the same answer as
+  calling it off: calling off leaves the date on the calendar struck through,
+  deleting takes it away, and the schedule carries on either way.
+- **An attendance count can be deleted.** The gathering stays; what goes is the
+  record of who was there, and it returns to the list ready to record again —
+  which is also the way out of a count taken against the wrong Sunday.
+
+### Fixed
+- **A meeting whose register had been taken read "Not recorded".** Attendance
+  for a meeting is marked on the minute as people arrive, and the Attendance
+  page was separately writing its own document for the same meeting: two stores
+  for one fact with no rule about which spoke for it. Meetings now live on their
+  minute, everything else in the attendance collection, and one place decides
+  which of the two a row comes from. A correction made on either screen reaches
+  both.
+- **A committee meeting was counted out of the whole church.** A meeting names
+  its group as a tag *or* a ministry — a church files "Council" as one and
+  "Ushers" as the other — and only the minute's own drawer knew that. The
+  council's monthly meeting was landing on everyone else's record as an absence;
+  it is now counted out of the nine people it is for, by the same rule on every
+  screen.
+- **A person's record had a hole in it exactly where the meetings were**, and
+  a Sunday service marked "everyone except the kids" could still show against a
+  child. Who a gathering was for is now asked of the event or schedule itself
+  rather than of the tags copied down the day it was saved, so narrowing an
+  event narrows last month's record with it.
+- **The month's attendance figures left every meeting out.** "Recorded" meant
+  "came from the attendance collection", which a meeting never does.
+
+### Changed
+- **A person's attendance history is grouped by month**, and their record leads
+  with the few figures worth having — turnout, ministries, the next birthday.
+
 ## [0.19.0] — 2026-09-12
 
 The minutes become a document you write in during the meeting, and a gathering

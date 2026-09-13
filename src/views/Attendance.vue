@@ -11,6 +11,7 @@ import { useToast } from '../composables/useToast'
 import AttendanceSummary from '../components/attendance/AttendanceSummary.vue'
 import AttendanceListItem from '../components/attendance/AttendanceListItem.vue'
 import EventStatusSheet from '../components/events/EventStatusSheet.vue'
+import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 
 // No toolbar, and no add button either. Attendance follows the calendar rather
 // than the other way round: a gathering is created on Events or in Settings,
@@ -22,7 +23,8 @@ const router = useRouter()
 const toast = useToast()
 const { canManage } = usePermissions()
 
-const { aggregatedAttendance, loading, skipRecording, resumeRecording } = useAttendance()
+const { aggregatedAttendance, loading, skipRecording, resumeRecording, removeAttendance } =
+  useAttendance()
 const { members } = useMembers()
 const { setStatus } = useEventStatus()
 
@@ -156,6 +158,42 @@ const skipRow = async () => {
   }
 }
 
+// Deleting the count itself, which is nothing like calling a gathering off:
+// the gathering happened, what goes is the record of who was there. It returns
+// to the list as "Not recorded", ready to be done again — so this is also the
+// way out of a count taken against the wrong Sunday.
+const pendingDelete = ref(null)
+const showConfirmDelete = ref(false)
+
+const askDelete = (record) => {
+  if (!canManage('attendance')) return
+  pendingDelete.value = record
+  showConfirmDelete.value = true
+}
+
+// Built here rather than inline: a `:message="..."` attribute cannot hold a
+// straight double quote, and ConfirmationModal renders text, not HTML.
+const confirmDeleteMessage = computed(() => {
+  const row = pendingDelete.value
+  const title = row?.eventTitle || 'this gathering'
+  const when = row?.date ? ` on ${row.date}` : ''
+  return `Delete the attendance recorded for "${title}"${when}? Everyone marked is wiped and it goes back to the list ready to record again. The gathering itself is untouched.`
+})
+
+const deleteRow = async () => {
+  const row = pendingDelete.value
+  if (!row) return
+  try {
+    await removeAttendance(row)
+    toast.success('Attendance deleted')
+  } catch (error) {
+    console.error('Error deleting attendance:', error)
+    toast.error('Could not delete that. Please try again.')
+  } finally {
+    pendingDelete.value = null
+  }
+}
+
 const unskipRow = async () => {
   const row = statusTarget.value
   if (!row || marking.value) return
@@ -235,9 +273,11 @@ const unskipRow = async () => {
               :key="record.id"
               :record="record"
               :members="members"
+              :can-manage="canManage('attendance')"
               @record-attendance="handleRecordAttendance(record)"
               @edit-attendance="handleEditAttendance(record)"
               @mark="openStatusSheet(record)"
+              @delete="askDelete(record)"
             />
           </template>
         </div>
@@ -257,6 +297,17 @@ const unskipRow = async () => {
       @apply="applyStatus"
       @skip="skipRow"
       @unskip="unskipRow"
+    />
+
+    <ConfirmationModal
+      :show="showConfirmDelete"
+      title="Delete attendance"
+      :message="confirmDeleteMessage"
+      confirm-text="Delete"
+      cancel-text="Keep"
+      confirm-button-class="bg-red-600 text-white hover:bg-red-700"
+      @update:show="showConfirmDelete = $event"
+      @confirm="deleteRow"
     />
   </div>
 </template>

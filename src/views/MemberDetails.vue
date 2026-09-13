@@ -25,6 +25,8 @@ import { usePermissions } from '../composables/usePermissions'
 import { useMemberAttendance } from '../composables/useMemberAttendance'
 import {
   getFullName,
+  getSexIcon,
+  getSexIconColor,
   calculateAgeFromDate,
   mergeTagSources,
   missingMemberFields,
@@ -56,10 +58,11 @@ const canEdit = computed(() => canManage('members'))
 const isEditMode = ref(false)
 const showImageCropper = ref(false)
 
-// The header only says the name once the cover carrying it has scrolled away.
+// The bar only says the name once the heading carrying it has scrolled past,
+// so the first screen does not print it twice.
 const scrolled = ref(false)
 const onScroll = (e) => {
-  scrolled.value = e.target.scrollTop > 96
+  scrolled.value = e.target.scrollTop > 72
 }
 
 const member = computed(() => {
@@ -114,7 +117,8 @@ const allTags = computed(() => {
 const gaps = computed(() => (localMember.value ? missingMemberFields(localMember.value) : []))
 
 /* ------------------------------------------------------------- attendance */
-const { history, counted, presentCount, unrecordedCount } = useMemberAttendance(localMember)
+const { history, byMonth, counted, presentCount, unrecordedCount } =
+  useMemberAttendance(localMember)
 
 const ATTENDANCE_STYLE = {
   present: 'bg-green-500 dark:bg-green-500',
@@ -125,11 +129,10 @@ const ATTENDANCE_STYLE = {
 
 const stateWord = { present: 'Came', absent: 'Did not come', unrecorded: 'Not recorded' }
 
-const shortDate = (iso) => {
+/** Just the day — the month is already the heading above it. */
+const dayOf = (iso) => {
   const d = new Date(iso)
-  return Number.isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  return Number.isNaN(d.getTime()) ? iso : String(d.getDate())
 }
 
 /* ----------------------------------------------------------------- record */
@@ -153,6 +156,78 @@ const dialable = (value) => {
   const cleaned = String(value || '').replace(/[^\d+]/g, '')
   return cleaned.length >= 4 ? cleaned : ''
 }
+
+/**
+ * The sign beside the name, in the blue and pink the avatar ring already uses.
+ * `getSexIcon` answers "♀" for anything that is not "Male" — blanks included —
+ * so it is only asked once the record actually says.
+ */
+const sexMark = computed(() => {
+  const sex = localMember.value?.sex
+  if (sex !== 'Male' && sex !== 'Female') return null
+  return { glyph: getSexIcon(sex), color: getSexIconColor(sex), label: sex }
+})
+
+/**
+ * The next birthday, said the way you would say it.
+ *
+ * A countdown is only worth reading while it is short. "361 days" under the
+ * word "Birthday" parses as a number of birthdays before it parses as a wait,
+ * and by then you have read it twice. So a birthday that is close counts down
+ * and a birthday that is far off just gives the date, which is what you were
+ * going to ask for anyway.
+ */
+const nextBirthday = computed(() => {
+  const iso = localMember.value?.dateOfBirth
+  if (!iso) return null
+  const dob = new Date(iso)
+  if (Number.isNaN(dob.getTime())) return null
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const next = new Date(today.getFullYear(), dob.getMonth(), dob.getDate())
+  if (next < today) next.setFullYear(next.getFullYear() + 1)
+
+  const days = Math.round((next - today) / 86400000)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  if (days <= 30) return `In ${days} days`
+  return next.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+})
+
+/** Of the gatherings a register was kept for, how many they came to. */
+const attendanceRate = computed(() => {
+  if (!counted.value.length) return null
+  return Math.round((presentCount.value / counted.value.length) * 100)
+})
+
+/**
+ * What goes where the cover photo was. Only the ones that have something to
+ * say are drawn, so a thin record gets a short row rather than a row of
+ * zeroes and dashes.
+ */
+const headlineStats = computed(() => {
+  const out = []
+  if (attendanceRate.value !== null) {
+    out.push({
+      key: 'attendance',
+      value: `${attendanceRate.value}%`,
+      label: 'Attendance',
+    })
+  }
+  const ministries = (localMember.value?.ministries || []).length
+  if (ministries) {
+    out.push({
+      key: 'ministries',
+      value: ministries,
+      label: ministries === 1 ? 'Ministry' : 'Ministries',
+    })
+  }
+  if (nextBirthday.value) {
+    out.push({ key: 'birthday', value: nextBirthday.value, label: 'Birthday' })
+  }
+  return out
+})
 
 /**
  * The line under the name — nickname, standing, age, all the things that were
@@ -200,6 +275,8 @@ const about = computed(() => {
     {
       key: 'sex',
       icon: User,
+      // Same blue and pink as the mark beside the name, so the two agree.
+      iconClass: m.sex === 'Male' || m.sex === 'Female' ? getSexIconColor(m.sex) : '',
       text: [m.sex, m.civilStatus].filter(Boolean).join(' · '),
       missing: 'Sex not set',
     },
@@ -335,16 +412,16 @@ const handleImageUpdate = async (base64Image) => {
         v-if="member && canEdit"
         @click="isEditMode = !isEditMode"
         :aria-label="isEditMode ? 'Done editing' : 'Edit this profile'"
+        :title="isEditMode ? 'Done' : 'Edit'"
         :class="[
-          'flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+          'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors',
           isEditMode
             ? 'bg-primary text-white hover:bg-primary-hover'
             : 'border border-gray-200 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700',
         ]"
       >
-        <Check v-if="isEditMode" class="h-4 w-4" />
-        <Edit2 v-else class="h-4 w-4" />
-        {{ isEditMode ? 'Done' : 'Edit' }}
+        <Check v-if="isEditMode" class="h-4.5 w-4.5" />
+        <Edit2 v-else class="h-4.5 w-4.5" />
       </button>
     </header>
 
@@ -374,59 +451,91 @@ const handleImageUpdate = async (base64Image) => {
       class="flex-1 overflow-y-auto pb-[calc(2rem+env(safe-area-inset-bottom))]"
     >
       <div class="mx-auto w-full max-w-2xl space-y-3 pb-3 sm:px-4 sm:pt-3">
-        <!-- ============ Cover + identity ============ -->
+        <!-- ============ Identity ============ -->
+        <!-- No cover strip. A cover is a photograph somebody chose, and nobody
+             here is going to choose one — an empty gradient band was a tenth of
+             a phone screen spent saying nothing. The space under the name goes
+             to the three things you actually come here asking. -->
         <section
-          class="overflow-hidden border-b border-gray-200 bg-white sm:rounded-2xl sm:border dark:border-gray-700 dark:bg-gray-800"
+          class="border-b border-gray-200 bg-white px-4 py-4 sm:rounded-2xl sm:border dark:border-gray-700 dark:bg-gray-800"
         >
-          <div class="h-24 bg-linear-to-br from-primary/30 via-primary/15 to-transparent sm:h-28 dark:from-primary-light/25 dark:via-primary-light/10"></div>
-
-          <div class="px-4 pb-4">
-            <!-- The avatar rides the cover's edge, the way a profile does. -->
-            <div class="-mt-12 flex items-end justify-between gap-3">
-              <div class="relative shrink-0">
-                <MemberAvatar
-                  :member="localMember"
-                  size="h-24 w-24"
-                  plain-class="border-4 border-white dark:border-gray-800 shadow-lg"
-                />
-                <!-- Always drawn, not revealed on hover: there is no hover on a
-                     phone, and this was the only way to change a photo. -->
-                <button
-                  v-if="canEdit"
-                  @click="showImageCropper = true"
-                  aria-label="Change photo"
-                  class="absolute bottom-0.5 right-0.5 rounded-full border-2 border-white bg-primary p-1.5 text-white shadow-md transition-colors hover:bg-primary-hover dark:border-gray-800"
-                >
-                  <Camera class="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <YouBadge :member="localMember" class="mb-1" />
-            </div>
-
-            <h1 class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">
-              {{ getFullName(localMember) }}
-            </h1>
-            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              <template v-for="(part, i) in introParts" :key="i">
-                <span v-if="i" class="px-1 text-gray-300 dark:text-gray-600">·</span>{{ part }}
-              </template>
-            </p>
-
-            <div
-              v-if="contactActions.length"
-              class="mt-3 grid gap-2"
-              :style="{ gridTemplateColumns: `repeat(${contactActions.length}, minmax(0, 1fr))` }"
-            >
-              <a
-                v-for="action in contactActions"
-                :key="action.key"
-                :href="action.href"
-                class="flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+          <div class="flex items-start gap-4">
+            <div class="relative shrink-0">
+              <MemberAvatar
+                :member="localMember"
+                size="h-20 w-20"
+                plain-class="border-2 border-white dark:border-gray-700 shadow-md"
+              />
+              <!-- Always drawn, not revealed on hover: there is no hover on a
+                   phone, and this was the only way to change a photo. -->
+              <button
+                v-if="canEdit"
+                @click="showImageCropper = true"
+                aria-label="Change photo"
+                class="absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-white bg-primary p-1.5 text-white shadow-md transition-colors hover:bg-primary-hover dark:border-gray-800"
               >
-                <component :is="action.icon" class="h-4 w-4 shrink-0" />
-                {{ action.label }}
-              </a>
+                <Camera class="h-3.5 w-3.5" />
+              </button>
             </div>
+
+            <div class="min-w-0 flex-1">
+              <div class="flex items-start gap-2">
+                <h1 class="min-w-0 flex-1 text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">
+                  {{ getFullName(localMember) }}
+                </h1>
+                <!-- Only when the record says so. The helper answers "female"
+                     for a blank, which would put a sign on every record nobody
+                     has filled in yet. -->
+                <span
+                  v-if="sexMark"
+                  :class="['shrink-0 text-2xl leading-none', sexMark.color]"
+                  :title="sexMark.label"
+                >
+                  {{ sexMark.glyph }}
+                  <span class="sr-only">{{ sexMark.label }}</span>
+                </span>
+              </div>
+              <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                <template v-for="(part, i) in introParts" :key="i">
+                  <span v-if="i" class="px-1 text-gray-300 dark:text-gray-600">·</span>{{ part }}
+                </template>
+              </p>
+              <YouBadge :member="localMember" class="mt-1.5" />
+            </div>
+          </div>
+
+          <!-- Three facts worth the space a cover photo was taking. -->
+          <div
+            v-if="headlineStats.length"
+            class="mt-4 grid gap-2"
+            :style="{ gridTemplateColumns: `repeat(${headlineStats.length}, minmax(0, 1fr))` }"
+          >
+            <div
+              v-for="stat in headlineStats"
+              :key="stat.key"
+              class="rounded-xl bg-gray-50 px-2 py-2 text-center dark:bg-gray-700/40"
+            >
+              <p class="truncate text-sm font-bold tabular-nums text-gray-900 dark:text-white">
+                {{ stat.value }}
+              </p>
+              <p class="truncate text-[11px] text-gray-500 dark:text-gray-400">{{ stat.label }}</p>
+            </div>
+          </div>
+
+          <div
+            v-if="contactActions.length"
+            class="mt-3 grid gap-2"
+            :style="{ gridTemplateColumns: `repeat(${contactActions.length}, minmax(0, 1fr))` }"
+          >
+            <a
+              v-for="action in contactActions"
+              :key="action.key"
+              :href="action.href"
+              class="flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+            >
+              <component :is="action.icon" class="h-4 w-4 shrink-0" />
+              {{ action.label }}
+            </a>
           </div>
         </section>
 
@@ -471,39 +580,53 @@ const handleImageUpdate = async (base64Image) => {
               </p>
             </div>
 
-            <!-- Oldest on the left, so it reads as time passing. -->
-            <div class="flex flex-wrap gap-1.5">
+            <!-- Each gathering says which one it was. The squares alone
+                 needed a tooltip to be read, and a phone has no hover. -->
+            <div class="space-y-3">
+              <div v-for="month in byMonth" :key="month.key">
+                <p
+                  class="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500"
+                >
+                  {{ month.label }}
+                </p>
+                <ul class="space-y-1">
+                  <li
+                    v-for="item in month.items"
+                    :key="item.key"
+                    class="flex items-center gap-2.5"
+                  >
+                    <span
+                      :class="['h-4 w-4 shrink-0 rounded', ATTENDANCE_STYLE[item.state]]"
+                      role="img"
+                      :aria-label="stateWord[item.state]"
+                    ></span>
+                    <span class="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-white">
+                      {{ item.title }}
+                    </span>
+                    <span
+                      class="shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500"
+                    >
+                      {{ dayOf(item.date) }}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Green and red speak for themselves; the hollow one does not,
+                 and it is the one that matters. A head count says how many
+                 came, never who, so those are shown but never counted. -->
+            <p
+              v-if="unrecordedCount"
+              class="mt-3 flex items-start gap-2 text-[11px] text-gray-400 dark:text-gray-500"
+            >
               <span
-                v-for="item in [...history].reverse()"
-                :key="item.key"
-                :title="`${shortDate(item.date)} — ${item.title} (${item.audience}): ${stateWord[item.state]}`"
-                :class="['h-6 w-6 shrink-0 rounded-md', ATTENDANCE_STYLE[item.state]]"
-              >
-                <span class="sr-only">
-                  {{ shortDate(item.date) }} {{ item.title }}: {{ stateWord[item.state] }}
-                </span>
+                class="mt-0.5 h-3 w-3 shrink-0 rounded border border-dashed border-gray-300 dark:border-gray-600"
+              ></span>
+              <span>
+                {{ unrecordedCount === 1 ? 'One was' : `${unrecordedCount} were` }} counted as a
+                head count only, so nobody's name was written down.
               </span>
-            </div>
-
-            <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-gray-500 dark:text-gray-400">
-              <span class="inline-flex items-center gap-1.5">
-                <span class="h-3 w-3 rounded bg-green-500"></span>Came
-              </span>
-              <span class="inline-flex items-center gap-1.5">
-                <span class="h-3 w-3 rounded bg-red-400 dark:bg-red-500"></span>Did not come
-              </span>
-              <span v-if="unrecordedCount" class="inline-flex items-center gap-1.5">
-                <span class="h-3 w-3 rounded border border-dashed border-gray-300 dark:border-gray-600"></span>
-                No register kept
-              </span>
-            </div>
-
-            <!-- Said plainly, because a hollow square is easy to read as a
-                 fourth kind of absence. A head count says how many came, never
-                 who — those gatherings can be shown but never counted. -->
-            <p v-if="unrecordedCount" class="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
-              {{ unrecordedCount }} of these were counted as a head count only, so nobody's name
-              was written down.
             </p>
           </section>
 
@@ -518,7 +641,10 @@ const handleImageUpdate = async (base64Image) => {
               <div v-for="fact in about" :key="fact.key" class="flex items-start gap-3">
                 <component
                   :is="fact.icon"
-                  class="mt-0.5 h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500"
+                  :class="[
+                    'mt-0.5 h-4 w-4 shrink-0',
+                    fact.iconClass || 'text-gray-400 dark:text-gray-500',
+                  ]"
                 />
                 <p
                   :class="[

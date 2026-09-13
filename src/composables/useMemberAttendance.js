@@ -1,18 +1,34 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { subscribeToAttendance } from '../api/attendanceService'
-import { audienceLabel, audienceTagsOf, excludeTagsOf, membersInAudience } from '../utils/audience'
+import { useMinutes } from './useMinutes'
+import { useEvents } from './useEvents'
+import { useRecurringSchedules } from './useRecurringSchedules'
+import {
+  audienceLabel,
+  audienceTagsOf,
+  excludeTagsOf,
+  membersInAudience,
+  meetingTagOptions,
+  meetingTagOf,
+  carriesTag,
+} from '../utils/audience'
 import { isCalledOff } from '../../lib/eventStatus'
+import { mergeAttendanceRecords, ATTENDANCE_SOURCES } from '../../lib/attendance'
 
 /**
  * One person's turnout, for the gatherings they were actually expected at.
  *
- * This subscribes to the attendance collection directly rather than going
- * through useAttendance(). That composable answers a different question — what
- * still needs recording — and to do it, it pulls events, minutes, the roster
- * and the recurring schedules, which is five Firestore listeners for a page
- * that wants one. Everything needed here is already on the record itself: the
- * audience tags are copied onto it when it is saved, precisely so it can still
- * be read after the event behind it is gone.
+ * This reads the two stores attendance actually lives in — the collection, and
+ * the minutes, where a meeting's register is written and never copied. A
+ * profile that read only the collection had a hole in it exactly where the
+ * meetings were.
+ *
+ * The events and schedules are asked too, and only about one thing: who the
+ * gathering was for. The tags copied onto a record are a snapshot of the day it
+ * was saved, and they are the fallback rather than the answer — a record
+ * written before the event was narrowed, or through the MCP connector, which
+ * saves a head count and no audience at all, would otherwise put a Sunday
+ * service on the profile of a child the service explicitly excludes.
  *
  * "Expected" is the same rule the rest of the app counts by (utils/audience.js):
  * a gathering names the member tags it is for, and naming none means everyone.
@@ -37,13 +53,21 @@ import { isCalledOff } from '../../lib/eventStatus'
 export function useMemberAttendance(member, options = {}) {
   const { limit = 14 } = options
 
-  const records = ref([])
+  const documents = ref([])
   const loading = ref(true)
   let unsubscribe = null
 
+  const { minutes } = useMinutes()
+  const { events } = useEvents()
+  const { schedules } = useRecurringSchedules()
+
+  // One row per gathering, whichever store holds it — lib/attendance.js is the
+  // only place that decides which one speaks for a meeting.
+  const records = computed(() => mergeAttendanceRecords(documents.value, minutes.value))
+
   onMounted(() => {
     unsubscribe = subscribeToAttendance((rows) => {
-      records.value = rows
+      documents.value = rows
       loading.value = false
     })
   })
@@ -53,6 +77,30 @@ export function useMemberAttendance(member, options = {}) {
   })
 
   const sameId = (a, b) => String(a) === String(b)
+
+  /**
+   * Who a gathering was for, asked of whatever still exists: the event or the
+   * schedule it was recorded against first, and only then the tags copied onto
+   * the record itself. The same order the Attendance list reads them in, so a
+   * person's profile and the list cannot disagree about who a gathering was
+   * ever meant for.
+   *
+   * This is what makes "everyone except the kids" hold on a profile: narrow an
+   * event today and last month's record narrows with it, instead of standing
+   * on whatever was true the day somebody wrote it down.
+   */
+  const audienceOf = (record) => {
+    const id = record?.sourceId
+    if (id && record.source === ATTENDANCE_SOURCES.EVENT) {
+      const event = (events.value || []).find((e) => sameId(e.firestoreId || e.id, id))
+      if (event) return event
+    }
+    if (id && record.source === ATTENDANCE_SOURCES.SCHEDULE) {
+      const schedule = (schedules.value || []).find((s) => sameId(s.id, id))
+      if (schedule) return schedule
+    }
+    return record
+  }
 
   const isOnRegister = (record, m) => {
     const ids = Array.isArray(record.attendees) ? record.attendees : []
@@ -79,20 +127,81 @@ export function useMemberAttendance(member, options = {}) {
       .filter((record) => {
         if (!record?.date || record.date > today) return false
         if (record.skipped || isCalledOff(record)) return false
-        return membersInAudience([m], audienceTagsOf(record), excludeTagsOf(record)).length > 0
+        if (record.source === ATTENDANCE_SOURCES.MINUTE) {
+          // The meeting's group, read the way every other screen reads it
+          // (utils/audience.js). The vocabulary offered is only this person's
+          // own tags and ministries, which is all that is needed to answer
+          // "was this meeting theirs?" without pulling the whole roster into
+          // a profile page.
+          const tag = meetingTagOf(record, meetingTagOptions([m]))
+          // And a meeting naming no group at all is about the people who were
+          // in the room and nobody else: reading it as "everyone" would mark
+          // the whole church absent from a committee they were never asked to.
+          return tag ? carriesTag(m, tag) : isOnRegister(record, m)
+        }
+        const audience = audienceOf(record)
+        if (membersInAudience([m], audienceTagsOf(audience), excludeTagsOf(audience)).length) {
+          return true
+        }
+        // Outside the audience — most often left out by name, "everyone except
+        // the kids". The gathering is not theirs and an absence against it
+        // would be a reproach for missing something they were not asked to.
+        // Unless they were ticked present: then they were in the room, and
+        // that is a fact about them whatever the tags say.
+        return isOnRegister(record, m)
       })
       .sort((a, b) => String(b.date).localeCompare(String(a.date)))
       .slice(0, limit)
       .map((record) => {
         const hasRegister = Array.isArray(record.attendees) && record.attendees.length > 0
+        const audience = audienceOf(record)
+        const tags = audienceTagsOf(audience)
         return {
           key: record.firestoreId || record.id || `${record.date}-${record.eventTitle}`,
           date: record.date,
           title: record.eventTitle || 'Gathering',
-          audience: audienceLabel(audienceTagsOf(record), excludeTagsOf(record)),
+          // "Everyone" is the right word for a gathering that names no tags,
+          // and the wrong one for a meeting: it is on this profile either
+          // because of the group it is for, or because this person was in the
+          // room.
+          audience:
+            record.source === ATTENDANCE_SOURCES.MINUTE
+              ? meetingTagOf(record, meetingTagOptions([m])) || 'Those present'
+              : audienceLabel(tags, excludeTagsOf(audience)),
           state: !hasRegister ? 'unrecorded' : isOnRegister(record, m) ? 'present' : 'absent',
         }
       })
+  })
+
+  /**
+   * The same list under month headings, newest month first. The year is only
+   * spelled out when it is not this one — "September" reads as this September,
+   * and "September 2025" is the one that needs saying.
+   */
+  const byMonth = computed(() => {
+    const thisYear = new Date().getFullYear()
+    const sections = []
+    let current = null
+
+    history.value.forEach((item) => {
+      const d = new Date(item.date)
+      if (Number.isNaN(d.getTime())) return
+      const key = `${d.getFullYear()}-${d.getMonth()}`
+      if (!current || current.key !== key) {
+        current = {
+          key,
+          label: d.toLocaleDateString(undefined, {
+            month: 'long',
+            ...(d.getFullYear() === thisYear ? {} : { year: 'numeric' }),
+          }),
+          items: [],
+        }
+        sections.push(current)
+      }
+      current.items.push(item)
+    })
+
+    return sections
   })
 
   /** Only the gatherings a register was kept for can be counted. */
@@ -102,5 +211,5 @@ export function useMemberAttendance(member, options = {}) {
     () => history.value.filter((h) => h.state === 'unrecorded').length
   )
 
-  return { history, counted, presentCount, unrecordedCount, loading }
+  return { history, byMonth, counted, presentCount, unrecordedCount, loading }
 }

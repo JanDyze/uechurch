@@ -25,6 +25,12 @@ onUnmounted(stopPresence)
 // it strands whoever opens it.
 const route = useRoute()
 const isFocus = computed(() => Boolean(route.meta?.focus))
+
+// A page that puts up its own header does not want the app's as well: two
+// stacked bars, the top one saying "Bible" over a row already saying "Juan 3".
+// Narrower than `focus` on purpose — the sidebar and the bottom bar stay, so
+// the page is still somewhere you browse from rather than a task you finish.
+const hidesTopbar = computed(() => Boolean(route.meta?.hideTopbar))
 </script>
 
 <template>
@@ -35,7 +41,7 @@ const isFocus = computed(() => Boolean(route.meta?.focus))
     <!-- Main content area -->
     <div class="flex-1 min-w-0 flex flex-col overflow-hidden lg:ml-0 print-main">
       <!-- Topbar -->
-      <Topbar v-if="!isFocus" />
+      <Topbar v-if="!isFocus && !hidesTopbar" />
 
       <!-- Main content -->
       <main

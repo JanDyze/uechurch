@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Calendar,
   ClipboardCheck,
   FileText,
@@ -161,6 +162,14 @@ export const NAV_GROUPS = [
         icon: ProjectorScreen,
         capability: 'lineups.view',
         description: 'Put the songs and readings on the screen while the service runs.',
+      },
+      // No capability: every signed-in account may read Scripture, so this is
+      // the one entry the ministry tags have nothing to say about.
+      {
+        name: 'Bible',
+        path: '/bible',
+        icon: BookOpen,
+        description: 'Read the Bible in Tagalog, and find a verse by reference or by what it says.',
       },
       {
         name: 'Minutes',
