@@ -1,14 +1,13 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronDown } from '../icons'
 import { useAttendance } from '../composables/useAttendance'
 import { useAttendanceStats } from '../composables/useAttendanceStats'
 import { useMembers } from '../composables/useMembers'
 import { usePermissions } from '../composables/usePermissions'
 import { useEventStatus } from '../composables/useEventStatus'
 import { useToast } from '../composables/useToast'
-import AttendanceSummary from '../components/attendance/AttendanceSummary.vue'
+import AttendanceWarnings from '../components/attendance/AttendanceWarnings.vue'
 import AttendanceListItem from '../components/attendance/AttendanceListItem.vue'
 import EventStatusSheet from '../components/events/EventStatusSheet.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
@@ -17,7 +16,7 @@ import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 // than the other way round: a gathering is created on Events or in Settings,
 // and this page is where its turnout gets written down. Everything past and
 // unrecorded is already sitting in the list, so there is nothing here to
-// invent — the summary's amber line is the way in to the oldest of them.
+// invent — the amber warning is the way in to the oldest of them.
 
 const router = useRouter()
 const toast = useToast()
@@ -30,27 +29,8 @@ const { setStatus } = useEventStatus()
 
 const { stats } = useAttendanceStats(aggregatedAttendance, members)
 
-// Whether the summary is worth its height is a per-person judgement, so it is
-// remembered per device rather than decided here. Same key shape as People.
-const SUMMARY_KEY = 'uec.attendance.showSummary'
-const readSummary = () => {
-  try {
-    return localStorage.getItem(SUMMARY_KEY) !== '0'
-  } catch {
-    return true
-  }
-}
-const showSummary = ref(readSummary())
-watch(showSummary, (on) => {
-  try {
-    localStorage.setItem(SUMMARY_KEY, on ? '1' : '0')
-  } catch {
-    /* the preference lasts the session */
-  }
-})
-
 // Grouped on the raw 'YYYY-MM' prefix rather than a parsed Date, for the same
-// reason the summary is: `new Date('2026-08-01')` is UTC midnight and would
+// reason the warnings are: `new Date('2026-08-01')` is UTC midnight and would
 // file the first of the month under the previous one west of Greenwich. The
 // two have to agree, or "this month" would report on a different set of
 // gatherings than the month header directly beneath it.
@@ -212,30 +192,18 @@ const unskipRow = async () => {
 
 <template>
   <div class="relative flex h-full flex-col">
-    <!-- A column, so the summary sits above the scroller rather than inside
-         it: a summary that scrolls away is only a summary for the first
+    <!-- A column, so the warnings sit above the scroller rather than inside
+         it: a warning that scrolls away is only a warning for the first
          screenful. -->
     <div
       class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
     >
-      <Transition name="summary">
-        <AttendanceSummary
-          v-if="showSummary"
-          :stats="stats"
-          :loading="loading"
-          :can-record="canManage('attendance')"
-          @hide="showSummary = false"
-          @record="(key) => openRecorder({ key })"
-        />
-      </Transition>
-      <button
-        v-if="!showSummary"
-        @click="showSummary = true"
-        class="flex w-full shrink-0 items-center justify-center gap-1.5 border-b border-gray-200 py-2 text-[11px] font-semibold text-gray-400 transition-colors hover:text-gray-600 dark:border-gray-700 dark:hover:text-gray-300"
-      >
-        <ChevronDown class="h-3.5 w-3.5" />
-        Show summary
-      </button>
+      <AttendanceWarnings
+        v-if="!loading"
+        :stats="stats"
+        :can-record="canManage('attendance')"
+        @record="(key) => openRecorder({ key })"
+      />
 
       <div class="min-h-0 flex-1 overflow-y-auto pb-20">
         <div v-if="loading" class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -311,35 +279,3 @@ const unskipRow = async () => {
     />
   </div>
 </template>
-
-<style scoped>
-/* Collapsing summary: height and opacity together, from a fixed ceiling rather
-   than a measured one. The block is a headline, a reach line and an amber
-   prompt, so the tallest it gets is known without a JS hook. */
-.summary-enter-active,
-.summary-leave-active {
-  transition:
-    max-height 0.25s ease,
-    opacity 0.2s ease;
-  overflow: hidden;
-}
-
-.summary-enter-from,
-.summary-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-
-.summary-enter-to,
-.summary-leave-from {
-  max-height: 10rem;
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .summary-enter-active,
-  .summary-leave-active {
-    transition: none;
-  }
-}
-</style>

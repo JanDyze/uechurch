@@ -143,12 +143,19 @@ const routes = [
         component: () => import('../views/Present.vue')
       },
       {
-        // The month is optional: /lineups opens the current one, and the
-        // month-keyed form is what gets shared with the worship team.
-        path: 'lineups/:month?',
-        name: 'Lineups',
+        // The month is optional: /schedules opens the current one, and the
+        // month-keyed form is what gets shared with whoever is serving. The
+        // capability keeps its lineups name — it is what the grants say.
+        path: 'schedules/:month?',
+        name: 'Schedules',
         meta: { capability: 'lineups.view' },
-        component: () => import('../views/Lineups.vue')
+        component: () => import('../views/Schedules.vue')
+      },
+      {
+        // Lineups became Schedules. Old links live on in chats, bookmarks and
+        // the notification history, and every one of them should still land.
+        path: 'lineups/:month?',
+        redirect: (to) => ({ path: `/schedules${to.params.month ? `/${to.params.month}` : ''}` })
       },
       {
         // Both params optional: bare /bible means "carry on from where I was",
@@ -233,6 +240,12 @@ const routes = [
         name: 'Accounts',
         meta: { adminOnly: true },
         component: () => import('../views/Accounts.vue')
+      },
+      {
+        path: 'audit',
+        name: 'AuditLog',
+        meta: { adminOnly: true },
+        component: () => import('../views/AuditLog.vue')
       },
       {
         path: 'settings',

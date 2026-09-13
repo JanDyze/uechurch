@@ -1,25 +1,11 @@
-// Helpers for the monthly worship lineup: month arithmetic done on local
-// calendar dates (never UTC — an evening in Manila must not roll a service
-// back to Saturday), plus the song-key lookup that ties a lineup to the song
-// list.
-import { getDisplayName } from './memberUtils'
+// Helpers for the monthly schedule: month arithmetic done on local calendar
+// dates (never UTC — an evening in Manila must not roll a service back to
+// Saturday), who is on which role, and the song-key lookup that ties the
+// worship portion of a schedule to the song list.
+import { getDisplayName, getFullName } from './memberUtils'
 import { memberKey } from './sgUtils'
-
-/** Members serving in this ministry are offered as song leaders. */
-export const SONG_LEADER_MINISTRY = 'song leader'
-
-/**
- * The ministries a worship band is drawn from, lowercased for comparison.
- *
- * Song Leader and Instrumentalist, which between them are the band: whoever is
- * singing out front and whoever is playing. Both come from DEFAULT_MINISTRIES,
- * so a church that has never renamed anything has these already.
- *
- * A church that uses other names for these jobs registers them in Settings and
- * they will not match here. That is why the picker keeps a way out rather than
- * simply showing nobody.
- */
-export const WORSHIP_MINISTRIES = ['song leader', 'instrumentalist']
+import { assignmentsOf } from '../data/scheduleRoles'
+import { matchesQuery, parseQuery } from './search'
 
 const pad = (n) => String(n).padStart(2, '0')
 
@@ -100,35 +86,24 @@ export const monthKeyOfIso = (iso) => String(iso || '').slice(0, 7)
 
 export const isSunday = (iso) => parseIso(iso)?.getDay() === 0
 
-/** Members serving in any of the named ministries, case-insensitively. */
-const inMinistries = (members, names) =>
-  members
-    .filter((m) =>
-      (m.ministries || []).some((ministry) => names.includes(String(ministry).toLowerCase()))
-    )
-    .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)))
-
 /**
- * Members serving in the Song Leader ministry; everyone else stays out of the
- * picker.
+ * Whether somebody serves in any of a role's ministries — the people the
+ * picker offers first for that role.
  *
- * Ministries, not tags. Leading a service is a job somebody is rostered for,
- * and the ministry list is the controlled vocabulary that records it. This read
- * `tags` until the two fields were split, at which point every song leader
- * moved to `ministries` and the filter matched nobody — so the picker silently
- * fell back to listing the whole congregation.
- */
-export const songLeadersFrom = (members = []) => inMinistries(members, [SONG_LEADER_MINISTRY])
-
-/**
- * Members serving in a worship ministry — the pool a Sunday's band is picked
- * from, rather than the whole congregation.
+ * Ministries, not tags. Serving on a Sunday is a job somebody is rostered for,
+ * and the ministry list is the controlled vocabulary that records it. The song
+ * leader picker read `tags` until the two fields were split, at which point
+ * every song leader moved to `ministries` and the filter matched nobody. Tags
+ * are also free text anyone with member-edit rights can type, so reading them
+ * here would let a label spell its way onto the band.
  *
- * Same rule and the same reason as the song leaders above: ministries, never
- * tags. Tags are free text anyone with member-edit rights can type, so reading
- * them here would let a label spell its way onto the band.
+ * Case-insensitive, because a role names its ministries by hand in Settings.
  */
-export const worshipTeamFrom = (members = []) => inMinistries(members, WORSHIP_MINISTRIES)
+export const servesInRole = (member, role) => {
+  const wanted = (role?.ministries || []).map((m) => String(m).toLowerCase())
+  if (!wanted.length) return false
+  return (member?.ministries || []).some((m) => wanted.includes(String(m).toLowerCase()))
+}
 
 /**
  * The key this leader sings a song in, as recorded on the song list. Song
@@ -144,43 +119,130 @@ export const keyForLeader = (song, leaderId) => {
   return match ? match[1] : ''
 }
 
-/** Counted ids to named rows, busiest first. Shared by the two loads below. */
-const loadRows = (counts, members) =>
-  [...counts.entries()]
-    .map(([id, count]) => {
-      const member = members.find((m) => memberKey(m) === id || String(m.firestoreId) === id)
-      return { id, count, name: member ? getDisplayName(member) : 'Unknown', member }
-    })
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+/** A member by any id a roster might hold for them. */
+export const findRosterMember = (members = [], id) =>
+  members.find((m) => memberKey(m) === String(id) || String(m.firestoreId) === String(id)) || null
 
-/** How many Sundays each leader carries this month — the fairness check. */
-export const leaderLoad = (sundays = [], members = []) => {
-  const counts = new Map()
-  sundays.forEach((sunday) => {
-    const id = sunday?.leaderId
-    if (!id) return
-    counts.set(String(id), (counts.get(String(id)) || 0) + 1)
-  })
-  return loadRows(counts, members)
+/** The name a roster shows for somebody, including somebody since removed. */
+export const rosterName = (row) => (row?.member ? getDisplayName(row.member) : 'Former member')
+
+/**
+ * A service's roles in the church's order, each with the people on it.
+ *
+ * Only roles the church still has are returned. People on a role that has
+ * since been removed stay on the document (see toStoredSunday) but have no
+ * name to be shown under, so they wait there until the role comes back.
+ */
+export const serviceRoles = (sunday, roles = [], members = []) => {
+  const assignments = assignmentsOf(sunday)
+  return roles.map((role) => ({
+    role,
+    people: (assignments[role.id] || []).map((id) => ({
+      id,
+      member: findRosterMember(members, id),
+    })),
+  }))
 }
 
 /**
- * How many Sundays each band member plays this month.
+ * How many Sundays each person serves this month, and as what.
  *
- * The same fairness question as leaderLoad, asked of everyone who is not
- * holding the microphone — a lineup is a roster of people as much as it is a
- * list of songs, and the drummer playing four Sundays running is exactly the
- * thing a planner needs to see before publishing.
- *
- * A leader who also plays appears in both loads, which is the truth of it.
+ * The fairness check. It used to be two loads — who leads, who plays — but the
+ * question was always "is anyone being asked too often", and the usher on four
+ * Sundays running is as much the answer as the drummer is. Somebody leading
+ * and playing on the same Sunday counts once for that Sunday, with both roles
+ * listed, which is the truth of it.
  */
-export const bandLoad = (sundays = [], members = []) => {
-  const counts = new Map()
+export const servingLoad = (sundays = [], members = [], roles = []) => {
+  const byPerson = new Map()
   sundays.forEach((sunday) => {
-    ;(sunday?.teamIds || []).forEach((id) => {
-      if (!id) return
-      counts.set(String(id), (counts.get(String(id)) || 0) + 1)
+    const assignments = assignmentsOf(sunday)
+    const countedThisSunday = new Set()
+    roles.forEach((role) => {
+      ;(assignments[role.id] || []).forEach((id) => {
+        const row = byPerson.get(id) || { id, count: 0, roles: new Map() }
+        if (!countedThisSunday.has(id)) {
+          row.count += 1
+          countedThisSunday.add(id)
+        }
+        row.roles.set(role.name, (row.roles.get(role.name) || 0) + 1)
+        byPerson.set(id, row)
+      })
     })
   })
-  return loadRows(counts, members)
+  return [...byPerson.values()]
+    .map((row) => {
+      const member = findRosterMember(members, row.id)
+      return {
+        id: row.id,
+        count: row.count,
+        member,
+        name: rosterName({ member }),
+        roles: [...row.roles.entries()].map(([name, count]) => ({ name, count })),
+      }
+    })
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 }
+
+/**
+ * Whether a service answers a search, and why.
+ *
+ * One search bar in place of filters, so it has to reach everything a service
+ * is: the date, the theme, the songs, and every person on every role. Returns
+ * null for no match, otherwise the reasons worded for the row — "Ana ·
+ * Ushers", or a song title.
+ *
+ * Each person on a role is indexed as their own line alongside the service's
+ * date and songs, so "ana ushers" finds the Sundays Ana is ushering, not every
+ * Sunday that happens to have an Ana on the band and somebody on the door.
+ * Commas gather, as on every other search bar: "ana, ben" is either of them.
+ */
+export const scheduleMatches = (sunday, query, roles = [], members = []) => {
+  const groups = parseQuery(query)
+  if (!groups.length) return []
+
+  const songs = (sunday?.songs || []).map((s) => s.title).filter(Boolean)
+  const base = [
+    formatServiceDate(sunday?.date),
+    formatMonthLabel(monthKeyOfIso(sunday?.date)),
+    sunday?.theme,
+    ...songs,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  const lines = serviceRoles(sunday, roles, members).flatMap(({ role, people }) =>
+    people.map((person) => ({
+      text: [role.name, person.member && getFullName(person.member), person.member?.nickname]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase(),
+      label: `${rosterName(person)} · ${role.name}`,
+    }))
+  )
+
+  const reasons = new Set()
+  let matched = false
+
+  groups.forEach((terms) => {
+    const hits = lines.filter((line) => matchesQuery(`${base} ${line.text}`, [terms]))
+    // A line is named as the reason only when the person or role itself was
+    // searched for. Otherwise "september" would list everybody on the Sunday.
+    const named = hits.filter((line) => terms.some((term) => line.text.includes(term)))
+    if (named.length) {
+      matched = true
+      named.forEach((line) => reasons.add(line.label))
+      return
+    }
+    if (matchesQuery(base, [terms])) {
+      matched = true
+      songs
+        .filter((title) => terms.some((term) => title.toLowerCase().includes(term)))
+        .forEach((title) => reasons.add(title))
+    }
+  })
+
+  return matched ? [...reasons] : null
+}
+

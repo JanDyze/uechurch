@@ -6,7 +6,7 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-} from "firebase/firestore";
+} from './firestore';
 import { notify } from "./notifyService";
 import {
   EVENT_STATUS,

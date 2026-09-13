@@ -36,3 +36,9 @@ backups/
 # Scraped Bible translations (189 MB of publisher-copyrighted text plus the
 # HTML request cache). Regenerate with scripts/scrape_bible.py, never commit.
 data/bible/
+
+# Claude Code personal settings
+.claude/settings.local.json
+
+# Worktrees created for parallel agent work
+.claude/worktrees/

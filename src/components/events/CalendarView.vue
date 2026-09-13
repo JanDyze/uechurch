@@ -1,9 +1,17 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { ChevronLeft, ChevronRight, List, LayoutGrid } from '../../icons'
+import { ChevronDown, ChevronLeft, ChevronRight, List, LayoutGrid } from '../../icons'
 import { getEventIcon as getIconComponent, iconForEvent } from '../../utils/eventIcons'
-import { getEventTypeColor, getEventTypeDot } from '../../utils/eventColors'
+import {
+  getEventTypeColor,
+  getEventTypeDot,
+  CALLED_OFF_OUTLINE,
+  CALLED_OFF_TEXT,
+} from '../../utils/eventColors'
 import { isCalledOff, eventStatusSummary } from '../../../lib/eventStatus'
+import EventListItem from './EventListItem.vue'
+import EventBandHeader from './EventBandHeader.vue'
+import EventCardSkeleton from './EventCardSkeleton.vue'
 import philippineHolidays from '../../data/philippineHolidays.json'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
@@ -241,6 +249,10 @@ const agendaDays = computed(() => {
     .filter((entry) => entry.holiday || entry.events.length > 0)
 })
 
+// Short enough to share a strip with a count and a holiday on a phone.
+const agendaHeading = (day) =>
+  day.fullDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
 const getDayAriaLabel = (day) => {
   const parts = [
     day.fullDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
@@ -265,26 +277,32 @@ const handleDayKeydown = (event, day) => {
 
 <template>
   <div class="h-full flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-    <!-- Calendar Header -->
-    <div class="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-      <div class="flex items-center gap-2">
+    <!-- One slim strip, the way the People list has one: month on the left,
+         the view and Today on the right. It was a 72px bar with a filled Today
+         pill, which on a phone is height the grid's six weeks need more. -->
+    <div class="flex shrink-0 items-center gap-1 border-b border-gray-200 px-1.5 py-1.5 dark:border-gray-700 sm:px-2">
+      <div class="flex min-w-0 items-center">
         <button
           @click="emit('navigateMonth', 'prev')"
           aria-label="Previous month"
-          class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 active:scale-95 dark:text-gray-400 dark:hover:bg-gray-700"
         >
-          <ChevronLeft class="h-5 w-5 text-gray-600 dark:text-gray-300" />
+          <ChevronLeft class="h-5 w-5" />
         </button>
 
-        <!-- Clickable Month/Year with Picker -->
+        <!-- A fixed width, so the arrows either side stay under the thumb
+             while somebody taps through several months in a row. -->
         <div class="relative">
           <button
             @click="showMonthYearPicker = !showMonthYearPicker"
             aria-haspopup="dialog"
             :aria-expanded="showMonthYearPicker"
-            class="px-2 md:px-3 py-1 md:py-1.5 text-base md:text-lg font-semibold text-gray-900 dark:text-white min-w-35 md:min-w-50 text-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            class="flex h-9 w-40 items-center justify-center gap-1 rounded-lg px-1 text-base font-semibold text-gray-900 transition-colors hover:bg-gray-100 md:w-52 md:text-lg dark:text-white dark:hover:bg-gray-700"
           >
-            {{ currentMonth }}
+            <span class="truncate">{{ currentMonth }}</span>
+            <ChevronDown
+              :class="['h-4 w-4 shrink-0 text-gray-400 transition-transform', showMonthYearPicker ? 'rotate-180' : '']"
+            />
           </button>
 
           <!-- Month/Year Picker Dropdown -->
@@ -295,7 +313,7 @@ const handleDayKeydown = (event, day) => {
             aria-modal="true"
             aria-label="Choose month and year"
             tabindex="-1"
-            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4 z-50 w-72 max-w-[calc(100vw-2rem)]"
+            class="absolute top-full left-0 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-4 z-50 w-72 max-w-[calc(100vw-2rem)] sm:left-1/2 sm:-translate-x-1/2"
           >
             <!-- Year Selector -->
             <div class="mb-4">
@@ -339,7 +357,7 @@ const handleDayKeydown = (event, day) => {
                   :class="[
                     'px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                     currentMonthIndex === index
-                      ? 'bg-primary dark:bg-primary-light text-white'
+                      ? 'bg-primary text-white'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   ]"
                 >
@@ -353,25 +371,28 @@ const handleDayKeydown = (event, day) => {
         <button
           @click="emit('navigateMonth', 'next')"
           aria-label="Next month"
-          class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 active:scale-95 dark:text-gray-400 dark:hover:bg-gray-700"
         >
-          <ChevronRight class="h-5 w-5 text-gray-600 dark:text-gray-300" />
+          <ChevronRight class="h-5 w-5" />
         </button>
       </div>
-      <div class="flex items-center gap-1.5">
+      <div class="ml-auto flex shrink-0 items-center gap-0.5">
         <button
           @click="toggleAgendaView"
           :aria-pressed="showAgendaView"
           :aria-label="showAgendaView ? 'Switch to grid view' : 'Switch to agenda view'"
           :title="showAgendaView ? 'Grid view' : 'Agenda view'"
-          class="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
         >
           <LayoutGrid v-if="showAgendaView" class="h-5 w-5" />
           <List v-else class="h-5 w-5" />
         </button>
+        <!-- Text in the primary colour rather than a filled pill: it is a
+             jump, not the page's main action, and the floating button already
+             holds that. -->
         <button
           @click="emit('goToToday')"
-          class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          class="inline-flex h-9 items-center rounded-lg px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
         >
           Today
         </button>
@@ -390,104 +411,48 @@ const handleDayKeydown = (event, day) => {
     <!-- The agenda swipes between months too. A gesture that works in one of
          two views and silently does nothing in the other reads as broken; the
          vertical-scroll guard in useSwipePage keeps this list scrolling. -->
-    <div v-if="showAgendaView" :ref="swipeRef" class="flex-1 overflow-y-auto p-3 pb-20 md:p-4 md:pb-20 min-h-0">
-      <div v-if="loading" aria-hidden="true" class="space-y-2">
-        <div
-          v-for="i in 6"
-          :key="`agenda-skeleton-${i}`"
-          class="flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700"
-        >
-          <div class="h-12 w-12 shrink-0 rounded-lg bg-gray-200 dark:bg-gray-600 animate-pulse"></div>
-          <div class="flex-1 space-y-1.5">
-            <div class="h-3 w-1/3 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
-            <div class="h-3 w-2/3 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
-          </div>
-        </div>
+    <div v-if="showAgendaView" :ref="swipeRef" class="flex-1 overflow-y-auto pb-20 min-h-0">
+      <div v-if="loading" aria-hidden="true" class="space-y-1 p-2">
+        <EventCardSkeleton v-for="i in 6" :key="`agenda-skeleton-${i}`" />
       </div>
+      <!-- Laid out the way the People list is: a sticky heading for each day
+           and plain rows beneath it. It was a bordered card per day holding
+           filled chips, which made a busy month a wall of colour. The heading
+           still opens the day. -->
       <Transition v-else name="calendar-month" mode="out-in">
-        <div :key="currentMonth" role="list" :aria-label="`${currentMonth} agenda`" class="space-y-2">
-          <div
+        <div :key="currentMonth" role="list" :aria-label="`${currentMonth} agenda`">
+          <section
             v-for="entry in agendaDays"
             :key="entry.dateString"
             role="listitem"
-            :class="[
-              'rounded-lg border overflow-hidden transition-colors',
-              selectedDate === entry.dateString
-                ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                : isToday(entry.day.fullDate)
-                ? 'border-amber-400 dark:border-amber-500 bg-amber-50/60 dark:bg-amber-900/10'
-                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800',
-            ]"
           >
-            <button
-              type="button"
-              @click="emit('dayClick', entry.day)"
+            <EventBandHeader
+              clickable
+              :label="agendaHeading(entry.day)"
+              :count="entry.events.length || null"
+              :note="entry.holiday?.name || ''"
+              :highlight="isToday(entry.day.fullDate) || selectedDate === entry.dateString"
               :aria-label="getDayAriaLabel(entry.day)"
               :aria-current="isToday(entry.day.fullDate) ? 'date' : undefined"
-              :aria-pressed="selectedDate === entry.dateString ? 'true' : undefined"
-              class="w-full flex items-center gap-3 p-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-colors"
+              @click="emit('dayClick', entry.day)"
             >
-              <div
-                :class="[
-                  'flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg',
-                  isToday(entry.day.fullDate)
-                    ? 'bg-amber-500 text-white'
-                    : selectedDate === entry.dateString
-                    ? 'bg-primary text-white'
-                    : entry.holiday
-                    ? 'bg-white dark:bg-gray-800 border-2 border-yellow-500 text-gray-900 dark:text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200',
-                ]"
+              <span
+                v-if="isToday(entry.day.fullDate)"
+                class="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase text-white"
               >
-                <span class="text-base font-bold leading-none">{{ entry.day.date }}</span>
-                <span class="text-[10px] uppercase tracking-wide opacity-90">{{ entry.day.fullDate.toLocaleDateString('en-US', { weekday: 'short' }) }}</span>
-              </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                  {{ entry.day.fullDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) }}
-                </p>
-                <p v-if="entry.holiday" class="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-yellow-700 dark:text-yellow-400">
-                  <span class="h-1.5 w-1.5 rounded-full bg-yellow-500 shrink-0"></span>
-                  {{ entry.holiday.name }}
-                </p>
-              </div>
-            </button>
-            <div v-if="entry.events.length" class="px-2.5 pb-2.5 space-y-1">
-              <button
+                Today
+              </span>
+            </EventBandHeader>
+            <div v-if="entry.events.length" class="space-y-1 p-2">
+              <EventListItem
                 v-for="event in entry.events"
                 :key="event.id"
-                type="button"
-                @click="emit('eventClick', event)"
-                :class="[
-                  'w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs sm:text-sm hover:opacity-90 transition-opacity',
-                  isCalledOff(event)
-                    ? 'border border-dashed border-gray-400 text-gray-500 dark:border-gray-500 dark:text-gray-400'
-                    : getEventTypeColor(event.type),
-                ]"
+                :event="event"
                 :title="eventStatusSummary(event) || event.title"
-              >
-                <component :is="getIconComponent(iconForEvent(event))" class="h-3.5 w-3.5 shrink-0" />
-                <span :class="['flex-1 truncate font-medium', isCalledOff(event) ? 'line-through' : '']">
-                  {{ event.title }}
-                </span>
-                <!-- Struck through is not enough on its own: it reads as a
-                     style until it is named. Amber, matching how the day and
-                     month drawers name the same state. -->
-                <span
-                  v-if="isCalledOff(event)"
-                  class="shrink-0 rounded bg-amber-100 px-1 text-[9px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-400/15 dark:text-amber-400"
-                >
-                  {{ event.status === 'postponed' ? 'Moved' : 'Off' }}
-                </span>
-                <span
-                  v-if="event.time"
-                  :class="['shrink-0 text-[10px] sm:text-xs', isCalledOff(event) ? '' : 'opacity-90']"
-                >
-                  {{ event.time }}
-                </span>
-              </button>
+                @click="emit('eventClick', event)"
+              />
             </div>
-          </div>
+          </section>
 
           <div v-if="!agendaDays.length" class="text-center text-sm text-gray-500 dark:text-gray-400 py-10">
             No events scheduled for {{ currentMonth }}
@@ -539,13 +504,19 @@ const handleDayKeydown = (event, day) => {
                 // day out: a border changes the box, so today's cell used to
                 // sit a pixel off from its neighbours and the whole row looked
                 // misaligned. A ring is drawn on top and costs no layout.
+                //
+                // Primary for both today and the selected day, the one accent
+                // the People page uses for this-one: today is a tint and a
+                // filled date, selected is the ring. Today was amber, and with
+                // yellow holidays and amber Off badges beside it the page
+                // had three warm colours meaning three unrelated things.
+                // Holidays keep only their dot — a yellow edge on the cell was
+                // a fourth border colour for the eye to decode.
                 cell.day.isCurrentMonth
                   ? cell.isSelected
                     ? 'bg-primary/10 dark:bg-primary/20 ring-2 ring-primary ring-inset border border-transparent'
                     : cell.isToday
-                    ? 'bg-amber-500/10 dark:bg-amber-500/15 ring-2 ring-amber-500 ring-inset border border-transparent'
-                    : cell.holiday
-                    ? 'bg-white dark:bg-gray-800 border border-yellow-400/70 dark:border-yellow-500/50 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    ? 'bg-primary/5 dark:bg-primary/10 border border-primary/30 hover:bg-primary/10'
                     : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                 : 'bg-gray-50/60 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800/50',
               ]"
@@ -559,7 +530,7 @@ const handleDayKeydown = (event, day) => {
                 :class="[
                   'text-xs font-medium leading-none md:text-sm',
                   cell.isToday && cell.day.isCurrentMonth
-                    ? 'font-bold text-amber-600 dark:text-amber-400'
+                    ? '-m-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary font-bold text-white md:h-6 md:w-6'
                     : cell.day.isCurrentMonth
                     ? 'text-gray-900 dark:text-white'
                     : 'text-gray-400 dark:text-gray-600',
@@ -612,9 +583,11 @@ const handleDayKeydown = (event, day) => {
                     // rather than as a decision; an outline reads as absence,
                     // which is what a called-off gathering is. It drops its
                     // type colour with its fill — what kind of thing is not
-                    // happening matters less than that it is not.
+                    // happening matters less than that it is not. The dashes
+                    // are red, the colour a called-off gathering carries on
+                    // every screen, so the disc is legible without its title.
                     isCalledOff(event)
-                      ? 'border-2 border-dashed border-gray-400 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-800 dark:text-gray-500'
+                      ? `border-2 bg-white dark:bg-gray-800 ${CALLED_OFF_OUTLINE} ${CALLED_OFF_TEXT}`
                       : `text-white ${getEventTypeDot(event.type)}`,
                   ]"
                 >
@@ -648,9 +621,10 @@ const handleDayKeydown = (event, day) => {
                   'flex w-full shrink-0 items-center gap-1 rounded px-1 py-0.5 text-left text-[10px] leading-tight transition-opacity hover:opacity-80 sm:px-1.5 sm:text-xs',
                   // Outlined rather than dimmed, the same reasoning as the
                   // discs: a 60% chip sits between two legible states and
-                  // looks like neither.
+                  // looks like neither. Red edge, grey struck-through title:
+                  // the edge says what happened, the title stays quiet.
                   isCalledOff(event)
-                    ? 'border border-dashed border-gray-400 text-gray-500 dark:border-gray-500 dark:text-gray-400'
+                    ? `border text-gray-500 dark:text-gray-400 ${CALLED_OFF_OUTLINE}`
                     : getEventTypeColor(event.type),
                 ]"
               >

@@ -7,6 +7,11 @@ import {
 } from '../api/lineupsService'
 import { useAuth } from './useAuth'
 import { monthKeyOf, sundaysInMonth, todayIso } from '../utils/lineupUtils'
+import { peopleOnService } from '../data/scheduleRoles'
+
+// Still named for lineups because the collection is (see lineupsService). What
+// it hands back is a schedule: each service carries `assignments` by role as
+// well as the worship team and the songs.
 
 /** An unplanned service slot: the shape the editor and the cards expect. */
 export const blankSunday = (date) => ({
@@ -15,11 +20,13 @@ export const blankSunday = (date) => ({
   teamIds: [],
   theme: '',
   songs: [],
+  assignments: {},
 })
 
-/** True once anything has actually been filled in for a service. */
+/** True once anything has actually been filled in for a service — ushers on
+ *  their own count, or a Sunday staffed but not yet sung would read as empty. */
 export const isSundayPlanned = (sunday) =>
-  Boolean(sunday?.leaderId || sunday?.songs?.length || sunday?.theme || sunday?.teamIds?.length)
+  Boolean(sunday?.songs?.length || sunday?.theme || peopleOnService(sunday).length)
 
 /**
  * The month's plan. `monthKey` may be a ref, so paging between months

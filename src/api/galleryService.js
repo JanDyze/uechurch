@@ -12,7 +12,7 @@ import {
   orderBy,
   onSnapshot,
   Timestamp
-} from 'firebase/firestore'
+} from './firestore'
 import { inBatches } from './batchWrite'
 import { deleteImages, uploadImage } from './blobService'
 import { notify } from './notifyService'
@@ -109,9 +109,6 @@ export const addAlbum = async (albumData) => {
 }
 
 /**
- * Upload a photo as Base64 to a separate Firestore document
- */
-/**
  * Stores one photograph and files it under an album.
  *
  * The bytes go to Blob and the document keeps only the URL they landed
@@ -133,16 +130,21 @@ export const uploadPhoto = async (albumId, base64Data, description) => {
       uploadedAt: Timestamp.now()
     })
 
-    // 2. Update album cover if it doesn't have one (using first photo)
+    // 2. The first photo becomes the cover, and only the first.
+    //
+    // This used to write the cover on every upload, and write it as the base64
+    // string rather than the stored URL. So a cover somebody had chosen was
+    // replaced by whichever photo went up next, and the album document — which
+    // the gallery and Settings subscribe to whole — carried a picture of up to
+    // a megabyte inside it, the very thing moving photos to Blob was for.
     const albumRef = doc(db, ALBUMS_COLLECTION, albumId)
-    // We check if it already has a coverUrl before setting it automatically
-    // This is handled in Gallery.vue logic mostly, but good to have a backup here
+    const album = await getDoc(albumRef)
     await updateDoc(albumRef, {
-      coverUrl: base64Data, 
+      ...(album.data()?.coverUrl ? {} : { coverUrl: url }),
       updatedAt: Timestamp.now()
     })
 
-    return { id: photoRef.id, url: base64Data }
+    return { id: photoRef.id, url }
   } catch (error) {
     console.error('Base64 Upload Failed:', error)
     throw error
@@ -216,6 +218,45 @@ export const deleteAlbum = async (albumId) => {
     throw error
   }
 }
+
+/**
+ * Keeps an album's cover pointing at a photo that is still in it.
+ *
+ * The gallery reads "has photos" off the cover — counting them would mean
+ * reading every photo document — so a cover left behind by a deleted photo
+ * would keep an empty album looking full, drawn over a picture that no longer
+ * exists. The cover moves to the newest photo left, or is cleared when there
+ * is none, which puts the album back to a plain entry in the list.
+ *
+ * Best effort: the photo is already gone by the time this runs, and a cover
+ * that could not be tidied is not a reason to report the delete as failed.
+ */
+const refreshCover = async (albumId, removedUrl) => {
+  try {
+    const albumRef = doc(db, ALBUMS_COLLECTION, albumId)
+    const album = await getDoc(albumRef)
+    if (!album.exists()) return
+
+    const cover = album.data()?.coverUrl || ''
+    const remaining = await getDocs(
+      query(collection(db, PHOTOS_COLLECTION), where('albumId', '==', albumId))
+    )
+
+    if (remaining.empty) {
+      if (cover) await updateDoc(albumRef, { coverUrl: '', updatedAt: Timestamp.now() })
+      return
+    }
+    if (cover && cover !== removedUrl) return
+
+    const newest = remaining.docs
+      .map((photo) => photo.data())
+      .sort((a, b) => (b.uploadedAt?.toMillis?.() || 0) - (a.uploadedAt?.toMillis?.() || 0))[0]
+    await updateDoc(albumRef, { coverUrl: newest?.url || '', updatedAt: Timestamp.now() })
+  } catch (error) {
+    console.error('Error refreshing album cover:', error)
+  }
+}
+
 /**
  * Delete a specific photo document
  */
@@ -228,9 +269,12 @@ export const deletePhoto = async (photoId) => {
     // listed and can be deleted again, where the reverse would leave bytes in
     // the store with nothing left in the app that knows about them.
     const snapshot = await getDoc(photoRef)
-    if (snapshot.exists()) await deleteImages(snapshot.data()?.url)
+    const photo = snapshot.exists() ? snapshot.data() : null
+    if (photo) await deleteImages(photo.url)
 
     await deleteDoc(photoRef)
+
+    if (photo?.albumId) await refreshCover(photo.albumId, photo.url)
   } catch (error) {
     console.error('Error deleting photo:', error)
     throw error

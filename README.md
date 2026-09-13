@@ -7,7 +7,7 @@ Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://
 ## Ask Claude about the church records
 
 `/api/mcp` publishes the app's records as a Model Context Protocol connector,
-so the calendar, the roll, attendance, worship lineups, minutes, tasks and the
+so the calendar, the roll, attendance, schedules, minutes, tasks and the
 ledger can be asked about in conversation. It is off until `MCP_TOKEN` is set.
 
 See [MCP.md](MCP.md) for the tools it offers and how to connect Claude to it.

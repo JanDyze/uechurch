@@ -1,5 +1,5 @@
 import { auth, db } from './firebase'
-import { collection, doc, limit, onSnapshot, orderBy, query, setDoc } from 'firebase/firestore'
+import { collection, doc, limit, onSnapshot, orderBy, query, setDoc } from './firestore'
 import { toDate } from '../utils/timeUtils'
 
 // Email digests are opt-in, and the switch lives on the account's own mirror

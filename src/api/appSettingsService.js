@@ -1,5 +1,5 @@
 import { db } from './firebase'
-import { doc, setDoc, onSnapshot, Timestamp } from 'firebase/firestore'
+import { doc, setDoc, onSnapshot, Timestamp } from './firestore'
 
 // A single document holds everything a different congregation would want to
 // change without a code edit: what the church is called, and the category

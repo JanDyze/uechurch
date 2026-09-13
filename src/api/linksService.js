@@ -9,7 +9,7 @@ import {
   onSnapshot,
   orderBy,
   serverTimestamp
-} from 'firebase/firestore'
+} from './firestore'
 
 const LINKS_COLLECTION = 'links'
 

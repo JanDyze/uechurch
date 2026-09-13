@@ -8,8 +8,11 @@ import {
   addCustomTag,
   renameTag,
   deleteTag,
+  setTagMark,
 } from '../../api/tagsService'
 import ConfirmationModal from '../common/ConfirmationModal.vue'
+import LabelMark from '../common/LabelMark.vue'
+import LabelMarkSheet from './LabelMarkSheet.vue'
 
 const toast = useToast()
 const { isAdmin, members } = usePermissions()
@@ -43,7 +46,9 @@ const tags = computed(() => {
     seen.set(key, { ...(seen.get(key) || { name }), ...extra })
   }
 
-  customTags.value.forEach((t) => add(t.name, { name: t.name, customTagId: t.id }))
+  customTags.value.forEach((t) =>
+    add(t.name, { name: t.name, customTagId: t.id, icon: t.icon || '', imageUrl: t.imageUrl || '' })
+  )
   members.value.forEach((m) => (m.tags || []).forEach((name) => add(name, { name })))
 
   return [...seen.values()]
@@ -113,6 +118,28 @@ const handleRename = async (tag) => {
   }
 }
 
+/* ------------------------------------------------------------------ picture */
+// By name: a tag typed onto members has no id until it is given a picture.
+const markTargetName = ref(null)
+const markTarget = computed(() => tags.value.find((t) => t.name === markTargetName.value) || null)
+const markOf = (tag) => (tag?.icon || tag?.imageUrl ? { icon: tag.icon, imageUrl: tag.imageUrl } : null)
+const savingMark = ref(false)
+
+const saveMark = async (mark) => {
+  const tag = markTarget.value
+  if (!tag || savingMark.value) return
+  savingMark.value = true
+  try {
+    await setTagMark(tag.name, tag.customTagId, mark)
+    markTargetName.value = null
+  } catch (e) {
+    console.error('Error saving tag picture:', e)
+    toast.error('Could not save that picture.')
+  } finally {
+    savingMark.value = false
+  }
+}
+
 /* ------------------------------------------------------------ confirmation */
 const showConfirmation = ref(false)
 const pendingDelete = ref(null)
@@ -179,16 +206,16 @@ const handleDelete = async () => {
           type="text"
           placeholder="New tag name"
           @keydown.enter.prevent="handleAdd"
-          class="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+          class="flex-1 min-w-0 h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
         />
         <button
           @click="handleAdd"
           :disabled="!newTagName.trim() || busy === 'add'"
-          class="shrink-0 inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-3 text-white text-sm font-semibold hover:bg-primary-hover transition-colors disabled:opacity-50"
+          class="shrink-0 flex h-11 items-center gap-1.5 rounded-lg bg-primary px-3 text-white shadow-sm transition-transform active:scale-95 disabled:opacity-50"
         >
           <Loader2 v-if="busy === 'add'" class="h-4 w-4 animate-spin" />
           <Plus v-else class="h-4 w-4" />
-          <span class="hidden sm:inline">Add</span>
+          <span class="text-sm font-medium">Add</span>
         </button>
       </div>
 
@@ -201,7 +228,7 @@ const handleDelete = async () => {
               type="text"
               @keydown.enter.prevent="handleRename(tag)"
               @keydown.escape="cancelEdit"
-              class="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+              class="flex-1 min-w-0 h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
             />
             <button
               @click="handleRename(tag)"
@@ -223,6 +250,18 @@ const handleDelete = async () => {
 
           <!-- Row -->
           <div v-else class="flex items-center gap-3">
+            <!-- The picture, and the way to change it: the mark itself is the
+                 button, so a row with none shows an initial to tap. -->
+            <button
+              type="button"
+              @click="markTargetName = tag.name"
+              :aria-label="`Picture for ${tag.name}`"
+              class="shrink-0 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            >
+              <LabelMark v-if="markOf(tag)" :mark="markOf(tag)" :size="markOf(tag)?.imageUrl ? 'h-10 w-10' : 'h-5 w-5'" />
+              <span v-else class="text-sm font-semibold">{{ tag.name.slice(0, 1) }}</span>
+            </button>
+
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
                 {{ tag.name }}
@@ -254,9 +293,19 @@ const handleDelete = async () => {
 
       <p class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
         Assign tags to people on their member profile. Renaming a tag updates every member
-        who holds it and keeps its permissions; deleting one revokes them.
+        who holds it; deleting one takes it off them. Tap a tag's circle to give it a picture.
       </p>
     </template>
+
+    <LabelMarkSheet
+      :show="Boolean(markTarget)"
+      :name="markTarget?.name || ''"
+      kind="Tag"
+      :mark="markOf(markTarget)"
+      :busy="savingMark"
+      @close="markTargetName = null"
+      @save="saveMark"
+    />
 
     <ConfirmationModal
       v-model:show="showConfirmation"

@@ -1,5 +1,5 @@
 import { db } from './firebase'
-import { collection, doc, setDoc, deleteDoc, onSnapshot, Timestamp } from 'firebase/firestore'
+import { collection, doc, setDoc, deleteDoc, onSnapshot, Timestamp } from './firestore'
 
 // One document per ministry tag, keyed by the tag name exactly as it appears
 // on a member record, holding the capabilities that tag grants.

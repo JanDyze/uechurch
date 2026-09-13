@@ -106,6 +106,25 @@ const apiDevServer = (env) => ({
 })
 
 /**
+ * Keeps the audit log strict. Every write has to go through src/api/firestore.js,
+ * which commits a log entry alongside it; a file importing 'firebase/firestore'
+ * itself could write around that without anyone noticing, so the build stops
+ * instead. The one file allowed to import it is the wrapper.
+ */
+const auditedFirestoreOnly = () => ({
+  name: 'uec-audited-firestore-only',
+  enforce: 'pre',
+  resolveId(source, importer) {
+    if (source !== 'firebase/firestore' || !importer) return null
+    const from = importer.replace(/\\/g, '/')
+    if (from.includes('/node_modules/') || from.endsWith('/src/api/firestore.js')) return null
+    this.error(
+      `${importer} imports 'firebase/firestore' directly. Import from src/api/firestore.js instead, so its writes are audited.`
+    )
+  },
+})
+
+/**
  * package.json is the one place the app's version is written down; the app
  * reads it from here as __APP_VERSION__ so a phone running an old cached
  * build can say which one it is. Bump it in package.json, nowhere else.
@@ -122,6 +141,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     // '' as the prefix: every variable in .env.local, not just the VITE_ ones
     apiDevServer(loadEnv(mode, process.cwd(), '')),
+    auditedFirestoreOnly(),
     vue(),
     tailwindcss(),
     VitePWA({

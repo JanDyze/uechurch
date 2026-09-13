@@ -14,6 +14,7 @@ import {
   ProjectorScreen,
   Settings,
   UserCog,
+  History,
   Users,
   UsersRound,
   Wallet,
@@ -144,14 +145,14 @@ export const NAV_GROUPS = [
         description: 'Every song the church sings, with its key, its words and who leads it.',
       },
       {
-        name: 'Lineups',
-        path: '/lineups',
+        name: 'Schedules',
+        path: '/schedules',
         image: lineupsArt,
         icon: Mic2,
         capability: 'lineups.view',
-        description: 'Who is leading and playing each Sunday, and the songs they have chosen.',
+        description: 'Who is serving each Sunday — worship, ushers, teachers, preaching — and the songs.',
       },
-      // Its own entry rather than a corner of Lineups: the tech team goes
+      // Its own entry rather than a corner of Schedules: the tech team goes
       // straight here on a Sunday and should not reach it through the worship
       // team's page.
       {
@@ -239,6 +240,16 @@ export const NAV_GROUPS = [
         icon: UserCog,
         adminOnly: true,
         description: 'Who can sign in, and which member each account belongs to.',
+      },
+      {
+        name: 'Audit log',
+        path: '/audit',
+        // No drawing of its own yet; it borrows Accounts', the page it sits
+        // beside and answers to — who did what, next to who can sign in.
+        image: accountsArt,
+        icon: History,
+        adminOnly: true,
+        description: 'Every change made in the app, who made it, and when.',
       },
       {
         name: 'Settings',

@@ -11,7 +11,7 @@ import {
   orderBy,
   onSnapshot,
   Timestamp,
-} from 'firebase/firestore'
+} from './firestore'
 
 const GROUPS_COLLECTION = 'smallGroups'
 const SESSIONS_COLLECTION = 'sgSessions'

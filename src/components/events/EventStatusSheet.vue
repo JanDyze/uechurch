@@ -1,8 +1,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { X, Check } from '../../icons'
+import { X, Check, CalendarClock } from '../../icons'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import { EVENT_STATUS, readEventStatus } from '../../../lib/eventStatus'
+import { CALLED_OFF_BANNER } from '../../utils/eventColors'
 
 // One sheet for "this is not happening", opened from the calendar and from the
 // attendance list alike, so the answer means the same thing on both.
@@ -113,7 +114,7 @@ useFocusTrap(dialogRef, () => props.show, () => emit('close'))
            from a row under a thumb far more often than from a mouse. -->
       <div
         v-if="show && event"
-        class="fixed inset-0 z-120 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+        class="fixed inset-0 z-120 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
         @click.self="emit('close')"
       >
         <div
@@ -122,27 +123,34 @@ useFocusTrap(dialogRef, () => props.show, () => emit('close'))
           aria-modal="true"
           aria-labelledby="event-status-title"
           tabindex="-1"
-          class="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:max-w-md sm:rounded-2xl dark:bg-gray-800"
+          class="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl border border-gray-200 bg-white shadow-2xl sm:max-w-md sm:rounded-2xl dark:border-gray-700 dark:bg-gray-800"
           @click.stop
         >
+          <!-- The People page's sheet header: a tinted strip, the action's
+               icon in a primary tile, what it is about beneath. -->
           <div
-            class="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700"
+            class="flex items-center justify-between gap-3 border-b border-gray-200 bg-linear-to-r from-primary/10 to-transparent px-4 py-3.5 dark:border-gray-700 dark:from-primary-light/10"
           >
-            <div class="min-w-0">
-              <h3
-                id="event-status-title"
-                class="truncate text-base font-semibold text-gray-900 dark:text-white"
-              >
-                {{ title }}
-              </h3>
-              <p class="text-xs text-gray-500 dark:text-gray-400">
-                {{ event.date }}<span v-if="event.time"> · {{ event.time }}</span>
-              </p>
+            <div class="flex min-w-0 items-center gap-3">
+              <div class="shrink-0 rounded-xl bg-primary p-2.5 shadow-lg shadow-primary/30">
+                <CalendarClock class="h-5 w-5 text-white" />
+              </div>
+              <div class="min-w-0">
+                <h3
+                  id="event-status-title"
+                  class="truncate text-base font-bold text-gray-900 dark:text-white"
+                >
+                  {{ title }}
+                </h3>
+                <p class="truncate text-xs text-gray-500 dark:text-gray-400">
+                  {{ event.date }}<span v-if="event.time"> · {{ event.time }}</span>
+                </p>
+              </div>
             </div>
             <button
               @click="emit('close')"
               aria-label="Close"
-              class="shrink-0 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+              class="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
             >
               <X class="h-5 w-5" />
             </button>
@@ -152,43 +160,41 @@ useFocusTrap(dialogRef, () => props.show, () => emit('close'))
             <!-- Already marked: say so plainly, and put the way back first. -->
             <div
               v-if="isOff"
-              class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"
+              :class="['rounded-lg border px-3 py-2 text-xs', CALLED_OFF_BANNER]"
             >
               Currently marked
               <span class="font-semibold">{{ status === 'cancelled' ? 'cancelled' : 'postponed' }}</span
               ><span v-if="event.statusNote"> — {{ event.statusNote }}</span>
             </div>
 
-            <div class="space-y-2">
+            <!-- The sort sheet's rows: tinted when chosen, a tick at the end -->
+            <div class="space-y-1">
               <button
                 v-for="option in options"
                 :key="option.key"
                 @click="choice = option.key"
+                :aria-pressed="choice === option.key"
                 :class="[
-                  'flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors',
+                  'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors',
                   choice === option.key
-                    ? 'border-primary bg-primary/5 dark:border-primary-light dark:bg-primary-light/10'
-                    : 'border-gray-200 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700/50',
+                    ? 'bg-primary/10 dark:bg-primary-light/15'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700/60',
                 ]"
               >
-                <span
-                  :class="[
-                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
-                    choice === option.key
-                      ? 'border-primary bg-primary text-white dark:border-primary-light dark:bg-primary-light'
-                      : 'border-gray-300 dark:border-gray-500',
-                  ]"
-                >
-                  <Check v-if="choice === option.key" class="h-3 w-3" />
-                </span>
-                <span class="min-w-0">
-                  <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                <span class="min-w-0 flex-1">
+                  <span
+                    :class="[
+                      'block text-sm font-semibold',
+                      choice === option.key ? 'text-primary' : 'text-gray-900 dark:text-white',
+                    ]"
+                  >
                     {{ option.label }}
                   </span>
                   <span class="block text-xs text-gray-500 dark:text-gray-400">
                     {{ option.hint }}
                   </span>
                 </span>
+                <Check v-if="choice === option.key" class="h-4.5 w-4.5 shrink-0 text-primary" />
               </button>
             </div>
 
@@ -202,7 +208,7 @@ useFocusTrap(dialogRef, () => props.show, () => emit('close'))
               <input
                 v-model="movedTo"
                 type="date"
-                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </label>
 
@@ -255,34 +261,35 @@ useFocusTrap(dialogRef, () => props.show, () => emit('close'))
             </button>
           </div>
 
+          <!-- Thumb-sized, and in the selection bar's colours: the outlined
+               button is the other way out, the filled one is the answer. -->
           <div
-            class="flex items-center justify-between gap-2 border-t border-gray-200 px-4 py-3 dark:border-gray-700"
+            class="flex items-center gap-2 border-t border-gray-200 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-gray-700"
           >
             <button
               v-if="isOff && allowStatus"
+              :disabled="busy"
               @click="reinstate"
-              class="rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10"
+              class="inline-flex h-11 shrink-0 items-center rounded-lg border border-primary/40 px-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
             >
               It's back on
             </button>
-            <span v-else></span>
+            <button
+              v-else
+              @click="emit('close')"
+              class="inline-flex h-11 shrink-0 items-center rounded-lg border border-gray-200 px-4 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Close
+            </button>
 
-            <div class="flex gap-2">
-              <button
-                @click="emit('close')"
-                class="rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-              >
-                Close
-              </button>
-              <button
-                v-if="allowStatus"
-                :disabled="busy"
-                @click="apply"
-                class="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-60"
-              >
-                {{ busy ? 'Saving…' : isOff ? 'Update' : 'Mark it' }}
-              </button>
-            </div>
+            <button
+              v-if="allowStatus"
+              :disabled="busy"
+              @click="apply"
+              class="inline-flex h-11 flex-1 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition-colors hover:bg-primary-hover disabled:opacity-60"
+            >
+              {{ busy ? 'Saving…' : isOff ? 'Update' : 'Mark it' }}
+            </button>
           </div>
         </div>
       </div>

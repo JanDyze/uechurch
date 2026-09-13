@@ -5,6 +5,7 @@ import {
   withChurchDefaults,
   withLandingDefaults,
 } from '../data/appDefaults'
+import { scheduleRolesFrom } from '../data/scheduleRoles'
 import bundledLogo from '../assets/uec-logo.png'
 import { useTheme } from './useTheme'
 
@@ -62,6 +63,10 @@ export function useAppSettings() {
   const hasCustomLogo = computed(() => Boolean(church.value.logo || church.value.logoDark))
   const categories = computed(() => categoriesOf(stored.value))
   const landing = computed(() => landingOf(stored.value))
+  // The jobs a Sunday is staffed with. Here with the other lists a different
+  // congregation would name differently, and read by the MCP connector from
+  // the same document through the same defaults.
+  const scheduleRoles = computed(() => scheduleRolesFrom(stored.value?.scheduleRoles))
 
   // True once the document exists; until then the views run on defaults.
   const isConfigured = computed(() => stored.value !== null)
@@ -74,6 +79,9 @@ export function useAppSettings() {
   // setDoc's merge does not replace arrays element-wise, so the whole landing
   // block is written at once and the services list stays exactly as edited.
   const saveLanding = (landing) => saveAppSettings({ landing })
+  // The whole list every time, for the same reason: its order is the order a
+  // service is shown in, and a merge cannot express a reorder.
+  const saveScheduleRoles = (roles) => saveAppSettings({ scheduleRoles: roles })
 
   return {
     church,
@@ -83,11 +91,13 @@ export function useAppSettings() {
     hasCustomLogo,
     categories,
     landing,
+    scheduleRoles,
     isConfigured,
     saveChurch,
     saveCategories,
     saveLogo,
     saveLogoDark,
     saveLanding,
+    saveScheduleRoles,
   }
 }

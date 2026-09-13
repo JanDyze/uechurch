@@ -38,6 +38,9 @@ import YouBadge from '../components/members/YouBadge.vue'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import ImageCropper from '../components/members/ImageCropper.vue'
 import InlineEditField from '../components/common/InlineEditField.vue'
+import LabelMark from '../components/common/LabelMark.vue'
+import { useLabelMarks } from '../composables/useLabelMarks'
+import { getIconForEvent } from '../utils/eventIcons'
 import { uploadImage } from '../api/blobService'
 import { useToast } from '../composables/useToast'
 
@@ -46,6 +49,7 @@ const router = useRouter()
 const toast = useToast()
 const { members, loading, updateMemberInFirestore, removeMember } = useMembers()
 const { ministryNames } = useMinistries()
+const { ministryMark, tagMark } = useLabelMarks()
 
 // A ministry grants access, so editing this record is a manage capability even
 // though reading it is not. The route only asks for members.view, which is why
@@ -117,22 +121,91 @@ const allTags = computed(() => {
 const gaps = computed(() => (localMember.value ? missingMemberFields(localMember.value) : []))
 
 /* ------------------------------------------------------------- attendance */
-const { history, byMonth, counted, presentCount, unrecordedCount } =
-  useMemberAttendance(localMember)
+// Wider than the composable's default: a gathering is a square the size of a
+// letter now rather than a line per Sunday, so a few months of history fit in
+// less room than a fortnight used to take.
+const { history, counted, presentCount, unrecordedCount } =
+  useMemberAttendance(localMember, { limit: 60 })
 
 const ATTENDANCE_STYLE = {
   present: 'bg-green-500 dark:bg-green-500',
-  absent: 'bg-red-400 dark:bg-red-500',
+  absent: 'bg-red-500 dark:bg-red-500',
   unrecorded:
     'bg-transparent border border-dashed border-gray-300 dark:border-gray-600',
 }
 
 const stateWord = { present: 'Came', absent: 'Did not come', unrecorded: 'Not recorded' }
 
-/** Just the day — the month is already the heading above it. */
-const dayOf = (iso) => {
+/**
+ * A gathering to a row, a month to a column: Sunday Service, then its Sundays
+ * as small squares under AUG and SEP. Read across, a row is one person's habit
+ * with one gathering — which is the question a profile is opened to answer —
+ * and the months line up down the page, so "stopped coming to the prayer
+ * meeting in August" is a gap you see rather than a date you look for.
+ *
+ * Oldest month on the left and oldest day first inside it, the way a week
+ * reads. Dates are not printed; a tap on a square says it.
+ */
+const attendanceGrid = computed(() => {
+  const thisYear = new Date().getFullYear()
+  const months = new Map()
+  const rows = new Map()
+
+  history.value.forEach((item) => {
+    const iso = String(item.date || '')
+    const key = iso.slice(0, 7)
+    if (!key) return
+    if (!months.has(key)) {
+      const [y, mo] = key.split('-').map(Number)
+      const d = new Date(y, mo - 1, 1)
+      months.set(key, {
+        key,
+        label:
+          d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase() +
+          (y === thisYear ? '' : ` '${String(y).slice(2)}`),
+      })
+    }
+    // By series, not by title: the Sunday with an occasion on it is still a
+    // square on the Sunday service's row (useMemberAttendance.js).
+    if (!rows.has(item.seriesKey)) {
+      rows.set(item.seriesKey, {
+        key: item.seriesKey,
+        title: item.seriesTitle,
+        icon: getIconForEvent({ icon: item.icon, type: item.type }),
+        byMonth: {},
+        latest: iso,
+      })
+    }
+    const row = rows.get(item.seriesKey)
+    ;(row.byMonth[key] ||= []).push(item)
+    if (iso > row.latest) row.latest = iso
+  })
+
+  const columns = [...months.values()].sort((x, y) => x.key.localeCompare(y.key))
+  columns.forEach(({ key }) =>
+    rows.forEach((row) => row.byMonth[key]?.sort((x, y) => String(x.date).localeCompare(String(y.date))))
+  )
+
+  return {
+    columns,
+    // The gathering seen most recently first: the one still going on is the
+    // one the reader most likely came about.
+    rows: [...rows.values()].sort((x, y) => y.latest.localeCompare(x.latest) || x.title.localeCompare(y.title)),
+  }
+})
+
+// The date is one tap away rather than printed on every square. Tapping the
+// same square again puts it away.
+const pickedDay = ref(null)
+const pickDay = (item) => {
+  pickedDay.value = pickedDay.value?.key === item.key ? null : item
+}
+
+const longDay = (iso) => {
   const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso : String(d.getDate())
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
 /* ----------------------------------------------------------------- record */
@@ -169,19 +242,15 @@ const sexMark = computed(() => {
 })
 
 /**
- * The next birthday, said the way you would say it.
- *
- * A countdown is only worth reading while it is short. "361 days" under the
- * word "Birthday" parses as a number of birthdays before it parses as a wait,
- * and by then you have read it twice. So a birthday that is close counts down
- * and a birthday that is far off just gives the date, which is what you were
- * going to ask for anyway.
+ * The next birthday, said the way you would say it — and only while it is
+ * close. "In 5 days" is worth reading; "12 Mar" is the date already printed
+ * beside it.
  */
-const nextBirthday = computed(() => {
+const birthdaySoon = computed(() => {
   const iso = localMember.value?.dateOfBirth
-  if (!iso) return null
+  if (!iso) return ''
   const dob = new Date(iso)
-  if (Number.isNaN(dob.getTime())) return null
+  if (Number.isNaN(dob.getTime())) return ''
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -189,44 +258,16 @@ const nextBirthday = computed(() => {
   if (next < today) next.setFullYear(next.getFullYear() + 1)
 
   const days = Math.round((next - today) / 86400000)
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Tomorrow'
-  if (days <= 30) return `In ${days} days`
-  return next.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  if (days === 0) return 'today'
+  if (days === 1) return 'tomorrow'
+  if (days <= 30) return `in ${days} days`
+  return ''
 })
 
 /** Of the gatherings a register was kept for, how many they came to. */
 const attendanceRate = computed(() => {
   if (!counted.value.length) return null
   return Math.round((presentCount.value / counted.value.length) * 100)
-})
-
-/**
- * What goes where the cover photo was. Only the ones that have something to
- * say are drawn, so a thin record gets a short row rather than a row of
- * zeroes and dashes.
- */
-const headlineStats = computed(() => {
-  const out = []
-  if (attendanceRate.value !== null) {
-    out.push({
-      key: 'attendance',
-      value: `${attendanceRate.value}%`,
-      label: 'Attendance',
-    })
-  }
-  const ministries = (localMember.value?.ministries || []).length
-  if (ministries) {
-    out.push({
-      key: 'ministries',
-      value: ministries,
-      label: ministries === 1 ? 'Ministry' : 'Ministries',
-    })
-  }
-  if (nextBirthday.value) {
-    out.push({ key: 'birthday', value: nextBirthday.value, label: 'Birthday' })
-  }
-  return out
 })
 
 /**
@@ -266,19 +307,28 @@ const contactActions = computed(() => {
  * line — "Female · Single" is one thing you know about somebody.
  *
  * Nickname, standing and age are deliberately absent: they are in the intro
- * line above, and this is the same page.
+ * line above, and this is the same page. So is sex — the sign beside the name
+ * already says it, in the same colour — which leaves civil status its own
+ * line. A birthday is said once, here, with the countdown on the end when it
+ * is near: it used to be a tile under the name as well.
  */
 const about = computed(() => {
   const m = localMember.value || {}
   return [
-    { key: 'dateOfBirth', icon: Gift, text: fmtDate(m.dateOfBirth), missing: 'Birthday not set' },
     {
-      key: 'sex',
+      key: 'dateOfBirth',
+      icon: Gift,
+      text: [fmtDate(m.dateOfBirth), birthdaySoon.value && `Birthday ${birthdaySoon.value}`]
+        .filter(Boolean)
+        .join(' · '),
+      missing: 'Birthday not set',
+    },
+    {
+      key: 'civilStatus',
       icon: User,
-      // Same blue and pink as the mark beside the name, so the two agree.
-      iconClass: m.sex === 'Male' || m.sex === 'Female' ? getSexIconColor(m.sex) : '',
-      text: [m.sex, m.civilStatus].filter(Boolean).join(' · '),
-      missing: 'Sex not set',
+      // Only when there is no sign beside the name is sex worth a word here.
+      text: [sexMark.value ? '' : m.sex, m.civilStatus].filter(Boolean).join(' · '),
+      missing: sexMark.value ? 'Civil status not set' : 'Sex not set',
     },
     { key: 'occupation', icon: Briefcase, text: m.occupation, missing: 'No occupation recorded' },
     { key: 'contactNumber', icon: Phone, text: m.contactNumber, missing: 'No contact number' },
@@ -454,8 +504,8 @@ const handleImageUpdate = async (base64Image) => {
         <!-- ============ Identity ============ -->
         <!-- No cover strip. A cover is a photograph somebody chose, and nobody
              here is going to choose one — an empty gradient band was a tenth of
-             a phone screen spent saying nothing. The space under the name goes
-             to the three things you actually come here asking. -->
+             a phone screen spent saying nothing. Nor tiles of figures under the
+             name: each one repeated a section further down the same page. -->
         <section
           class="border-b border-gray-200 bg-white px-4 py-4 sm:rounded-2xl sm:border dark:border-gray-700 dark:bg-gray-800"
         >
@@ -501,24 +551,6 @@ const handleImageUpdate = async (base64Image) => {
                 </template>
               </p>
               <YouBadge :member="localMember" class="mt-1.5" />
-            </div>
-          </div>
-
-          <!-- Three facts worth the space a cover photo was taking. -->
-          <div
-            v-if="headlineStats.length"
-            class="mt-4 grid gap-2"
-            :style="{ gridTemplateColumns: `repeat(${headlineStats.length}, minmax(0, 1fr))` }"
-          >
-            <div
-              v-for="stat in headlineStats"
-              :key="stat.key"
-              class="rounded-xl bg-gray-50 px-2 py-2 text-center dark:bg-gray-700/40"
-            >
-              <p class="truncate text-sm font-bold tabular-nums text-gray-900 dark:text-white">
-                {{ stat.value }}
-              </p>
-              <p class="truncate text-[11px] text-gray-500 dark:text-gray-400">{{ stat.label }}</p>
             </div>
           </div>
 
@@ -576,42 +608,69 @@ const handleImageUpdate = async (base64Image) => {
               </h2>
               <p v-if="counted.length" class="text-xs tabular-nums text-gray-500 dark:text-gray-400">
                 <span class="font-bold text-gray-900 dark:text-white">{{ presentCount }}</span>
-                of {{ counted.length }} recorded
+                of {{ counted.length }}
+                <span class="text-gray-400 dark:text-gray-500">· {{ attendanceRate }}%</span>
               </p>
             </div>
 
-            <!-- Each gathering says which one it was. The squares alone
-                 needed a tooltip to be read, and a phone has no hover. -->
-            <div class="space-y-3">
-              <div v-for="month in byMonth" :key="month.key">
-                <p
-                  class="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500"
+            <!-- One grid for the whole table, so every row's months sit under
+                 the same heading however many squares each holds. Scrolls
+                 sideways on its own when a long history outgrows the phone. -->
+            <div class="-mx-4 overflow-x-auto px-4">
+              <div
+                class="grid w-max min-w-full items-center gap-x-4"
+                :style="{ gridTemplateColumns: `repeat(${attendanceGrid.columns.length}, max-content)` }"
+              >
+                <span
+                  v-for="month in attendanceGrid.columns"
+                  :key="month.key"
+                  class="pb-1 text-[10px] font-bold tracking-wider text-gray-400 dark:text-gray-500"
                 >
                   {{ month.label }}
-                </p>
-                <ul class="space-y-1">
-                  <li
-                    v-for="item in month.items"
-                    :key="item.key"
-                    class="flex items-center gap-2.5"
+                </span>
+
+                <template v-for="row in attendanceGrid.rows" :key="row.key">
+                  <p
+                    class="col-span-full mt-2 flex min-w-0 items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300"
                   >
-                    <span
-                      :class="['h-4 w-4 shrink-0 rounded', ATTENDANCE_STYLE[item.state]]"
-                      role="img"
-                      :aria-label="stateWord[item.state]"
-                    ></span>
-                    <span class="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-white">
-                      {{ item.title }}
-                    </span>
-                    <span
-                      class="shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500"
+                    <component :is="row.icon" class="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" />
+                    <span class="truncate">{{ row.title }}</span>
+                  </p>
+                  <div
+                    v-for="month in attendanceGrid.columns"
+                    :key="`${row.key}-${month.key}`"
+                    class="flex h-4 items-center"
+                  >
+                    <!-- The square is small; the button around it is not, so a
+                         thumb can still land on one. -->
+                    <button
+                      v-for="item in row.byMonth[month.key] || []"
+                      :key="item.key"
+                      type="button"
+                      @click="pickDay(item)"
+                      :aria-label="`${item.title}, ${longDay(item.date)}: ${stateWord[item.state]}`"
+                      :aria-pressed="pickedDay?.key === item.key"
+                      class="-my-1.5 p-[3px]"
                     >
-                      {{ dayOf(item.date) }}
-                    </span>
-                  </li>
-                </ul>
+                      <span
+                        :class="[
+                          'block h-2.5 w-2.5 rounded-[2px]',
+                          ATTENDANCE_STYLE[item.state],
+                          pickedDay?.key === item.key
+                            ? 'ring-2 ring-primary ring-offset-1 dark:ring-primary-light dark:ring-offset-gray-800'
+                            : '',
+                        ]"
+                      ></span>
+                    </button>
+                  </div>
+                </template>
               </div>
             </div>
+
+            <p v-if="pickedDay" class="mt-3 text-xs text-gray-600 dark:text-gray-300">
+              <span class="font-medium">{{ pickedDay.title }}</span>
+              · {{ longDay(pickedDay.date) }} · {{ stateWord[pickedDay.state] }}
+            </p>
 
             <!-- Green and red speak for themselves; the hollow one does not,
                  and it is the one that matters. A head count says how many
@@ -728,8 +787,9 @@ const handleImageUpdate = async (base64Image) => {
                   <span
                     v-for="name in localMember.ministries"
                     :key="name"
-                    class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary dark:bg-primary-light/20 dark:text-primary-light"
+                    class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary dark:bg-primary-light/20 dark:text-primary-light"
                   >
+                    <LabelMark :mark="ministryMark(name)" size="h-3.5 w-3.5" />
                     {{ name }}
                   </span>
                 </div>
@@ -758,8 +818,9 @@ const handleImageUpdate = async (base64Image) => {
                   <span
                     v-for="tag in localMember.tags"
                     :key="tag"
-                    class="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                   >
+                    <LabelMark :mark="tagMark(tag)" size="h-3.5 w-3.5" />
                     {{ tag }}
                   </span>
                 </div>

@@ -7,15 +7,20 @@
  * expanded now; the rest are these — enough to tell whether a Sunday is
  * staffed and sung, and nothing more.
  *
- * What a row must answer at a glance: is there a leader, are there songs, and
- * is anything missing. Everything else waits until it is tapped.
+ * The song leader still heads the line. A schedule carries a dozen people now,
+ * and a dozen avatars in a row would say nothing; "who is leading" remains the
+ * question the congregation actually asks about a Sunday, and the count beside
+ * it answers whether the rest is filled in.
+ *
+ * In search results the second line changes job: it says why the row matched
+ * — "Ana · Ushers" — because a search for a name is a search for when that
+ * person is on.
  */
 import { computed } from 'vue'
 import { ChevronRight, Mic2, Warning } from '../../icons'
-import { getDisplayName } from '../../utils/memberUtils'
-import { memberKey } from '../../utils/sgUtils'
 import MemberAvatar from '../members/MemberAvatar.vue'
-import { formatShortDate } from '../../utils/lineupUtils'
+import { findRosterMember, formatShortDate, rosterName } from '../../utils/lineupUtils'
+import { SONG_LEADER_ROLE, assignmentsOf, peopleOnService } from '../../data/scheduleRoles'
 
 const props = defineProps({
   sunday: { type: Object, required: true },
@@ -25,24 +30,29 @@ const props = defineProps({
   // The head is the one who can act on a missing leader, so only they are
   // warned about it — to everyone else it is just not filled in yet.
   showGaps: { type: Boolean, default: false },
+  // Search results only: what matched, already worded.
+  matches: { type: Array, default: null },
+  // Search results span months, so the badge needs the year's context.
+  showMonth: { type: Boolean, default: false },
 })
 
 defineEmits(['focus'])
 
-const leader = computed(
-  () =>
-    props.members.find(
-      (m) =>
-        memberKey(m) === String(props.sunday.leaderId) ||
-        String(m.firestoreId) === String(props.sunday.leaderId)
-    ) || null
-)
+const leaderId = computed(() => assignmentsOf(props.sunday)[SONG_LEADER_ROLE]?.[0] || null)
+const leader = computed(() => findRosterMember(props.members, leaderId.value))
 
 const songCount = computed(() => props.sunday.songs?.length || 0)
-const bandCount = computed(() => props.sunday.teamIds?.length || 0)
+const servingCount = computed(() => peopleOnService(props.sunday).length)
 
 /** A gap worth flagging, and only on a service still to come. */
-const needsLeader = computed(() => props.showGaps && !props.isPast && !props.sunday.leaderId)
+const needsLeader = computed(() => props.showGaps && !props.isPast && !leaderId.value)
+
+const badge = computed(() => {
+  if (!props.showMonth) return formatShortDate(props.sunday.date)
+  const [year] = String(props.sunday.date).split('-')
+  const thisYear = String(new Date().getFullYear())
+  return year === thisYear ? formatShortDate(props.sunday.date) : `${formatShortDate(props.sunday.date)} ’${year.slice(2)}`
+})
 </script>
 
 <template>
@@ -65,7 +75,7 @@ const needsLeader = computed(() => props.showGaps && !props.isPast && !props.sun
           : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
       ]"
     >
-      {{ formatShortDate(sunday.date) }}
+      {{ badge }}
     </span>
 
     <span class="flex min-w-0 flex-1 items-center gap-2">
@@ -81,16 +91,19 @@ const needsLeader = computed(() => props.showGaps && !props.isPast && !props.sun
         <span
           :class="[
             'block truncate text-sm font-semibold',
-            leader ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500',
+            leaderId ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500',
           ]"
         >
-          {{ leader ? getDisplayName(leader) : 'No leader' }}
+          {{ leaderId ? rosterName({ member: leader }) : 'No leader' }}
         </span>
-        <span class="block truncate text-[11px] font-medium text-gray-400">
-          {{ songCount }} {{ songCount === 1 ? 'song' : 'songs' }}
-          <template v-if="bandCount">
-            · {{ bandCount }} on the band
-          </template>
+        <span
+          v-if="matches && matches.length"
+          class="block truncate text-[11px] font-semibold text-primary dark:text-primary-light"
+        >
+          {{ matches.join(' · ') }}
+        </span>
+        <span v-else class="block truncate text-[11px] font-medium text-gray-400">
+          {{ servingCount }} serving · {{ songCount }} {{ songCount === 1 ? 'song' : 'songs' }}
           <template v-if="sunday.theme">· {{ sunday.theme }}</template>
         </span>
       </span>

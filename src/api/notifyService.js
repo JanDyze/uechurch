@@ -1,4 +1,4 @@
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot } from './firestore';
 import { db } from "./firebase";
 import { notificationKind } from "../../lib/notifications";
 

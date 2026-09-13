@@ -90,6 +90,16 @@ export const getEventIcon = (name) => {
   return component
 }
 
+/**
+ * Whether an icon can be drawn right now without fetching the full set. Lets a
+ * screen that shows one chosen icon — a ministry's, say — ask for the rest
+ * only when the one it needs is not already here.
+ */
+export const isIconLoaded = (name) => {
+  const key = toKebabCase(resolveIconName(name))
+  return Boolean((allPaths && allPaths[key]) || commonPaths[key])
+}
+
 /** The component for a whole event, honouring birthdays and per-type defaults. */
 export const getIconForEvent = (event) => getEventIcon(iconForEvent(event))
 

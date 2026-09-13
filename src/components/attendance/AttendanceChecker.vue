@@ -15,11 +15,13 @@ import {
   meetingTagOf,
   audienceTagsOf,
   excludeTagsOf,
-  audienceLabel
+  audienceLabel,
+  carriesTag
 } from '../../utils/audience'
 import { groupByBand, bandIndexOf } from '../../utils/ageBands'
 import { ATTENDANCE_SOURCES } from '../../../lib/attendance'
 import MemberAvatar from '../members/MemberAvatar.vue'
+import ConfirmationModal from '../common/ConfirmationModal.vue'
 
 const isMobile = useMediaQuery('(max-width: 1023px)')
 
@@ -205,18 +207,55 @@ const filteredMembers = computed(() => {
   })
 })
 
+/**
+ * The tag this gathering leaves somebody out by, if it does.
+ *
+ * "Everyone except the Sunday schoolers" is said because the Sunday schoolers
+ * are counted somewhere else. Search reaches the whole roll, so a child can
+ * still be found and ticked here — and then they are present twice, once on
+ * each register, for the one hour they were in one room.
+ */
+const excludedBy = (member) =>
+  meetingTag.value ? '' : audienceExcludes.value.find((tag) => carriesTag(member, tag)) || ''
+
 // Toggle member attendance. Marking someone present clears any absent mark —
 // they turned up after all, which is the whole point of a second round.
+const markPresent = (memberId) => {
+  const attendees = [...(formData.value.attendees || []), memberId]
+  absentIds.value = absentIds.value.filter((id) => String(id) !== String(memberId))
+  emit('update:attendanceData', { ...formData.value, attendees })
+}
+
 const toggleAttendee = (memberId) => {
   const attendees = [...(formData.value.attendees || [])]
   const index = attendees.findIndex(id => String(id) === String(memberId) || id === memberId)
   if (index > -1) {
     attendees.splice(index, 1)
-  } else {
-    attendees.push(memberId)
-    absentIds.value = absentIds.value.filter((id) => String(id) !== String(memberId))
+    emit('update:attendanceData', { ...formData.value, attendees })
+    return
   }
-  emit('update:attendanceData', { ...formData.value, attendees })
+  // Not refused, only asked: sometimes the Sunday schooler really did sit in
+  // the service instead. Taking a mark off is never questioned.
+  const member = (members.value || []).find((m) => String(memberKey(m)) === String(memberId))
+  const tag = member ? excludedBy(member) : ''
+  if (tag) {
+    pendingExcluded.value = { memberId, name: getFullName(member), tag }
+    return
+  }
+  markPresent(memberId)
+}
+
+const pendingExcluded = ref(null)
+
+const excludedMessage = computed(() => {
+  const pending = pendingExcluded.value
+  if (!pending) return ''
+  return `${pending.name} is tagged ${pending.tag}, and this gathering leaves out ${pending.tag}. They are usually recorded on their own attendance, so marking them here as well counts them twice. Mark them present anyway?`
+})
+
+const confirmExcluded = () => {
+  if (pendingExcluded.value) markPresent(pendingExcluded.value.memberId)
+  pendingExcluded.value = null
 }
 
 // Check if member is present
@@ -627,6 +666,14 @@ const panelClass = computed(() => {
                     ]"
                   >
                     {{ getFullName(member) }}
+                    <!-- Only reachable by searching, and worth saying why
+                         before the tap rather than after it. -->
+                    <span
+                      v-if="excludedBy(member)"
+                      class="block truncate text-[11px] font-normal text-amber-600 dark:text-amber-400"
+                    >
+                      {{ excludedBy(member) }} · recorded separately
+                    </span>
                   </span>
                   <!-- Three states, not two: present, explicitly absent, and
                        not yet looked at. Collapsing the last two would hide who
@@ -696,6 +743,18 @@ const panelClass = computed(() => {
     </div>
     </Transition>
   </Teleport>
+
+  <ConfirmationModal
+    :show="Boolean(pendingExcluded)"
+    title="Recorded separately"
+    :message="excludedMessage"
+    confirm-text="Mark present"
+    cancel-text="Leave unmarked"
+    confirm-button-class="bg-amber-600 text-white hover:bg-amber-700"
+    @update:show="pendingExcluded = null"
+    @confirm="confirmExcluded"
+    @cancel="pendingExcluded = null"
+  />
 </template>
 
 <style scoped>

@@ -10,7 +10,7 @@ import {
   deleteDoc,
   Timestamp,
   orderBy
-} from 'firebase/firestore'
+} from './firestore'
 
 const PRESENCE_COLLECTION = 'presence'
 

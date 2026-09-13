@@ -1,7 +1,18 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronLeft, ChevronRight, ChevronRight as Chevron, LogOut, Moon, Sun, Users, X } from '../icons'
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronRight as Chevron,
+  Clock3,
+  LogOut,
+  Moon,
+  Sun,
+  UserPlus,
+  Users,
+  X,
+} from '../icons'
 import { usePresence } from '../composables/usePresence'
 import { useAuth } from '../composables/useAuth'
 import { useAvatars } from '../composables/useAvatars'
@@ -14,6 +25,7 @@ import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 import { useMyMember } from '../composables/useMyMember'
 import { getFullName } from '../utils/memberUtils'
+import { useClaimFlow } from '../composables/useClaimFlow'
 
 // The people rail. On a wide screen it is a permanent right-hand column, the
 // way Facebook keeps its contacts list; anywhere narrower it collapses into a
@@ -47,6 +59,15 @@ const handleLogout = async () => {
   } finally {
     signingOut.value = false
   }
+}
+
+// Not linked yet: the way to ask, or where the asking has got to. The sheet
+// itself is Topbar's; the drawer steps aside so the sheet is not under it.
+const { myClaim, myPendingClaim, openClaimSheet, handleWithdrawClaim } = useClaimFlow()
+
+const askToLink = () => {
+  showPeoplePanel.value = false
+  openClaimSheet()
 }
 
 const openMyProfile = () => {
@@ -257,6 +278,50 @@ watch(railIsVisible, (visible) => {
               aria-label="Close"
             >
               <X class="h-5 w-5" />
+            </button>
+          </div>
+
+          <!-- An account that is nobody on the roll yet. Here as well as in the
+               desktop dropdown, because a phone never sees that dropdown. -->
+          <div
+            v-if="!isLinked"
+            class="shrink-0 border-b border-gray-100 px-3 py-2 dark:border-slate-900"
+          >
+            <div v-if="myPendingClaim" class="rounded-xl bg-amber-50 p-2.5 dark:bg-amber-500/10">
+              <p
+                class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400"
+              >
+                <Clock3 class="h-3.5 w-3.5" />
+                Awaiting approval
+              </p>
+              <p class="mt-1 truncate text-xs font-bold text-gray-900 dark:text-white">
+                {{ myPendingClaim.memberName }}
+              </p>
+              <button
+                @click="handleWithdrawClaim"
+                class="mt-1.5 py-1 text-[10px] font-black uppercase tracking-widest text-gray-400 transition-colors hover:text-red-500"
+              >
+                Withdraw request
+              </button>
+            </div>
+            <button
+              v-else
+              @click="askToLink"
+              class="flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/5"
+            >
+              <UserPlus class="h-4 w-4 shrink-0 text-primary dark:text-primary-light" />
+              <span class="min-w-0 flex-1">
+                <span class="block text-[11px] font-bold text-gray-900 dark:text-white">
+                  Link my member record
+                </span>
+                <span
+                  v-if="myClaim && myClaim.status === 'rejected'"
+                  class="block truncate text-[10px] text-red-500"
+                >
+                  Last request was declined
+                </span>
+              </span>
+              <Chevron class="h-4 w-4 shrink-0 text-gray-300 dark:text-slate-600" />
             </button>
           </div>
 

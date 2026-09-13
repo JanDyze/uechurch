@@ -7,7 +7,7 @@ import {
   doc,
   onSnapshot,
   Timestamp,
-} from "firebase/firestore";
+} from './firestore';
 import { notify } from "./notifyService";
 
 const SCHEDULES_COLLECTION = "recurringSchedules";
@@ -119,6 +119,11 @@ const normalizeSchedule = (data, docId) => ({
   // have two gatherings typed "meeting" where only one is minuted, and a type
   // is a colour and an icon, not a behaviour.
   keepsMinutes: data.keepsMinutes === true,
+  // Whether a person's profile lists their turnout at this gathering. Off
+  // unless asked for: a weekly service is fifty-two rows a year on every
+  // profile, and which standing gatherings say something about a person is
+  // the church's call rather than something to guess from the type.
+  showInProfile: data.showInProfile === true,
 });
 
 export const subscribeToRecurringSchedules = (callback) => {

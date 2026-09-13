@@ -9,7 +9,7 @@ import {
   orderBy,
   onSnapshot,
   Timestamp,
-} from 'firebase/firestore'
+} from './firestore'
 import { inBatches } from './batchWrite'
 import { isTicketKind, isTicketStatus } from '../utils/ticketUtils'
 

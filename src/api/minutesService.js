@@ -1,5 +1,5 @@
 import { db } from './firebase'
-import { collection, addDoc, setDoc, getDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'
+import { collection, addDoc, setDoc, getDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp } from './firestore'
 import { occasionsOn, occurrenceTitle, parseDateString } from '../../lib/occurrences'
 import { notify } from './notifyService'
 

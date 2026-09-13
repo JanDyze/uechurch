@@ -10,7 +10,7 @@ import {
   orderBy,
   onSnapshot,
   Timestamp,
-} from 'firebase/firestore'
+} from './firestore'
 import { ACCOUNT_KEYS, CASH, BANK } from '../data/financeChart'
 
 // A collection of its own, not the `finances` one the module removed in v0.7.0

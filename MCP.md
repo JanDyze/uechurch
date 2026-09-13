@@ -23,7 +23,7 @@ Fifteen read tools, always available:
 | `attendance_records` | The head count for each gathering |
 | `attendance_summary` | Attendance totals and averages by type, month or gathering |
 | `search_songs` | The worship library, searchable down to a line of lyrics |
-| `get_lineup` | A month's worship plan: leaders, teams, songs and keys |
+| `get_lineup` | A month's schedule: everyone serving by role, songs and keys |
 | `list_prayer_concerns` | What the church is praying for, by status and priority |
 | `list_small_groups` | Groups, leaders, when they meet, how many belong |
 | `get_small_group` | One group's membership and its recent sessions |

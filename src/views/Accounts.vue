@@ -11,7 +11,6 @@ import {
   ShieldCheck,
   UserCheck,
   UserRound,
-  Users,
   X,
 } from '../icons'
 import { useAuth } from '../composables/useAuth'
@@ -94,14 +93,6 @@ const visibleAccounts = computed(() => {
     })
 })
 
-const providerSplit = computed(() => {
-  const total = stats.value.total || 1
-  return [
-    { key: 'google.com', count: stats.value.google, share: (stats.value.google / total) * 100 },
-    { key: 'password', count: stats.value.password, share: (stats.value.password / total) * 100 },
-  ].filter((row) => row.count > 0)
-})
-
 const isMe = (account) => account.uid === user.value?.uid
 
 /* ---------------------------------------------------------------- details */
@@ -151,81 +142,9 @@ const openMemberProfile = (account) => {
       </button>
     </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
-      <div
-        class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3"
-      >
-        <div class="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
-          <Users class="h-3.5 w-3.5" />
-          <p class="text-[10px] font-bold uppercase tracking-widest">Accounts</p>
-        </div>
-        <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ stats.total }}</p>
-      </div>
-
-      <div
-        class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3"
-      >
-        <div class="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
-          <span class="h-2 w-2 rounded-full bg-emerald-500" />
-          <p class="text-[10px] font-bold uppercase tracking-widest">Online</p>
-        </div>
-        <p class="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-          {{ stats.online }}
-        </p>
-      </div>
-
-      <div
-        class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3"
-      >
-        <div class="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
-          <BadgeCheck class="h-3.5 w-3.5" />
-          <p class="text-[10px] font-bold uppercase tracking-widest">This week</p>
-        </div>
-        <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-          {{ stats.activeThisWeek }}
-        </p>
-      </div>
-
-      <div
-        class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3"
-      >
-        <div class="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
-          <UserCheck class="h-3.5 w-3.5" />
-          <p class="text-[10px] font-bold uppercase tracking-widest">Linked</p>
-        </div>
-        <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-          {{ stats.linked }}<span class="text-sm text-gray-400">/{{ stats.total }}</span>
-        </p>
-      </div>
-    </div>
-
-    <!-- How people signed up -->
-    <div
-      v-if="providerSplit.length"
-      class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 mb-3"
-    >
-      <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-        How they signed up
-      </p>
-      <div class="mt-2 flex h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
-        <div
-          v-for="row in providerSplit"
-          :key="row.key"
-          :class="row.key === 'google.com' ? 'bg-gray-400 dark:bg-gray-500' : 'bg-primary'"
-          :style="{ width: `${row.share}%` }"
-        />
-      </div>
-      <div class="mt-2.5 flex flex-wrap items-center gap-2">
-        <span v-for="row in providerSplit" :key="row.key" class="flex items-center gap-1.5">
-          <ProviderBadge :provider="row.key" />
-          <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">
-            {{ row.count }}
-          </span>
-        </span>
-      </div>
-    </div>
-
+    <!-- No tiles of totals above the list: the filters below already answer
+         "who is online" and "who is linked", and do it by showing the people
+         rather than a number of them. -->
     <!-- Search -->
     <div class="relative mb-2">
       <Search

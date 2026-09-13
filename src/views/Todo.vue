@@ -38,6 +38,7 @@ const {
   closedTickets,
   openCountByKind,
   addTicket,
+  updateTicket,
   setTicketStatus,
   reorderTickets,
   removeTicket,
@@ -82,16 +83,36 @@ const filteredClosed = computed(() => closedTickets.value.filter(matchesFilters)
 
 const nothingToShow = computed(() => !filteredOpen.value.length && !filteredClosed.value.length)
 
+// The ticket the drawer was opened on, if it was opened on one.
+const editingTicket = ref(null)
+
+const openNew = () => {
+  editingTicket.value = null
+  showDrawer.value = true
+}
+
+// The words are the target, not the whole row: the row also carries a grip
+// and four buttons, and a tap aimed at one of those must not open a drawer.
+const openEdit = (ticket) => {
+  editingTicket.value = ticket
+  showDrawer.value = true
+}
+
 const handleSave = async (ticket) => {
   if (saving.value) return
   saving.value = true
   try {
-    await addTicket(ticket)
+    if (editingTicket.value) {
+      await updateTicket(editingTicket.value, ticket)
+      toast.success('Ticket saved')
+    } else {
+      await addTicket(ticket)
+    }
     showDrawer.value = false
   } catch (error) {
     // The drawer stays open and keeps what was typed, so a failed save is not
     // also a lost one.
-    failed(error, 'Could not add that ticket')
+    failed(error, editingTicket.value ? 'Could not save that ticket' : 'Could not add that ticket')
   } finally {
     saving.value = false
   }
@@ -185,7 +206,7 @@ const confirmDelete = async () => {
       />
       <button
         type="button"
-        @click="showDrawer = true"
+        @click="openNew"
         :class="[
           'shrink-0 items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90',
           mobileSearchOpen ? 'hidden lg:inline-flex' : 'inline-flex',
@@ -280,11 +301,16 @@ const confirmDelete = async () => {
               <Menu class="h-4 w-4" />
             </span>
 
-            <div class="min-w-0 flex-1">
-              <p class="text-sm text-gray-900 dark:text-white">{{ ticket.title }}</p>
+            <button
+              type="button"
+              @click="openEdit(ticket)"
+              :aria-label="`Edit “${ticket.title}”`"
+              class="min-w-0 flex-1 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span class="block text-sm text-gray-900 dark:text-white">{{ ticket.title }}</span>
 
               <!-- One quiet line instead of three badges. -->
-              <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px]">
+              <span class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px]">
                 <span :class="['font-semibold', kindTextClasses(ticket.kind)]">
                   {{ kindLabel(ticket.kind) }}
                 </span>
@@ -298,15 +324,15 @@ const confirmDelete = async () => {
                     {{ ticket.assigneeUid === myUid ? 'You' : ticket.assigneeName }}
                   </span>
                 </template>
-              </p>
+              </span>
 
-              <p
+              <span
                 v-if="ticket.details"
-                class="mt-1 whitespace-pre-line text-xs text-gray-500 dark:text-gray-400"
+                class="mt-1 block whitespace-pre-line text-xs text-gray-500 dark:text-gray-400"
               >
                 {{ ticket.details }}
-              </p>
-            </div>
+              </span>
+            </button>
 
             <!-- Play, pause, stop, done: four icons, no words. The state is
                  already written on the meta line above, so labelling the
@@ -398,9 +424,14 @@ const confirmDelete = async () => {
               >
                 <RotateCcw class="h-3.5 w-3.5" />
               </button>
-              <p class="min-w-0 flex-1 text-sm text-gray-400 line-through dark:text-gray-500">
+              <button
+                type="button"
+                @click="openEdit(ticket)"
+                :aria-label="`Edit “${ticket.title}”`"
+                class="min-w-0 flex-1 text-left text-sm text-gray-400 line-through dark:text-gray-500"
+              >
                 {{ ticket.title }}
-              </p>
+              </button>
               <button
                 type="button"
                 @click="pendingDelete = ticket"
@@ -415,7 +446,12 @@ const confirmDelete = async () => {
       </template>
     </div>
 
-    <TicketDrawer v-model:show="showDrawer" :saving="saving" @save="handleSave" />
+    <TicketDrawer
+      v-model:show="showDrawer"
+      :ticket="editingTicket"
+      :saving="saving"
+      @save="handleSave"
+    />
 
     <ConfirmationModal
       :show="Boolean(pendingDelete)"

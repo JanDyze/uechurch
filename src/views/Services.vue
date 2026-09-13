@@ -85,7 +85,7 @@ const open = (date) => router.push({ name: 'Present', params: { date } })
 
 /** What the row says about the state of a service, in the fewest words. */
 const statusOf = (service) => {
-  if (!service.prepared) return 'Following the lineup'
+  if (!service.prepared) return 'Following the schedule'
   return `${service.itemCount} item${service.itemCount === 1 ? '' : 's'} planned`
 }
 </script>
@@ -95,7 +95,7 @@ const statusOf = (service) => {
     <div class="shrink-0 pb-4">
       <h1 class="text-lg font-bold text-gray-900 dark:text-white sm:text-xl">Services</h1>
       <p class="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-        Pick a Sunday to run. Songs come from the worship team's lineup; readings and
+        Pick a Sunday to run. Songs come from that Sunday's schedule; readings and
         notices are added in the presenter.
       </p>
     </div>
@@ -114,13 +114,13 @@ const statusOf = (service) => {
         <ProjectorScreen class="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600" />
         <p class="mt-3 text-sm font-bold text-gray-900 dark:text-white">No services yet</p>
         <p class="mx-auto mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400">
-          A Sunday appears here once the worship team plans a lineup for it.
+          A Sunday appears here once it has been scheduled.
         </p>
         <button
-          @click="router.push('/lineups')"
+          @click="router.push('/schedules')"
           class="mt-4 rounded-lg px-3 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
         >
-          Go to lineups
+          Go to schedules
         </button>
       </div>
 

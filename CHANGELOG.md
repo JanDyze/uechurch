@@ -11,6 +11,87 @@ Dates are the commit dates of the work, not tag dates: versions 0.1.0 through
 0.6.0 are reconstructed from history, which had no tags. Tag them retroactively
 with `git tag -a v0.6.0 <sha>` if it ever matters; the shas are listed here.
 
+## [0.21.0] — 2026-09-13
+
+The backlog, cleared: twenty tickets off the To-do list in one go. Every change
+made in the app is now written down with the name of whoever made it, worship
+lineups grew into schedules for everyone who serves, and the pages that had
+each drifted into their own colours and their own summary block were brought
+back into one house style.
+
+### Added
+- **An audit log.** Every write the app makes — a person added, a task ticked,
+  a Sunday called off — is committed in the same batch as an entry saying who
+  made it, when, to what, and which fields were written. Same batch on purpose:
+  a log written on a second round trip has a hole in it wherever a phone lost
+  signal between the two. Administration → Audit log reads it back, grouped by
+  day, with one search bar over names, places, verbs and field names. The
+  connector's writes are logged too, as "Claude (MCP connector)". Nothing about
+  it is optional: `vite.config.js` refuses to build if a file imports
+  `firebase/firestore` around the wrapper that writes the entries.
+- **`firestore.rules` in the repo.** What the rules should be once the log is
+  live: everything else keeps the access it has, while an entry can only be
+  written as yourself, is stamped by the server, and can never be edited or
+  deleted. Deploy it by hand — the rules live in the console today.
+- **Schedules, in place of worship lineups.** A Sunday is no longer just a song
+  leader and a band: it lists everyone serving, with roles an administrator can
+  add, rename, reorder and tie to a ministry so the right people are offered
+  first. Songs stay where they were. Old lineups, links and permissions keep
+  working, and `get_lineup` reports the roles as well.
+- **Ministries and tags can carry a picture.** An icon from the app's own set,
+  or a photograph — the choir's logo, the youth group's badge — chosen in
+  Settings and shown wherever the chip appears.
+- **An album for every gathering.** Past services and events have a gallery
+  album waiting without anyone creating one. An album with no photographs is a
+  single line to tap rather than a card with a placeholder in it.
+- **Recurring events choose whether they appear on profiles.** Off unless asked
+  for: fifty-two Sundays a year on every profile was the page's whole height.
+- **A new person starts tagged First Timer**, which is what almost every new
+  person is; the rare regular has the tag taken off instead.
+- **Tickets can be edited.** Tapping a ticket's words on the To-do page opens it
+  in the same drawer it was written in.
+
+### Changed
+- **Settings is a list of places rather than a strip of tabs.** Eight tabs
+  scrolled sideways on a phone, so half of what Settings could do sat off the
+  edge of the screen. Now every section is visible at once, grouped, each
+  saying where it stands — "3 on the calendar", "2 requests waiting" — with the
+  section in the URL so back, refresh and a shared link all work. Recurring
+  events moved into a component of its own.
+- **The Events page follows the People page**: slimmer headers, one accent
+  colour, plain rows under sticky headings, and sheets and buttons that match.
+- **The Gallery page follows it too**, with a full-screen photo viewer you
+  swipe through.
+- **Cancelled and postponed gatherings are red**, on the calendar, the
+  dashboard and the attendance list, instead of the amber that read as a
+  warning rather than an absence.
+- **Summaries are gone from the top of People, Attendance, Accounts and
+  Events.** What stays on Attendance is the part that asks for something: the
+  gatherings still to record, and the people not seen in weeks.
+- **Attendance is the app's colour.** Each row still carries its gathering's
+  colour on a stripe and a badge; the turnout bars and figures no longer make a
+  month of services a rainbow.
+- **A person's attendance is a grid.** A row per gathering, a column per month,
+  a small square per date — green for came, red for did not. A Sunday with an
+  occasion on it, Grandparents' Day or Communion, sits on the Sunday service's
+  row rather than starting one of its own. Tap a square for the date.
+- **A profile says each thing once.** The tiles under the name repeated the
+  sections below them and are gone; sex is the sign beside the name; the
+  birthday is one line, with "in 5 days" added when it is close.
+- **Exporting people asks what the sheet is for** — a contact list, birthdays,
+  who serves, or everything — rather than thirteen columns to tick. Email and
+  ministries are new columns, and it says Member or Attendee rather than Yes
+  or No.
+- **The add-person drawer lost its colours**, and the phone's account drawer
+  has "Link my member record" back, which only the desktop menu had.
+
+### Fixed
+- **Recording someone the gathering leaves out now asks first.** A Sunday
+  schooler found by search could be ticked into the service as well as their
+  own register, counting them twice.
+- **A gallery upload no longer replaces a chosen cover**, photograph downloads
+  work again, and "New album" opens.
+
 ## [0.20.0] — 2026-09-13
 
 The Bible arrives as somewhere to read, and a meeting's attendance stops being

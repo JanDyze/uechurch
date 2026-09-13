@@ -609,7 +609,7 @@ const resetToLineup = async () => {
     savedSignature = ''
     seedFromLineup()
     applyLineup()
-    toast.success('Back to the lineup.')
+    toast.success('Back to the schedule.')
   } catch {
     toast.error('Could not reset.')
   }
@@ -1019,7 +1019,7 @@ onUnmounted(() => {
       <div class="flex flex-wrap items-center gap-3">
         <button
           @click="router.push({ name: 'Services' })"
-          aria-label="Back to lineups"
+          aria-label="Back to services"
           class="shrink-0 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-primary dark:hover:bg-gray-700"
         >
           <ArrowLeft class="h-5 w-5" />
@@ -1096,7 +1096,7 @@ onUnmounted(() => {
                not have to read it, only be able to. -->
           <span v-if="isSavingPlan" class="text-[11px] font-medium text-gray-400">Saving…</span>
           <span v-else-if="plan" class="text-[11px] font-medium text-gray-400">Saved</span>
-          <span v-else class="text-[11px] font-medium text-gray-400">From lineup</span>
+          <span v-else class="text-[11px] font-medium text-gray-400">From schedule</span>
         </div>
 
         <p v-if="!items.length" class="px-1 text-xs text-gray-400">
@@ -1294,7 +1294,7 @@ onUnmounted(() => {
             @click="resetToLineup"
             class="mt-2 w-full rounded-lg px-2 py-1 text-[11px] font-bold text-gray-400 transition-colors hover:text-red-500"
           >
-            Reset to the lineup
+            Reset to the schedule
           </button>
         </div>
       </div>

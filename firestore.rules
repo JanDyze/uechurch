@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// The rules live in the Firebase console today; this file is what they should
+// be once the audit log is in. Deploy with `firebase deploy --only firestore:rules`
+// (or paste it into Firestore → Rules), after reading the difference below.
+//
+// Everything except the audit log keeps exactly the access it has now: any
+// signed-in account reads and writes. The audit log is the one collection
+// where that openness would defeat its point, so it is narrowed three ways:
+//
+//   An entry can only be written as yourself. actorUid must be the account
+//   writing it, so nobody can put a change down to somebody else.
+//
+//   An entry is stamped by the server. `at` must be the request's own time,
+//   so an entry cannot be backdated.
+//
+//   An entry is never edited or deleted from the app. Not by an administrator
+//   either: a log its subjects can tidy is not a log. (The Admin SDK — the MCP
+//   connector, server scripts — is not bound by rules, which is why lib/audit.js
+//   writes the connector's entries itself.)
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /auditLog/{entryId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // Everything else, as before. Written per top-level collection rather than
+    // `/{document=**}` so this match cannot also open the audit log: rules
+    // allow a write if any matching rule does.
+    match /{collectionId}/{document=**} {
+      allow read, write: if request.auth != null && collectionId != 'auditLog';
+    }
+  }
+}

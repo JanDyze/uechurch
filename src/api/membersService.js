@@ -11,7 +11,7 @@ import {
   orderBy,
   where,
   limit,
-} from "firebase/firestore";
+} from './firestore';
 
 const MEMBERS_COLLECTION = "members";
 

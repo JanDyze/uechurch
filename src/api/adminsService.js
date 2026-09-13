@@ -7,7 +7,7 @@ import {
   getDocs,
   onSnapshot,
   Timestamp,
-} from 'firebase/firestore'
+} from './firestore'
 
 // One document per administrator, keyed by Firebase auth uid so membership is
 // a direct document lookup rather than a query.

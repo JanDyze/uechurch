@@ -8,6 +8,21 @@
 
 export const versionHistory = [
   {
+    version: '0.21.0',
+    date: '2026-09-13',
+    title: 'Who did what, and a tidier app',
+    summary:
+      'Every change now has a name against it, worship lineups became schedules for everyone who serves, and the pages that had each gone their own way look like one app again.',
+    highlights: [
+      'Administration \u2192 Audit log shows every change made in the app, who made it and when. Search it for a name, a page, or “deleted”.',
+      'Lineups are now Schedules: each Sunday lists the song leader, band, preacher, ushers, Sunday school teachers and anyone else serving, and the roles are yours to set in Settings.',
+      'Settings opens as a list of everything it can do instead of tabs that ran off the edge of a phone, and each one says where it stands.',
+      'A person’s record shows their attendance as small green and red squares — a row for each gathering, a column for each month. Tap one for the date.',
+      'Events, the Gallery and the People page now look alike; cancelled gatherings are marked in red; and photo albums appear for every service without anyone making them.',
+      'Ministries and tags can carry an icon or a photograph of their own.',
+    ],
+  },
+  {
     version: '0.20.0',
     date: '2026-09-13',
     title: 'A Bible to read',
@@ -18,7 +33,6 @@ export const versionHistory = [
       'Search for a phrase and it finds the verse, whether or not you type the accents and curly quotes the way the text prints them.',
       'A meeting marked off on its minute now shows as recorded on the Attendance page too, and a committee is counted out of its own members rather than the whole church.',
       'A count taken against the wrong Sunday can be deleted, and one date of a weekly service can be taken off the calendar without stopping the rest.',
-      'A person’s record now opens with their turnout and their next birthday, and the gatherings they have been to are grouped by month.',
     ],
   },
   {

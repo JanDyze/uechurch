@@ -5,12 +5,10 @@ import { useMembers } from "../composables/useMembers";
 import { useMediaQuery } from "../composables/useMediaQuery";
 import { useMemberSearch } from "../composables/useMemberSearch";
 import { useMemberSorting } from "../composables/useMemberSorting";
-import { useMemberStats } from "../composables/useMemberStats";
 import { useMemberForm } from "../composables/useMemberForm";
 import { useListScrollMemory } from "../composables/useListScrollMemory";
 import { useToast } from "../composables/useToast";
 import MembersToolbar from "../components/members/MembersToolbar.vue";
-import MembersSummary from "../components/members/MembersSummary.vue";
 import MembersFab from "../components/members/MembersFab.vue";
 import MembersSortSheet from "../components/members/MembersSortSheet.vue";
 import AddMemberDrawer from "../components/members/AddMemberDrawer.vue";
@@ -27,7 +25,7 @@ import { getFullName, mergeTagSources } from "../utils/memberUtils";
 import { usePermissions } from "../composables/usePermissions";
 import { useMinistries } from "../composables/useMinistries";
 import { areaLabel } from "../data/capabilities";
-import { ArrowUpDown, ChevronDown, ChevronUp, Church, Tag, X } from "../icons";
+import { ArrowUpDown, ChevronDown, Church, Tag, X } from "../icons";
 import {
   subscribeToCustomTags,
   addCustomTag,
@@ -83,14 +81,10 @@ const filteredMembers = computed(() => {
   return sortMembers(searchedMembers.value);
 });
 
-// At-a-glance report. Scoped to what is on screen, so searching "youth"
-// reports on the youth rather than on everyone.
-const { stats, agedTotal, birthdayMonthLabel } = useMemberStats(filteredMembers);
-
 // The sort decides the headings as well as the order.
 //
-// By default the list is divided the way the summary bar above it counts and
-// the way the attendance recorder checks people off — kids, youth, adults,
+// By default the list is divided the way the attendance recorder checks
+// people off — kids, youth, adults,
 // seniors, then whoever has no age on record. Sorting by ministry or tag
 // replaces those headings with its own, because you cannot group by age band
 // and by choir at once; sorting by birthday or by when somebody joined drops
@@ -378,10 +372,18 @@ const handleAddMember = async () => {
   }
 };
 
-// Export handler - `onlyVisible` exports exactly what the search is showing.
+// Export handler. "search" exports exactly what the search is showing; the
+// others start from the whole roll and narrow by standing.
 const handleExport = (config) => {
-  exportToExcel(config.onlyVisible ? filteredMembers.value : members.value, config);
-  toast.success('Export downloaded successfully!');
+  const base = config.scope === "search" ? filteredMembers.value : members.value;
+  const rows =
+    config.scope === "members"
+      ? base.filter((m) => m.isMember)
+      : config.scope === "attendees"
+        ? base.filter((m) => !m.isMember)
+        : base;
+  exportToExcel(rows, config);
+  toast.success('Export downloaded');
 };
 
 // Opening a record leaves the page, so the list has to remember where it was.
@@ -502,25 +504,6 @@ const closeSearch = () => {
   searchQuery.value = "";
 };
 
-// Whether the three tiles are worth their height is a per-person judgement, so
-// it is remembered per device rather than decided here.
-const SUMMARY_KEY = "uec.people.showSummary";
-const readSummary = () => {
-  try {
-    return localStorage.getItem(SUMMARY_KEY) !== "0";
-  } catch {
-    return true;
-  }
-};
-const showSummary = ref(readSummary());
-watch(showSummary, (on) => {
-  try {
-    localStorage.setItem(SUMMARY_KEY, on ? "1" : "0");
-  } catch {
-    /* the preference lasts the session */
-  }
-});
-
 const showFab = computed(
   () => !showAddMemberComputed.value && !picking.value
 );
@@ -543,35 +526,17 @@ const showFab = computed(
 
     <!-- Members List -->
     <div class="flex-1 overflow-hidden bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex">
-      <!-- Members Content. A column, so the tiles can sit above the scroller
-           rather than inside it: a summary that scrolls away is only a summary
-           for the first screenful. -->
+      <!-- Members Content. A column, so the sort strip sits above the
+           scroller rather than scrolling away with the first screenful. -->
       <div class="flex flex-1 min-w-0 h-full flex-col">
-        <Transition name="summary">
-          <MembersSummary
-            v-if="showSummary"
-            :stats="stats"
-            :agedTotal="agedTotal"
-            :birthdayMonthLabel="birthdayMonthLabel"
-            :loading="loading"
-            @hide="showSummary = false"
-          />
-        </Transition>
-        <!-- One slim strip, always there: the summary toggle it used to hold
-             on its own, and the sort. Sort has to say which sort is on, so it
-             cannot live in the actions menu — a setting you cannot see the
-             state of is one you re-open just to check. -->
+        <!-- No summary tiles: a head count at the top of the roll was read
+             more than it was used, and the band headings below already carry
+             their own counts. What is left is the sort, which has to say which
+             sort is on, so it cannot live in the actions menu — a setting you
+             cannot see the state of is one you re-open just to check. -->
         <div
           class="flex shrink-0 items-center gap-2 border-b border-gray-200 px-2 py-1.5 dark:border-gray-700"
         >
-          <button
-            @click="showSummary = !showSummary"
-            class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-          >
-            <component :is="showSummary ? ChevronUp : ChevronDown" class="h-3.5 w-3.5" />
-            {{ showSummary ? 'Hide summary' : 'Show summary' }}
-          </button>
-
           <button
             @click="showSort = true"
             aria-haspopup="dialog"
@@ -815,36 +780,6 @@ const showFab = computed(
 </template>
 
 <style scoped>
-/* Collapsing tiles: height and opacity together, from a fixed max rather than
-   a measured one - the block is three tiles on one row at every width, so the
-   ceiling is known and no JS hook is needed to find it. */
-.summary-enter-active,
-.summary-leave-active {
-  transition:
-    max-height 0.25s ease,
-    opacity 0.2s ease;
-  overflow: hidden;
-}
-
-.summary-enter-from,
-.summary-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-
-.summary-enter-to,
-.summary-leave-from {
-  max-height: 10rem;
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .summary-enter-active,
-  .summary-leave-active {
-    transition: none;
-  }
-}
-
 /* Drawer column animations */
 .drawer-enter-active .add-member-drawer,
 .drawer-leave-active .add-member-drawer {

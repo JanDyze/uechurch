@@ -13,7 +13,8 @@ import {
   carriesTag,
 } from '../utils/audience'
 import { isCalledOff } from '../../lib/eventStatus'
-import { mergeAttendanceRecords, ATTENDANCE_SOURCES } from '../../lib/attendance'
+import { mergeAttendanceRecords, ATTENDANCE_SOURCES, RECURRING_ID } from '../../lib/attendance'
+import { OCCASION_SEPARATOR } from '../../lib/occurrences'
 
 /**
  * One person's turnout, for the gatherings they were actually expected at.
@@ -48,7 +49,9 @@ import { mergeAttendanceRecords, ATTENDANCE_SOURCES } from '../../lib/attendance
  *   unrecorded  no register was kept for this gathering
  *
  * Cancelled, postponed and deliberately-skipped gatherings are left out
- * entirely: nobody failed to attend a thing that did not happen.
+ * entirely: nobody failed to attend a thing that did not happen. So is every
+ * standing gathering whose schedule has not been switched to show on profiles
+ * (Settings) — off by default, and a schedule since deleted cannot say yes.
  */
 export function useMemberAttendance(member, options = {}) {
   const { limit = 14 } = options
@@ -102,6 +105,45 @@ export function useMemberAttendance(member, options = {}) {
     return record
   }
 
+  /**
+   * The schedule a record belongs to, from whichever store it came out of: a
+   * generated occurrence names it outright, a Sunday edited on the calendar
+   * names the occurrence it replaced, and a meeting's minute carries it once it
+   * was started from — or bound to — its standing gathering. Empty for a
+   * one-off.
+   */
+  const scheduleIdOf = (record, audience = audienceOf(record)) => {
+    if (record.source === ATTENDANCE_SOURCES.SCHEDULE) return record.sourceId || ''
+    if (record.source === ATTENDANCE_SOURCES.MINUTE) {
+      const minute = (minutes.value || []).find((m) => sameId(m.firestoreId || m.id, record.sourceId))
+      return minute?.scheduleId || ''
+    }
+    return String(audience?.overrideOf || '').match(RECURRING_ID)?.[1] || ''
+  }
+
+  /**
+   * Which standing gathering a record is one week of, whatever that week was
+   * called. Grandparents Day is the Sunday service with a name on it — the same
+   * room at the same hour — so it belongs on the Sunday service's row, not on a
+   * row of its own that holds one square a year.
+   *
+   * The schedule is asked first: a generated Sunday names it directly, and a
+   * Sunday somebody edited on the calendar names the occurrence it replaced.
+   * Anything else — a one-off, or a record from before provenance was kept —
+   * falls back to its title with the occasion taken off the end.
+   */
+  const seriesOf = (record, audience) => {
+    const scheduleId = scheduleIdOf(record, audience)
+    const schedule = scheduleId
+      ? (schedules.value || []).find((s) => sameId(s.id, scheduleId))
+      : null
+    const title =
+      schedule?.title ||
+      String(record.eventTitle || 'Gathering').split(OCCASION_SEPARATOR)[0].trim() ||
+      'Gathering'
+    return { seriesKey: title.toLowerCase(), seriesTitle: title }
+  }
+
   const isOnRegister = (record, m) => {
     const ids = Array.isArray(record.attendees) ? record.attendees : []
     return ids.some((id) => sameId(id, m.id) || sameId(id, m.firestoreId))
@@ -127,6 +169,14 @@ export function useMemberAttendance(member, options = {}) {
       .filter((record) => {
         if (!record?.date || record.date > today) return false
         if (record.skipped || isCalledOff(record)) return false
+        // Asked before anything else, meetings included: a standing gathering
+        // switched off for profiles is off whether its register is kept in the
+        // attendance collection or on its minute.
+        const scheduleId = scheduleIdOf(record)
+        if (scheduleId) {
+          const schedule = (schedules.value || []).find((s) => sameId(s.id, scheduleId))
+          if (!schedule?.showInProfile) return false
+        }
         if (record.source === ATTENDANCE_SOURCES.MINUTE) {
           // The meeting's group, read the way every other screen reads it
           // (utils/audience.js). The vocabulary offered is only this person's
@@ -160,6 +210,11 @@ export function useMemberAttendance(member, options = {}) {
           key: record.firestoreId || record.id || `${record.date}-${record.eventTitle}`,
           date: record.date,
           title: record.eventTitle || 'Gathering',
+          ...seriesOf(record, audience),
+          // What kind of gathering, for its icon: the event's or schedule's own
+          // choice first, the type's default after, and a meeting as a meeting.
+          type: record.source === ATTENDANCE_SOURCES.MINUTE ? 'meeting' : record.eventType || audience.type || '',
+          icon: audience.icon || '',
           // "Everyone" is the right word for a gathering that names no tags,
           // and the wrong one for a meeting: it is on this profile either
           // because of the group it is for, or because this person was in the

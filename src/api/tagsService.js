@@ -13,7 +13,7 @@ import {
   serverTimestamp,
   arrayUnion,
   arrayRemove
-} from 'firebase/firestore'
+} from './firestore'
 import { inBatches } from './batchWrite'
 
 // Tags are free-text labels for describing and filtering members — "New
@@ -110,6 +110,26 @@ export const addCustomTag = async (name) => {
     name,
     createdAt: serverTimestamp()
   })
+}
+
+/**
+ * The picture a tag is shown with — see setMinistryMark. A tag that has only
+ * ever been typed onto members has no document to hold one, so choosing a
+ * picture for it registers it, which is harmless: registering a tag is what
+ * the Add button in Settings does anyway.
+ */
+export const setTagMark = async (name, customTagId = null, { icon = '', imageUrl = '' } = {}) => {
+  const mark = { icon: imageUrl ? '' : icon, imageUrl }
+  if (customTagId) {
+    await updateDoc(doc(db, TAGS_COLLECTION, customTagId), mark)
+    return customTagId
+  }
+  const ref = await addDoc(collection(db, TAGS_COLLECTION), {
+    name,
+    ...mark,
+    createdAt: serverTimestamp(),
+  })
+  return ref.id
 }
 
 /**

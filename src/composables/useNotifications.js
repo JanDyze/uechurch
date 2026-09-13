@@ -6,7 +6,7 @@ import {
   onMessage,
   isSupported,
 } from "firebase/messaging";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from '../api/firestore';
 import app, { db } from "../api/firebase";
 import { useToast } from "./useToast";
 import { initAuth, useAuth } from "./useAuth";

@@ -2,26 +2,34 @@ import { ref, computed } from "vue";
 import { calculateAgeFromDate } from "../utils/memberUtils";
 import { useToast } from "./useToast";
 
+// Somebody being added today is, nearly always, somebody who walked in for the
+// first time — so the form starts them tagged that way, and the rare regular
+// who was never entered has the tag taken off instead of every newcomer
+// needing it put on.
+export const FIRST_TIMER_TAG = 'First Timer';
+
+const blankMember = () => ({
+  firstName: '',
+  lastName: '',
+  nickname: '',
+  sex: 'Male',
+  dateOfBirth: '',
+  age: null,
+  civilStatus: 'Single',
+  address: '',
+  contactNumber: '',
+  occupation: '',
+  ministries: [],
+  tags: [FIRST_TIMER_TAG],
+  isMember: false,
+  image: null,
+});
+
 export function useMemberForm(members, addMemberToFirestore, allTags) {
   const toast = useToast();
   const showAddMember = ref(false);
-  
-  const newMember = ref({
-    firstName: '',
-    lastName: '',
-    nickname: '',
-    sex: 'Male',
-    dateOfBirth: '',
-    age: null,
-    civilStatus: 'Single',
-    address: '',
-    contactNumber: '',
-    occupation: '',
-    ministries: [],
-    tags: [],
-    isMember: false,
-    image: null, // Add image field
-  });
+
+  const newMember = ref(blankMember());
 
   // Check if all required fields are filled
   const canAddMember = computed(() => {
@@ -99,22 +107,7 @@ export function useMemberForm(members, addMemberToFirestore, allTags) {
       toast.success(`${member.firstName} ${member.lastName} added`);
       
       // Reset form
-      newMember.value = {
-        firstName: '',
-        lastName: '',
-        nickname: '',
-        sex: 'Male',
-        dateOfBirth: '',
-        age: null,
-        civilStatus: 'Single',
-        address: '',
-        contactNumber: '',
-        occupation: '',
-        ministries: [],
-        tags: [],
-        isMember: false,
-        image: null, // Reset image field
-      };
+      newMember.value = blankMember();
       
       showAddMember.value = false;
       return true;

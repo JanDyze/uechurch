@@ -13,7 +13,7 @@ import { useAvatars } from "../composables/useAvatars";
 import { useToast } from "../composables/useToast";
 import { useMembers } from "../composables/useMembers";
 import { useMyMember } from "../composables/useMyMember";
-import { useMemberClaims } from "../composables/useMemberClaims";
+import { useClaimFlow } from "../composables/useClaimFlow";
 import { usePresence } from "../composables/usePresence";
 import { useMediaQuery } from "../composables/useMediaQuery";
 import { usePermissions } from "../composables/usePermissions";
@@ -121,38 +121,19 @@ const handleLogout = async () => {
 /* --------------------------------------------------- linked member record */
 const { members } = useMembers()
 const { myMember, isLinked } = useMyMember()
-const { myClaim, myPendingClaim, submitClaim, withdraw } = useMemberClaims()
-
-const showClaimSheet = ref(false)
-const submittingClaim = ref(false)
+const {
+  myClaim,
+  myPendingClaim,
+  showClaimSheet,
+  submittingClaim,
+  openClaimSheet: openSharedClaimSheet,
+  handleClaimSubmit,
+  handleWithdrawClaim,
+} = useClaimFlow()
 
 const openClaimSheet = () => {
   isUserMenuOpen.value = false
-  showClaimSheet.value = true
-}
-
-const handleClaimSubmit = async (member) => {
-  submittingClaim.value = true
-  try {
-    await submitClaim(member)
-    showClaimSheet.value = false
-    toast.success(`Request sent. An administrator will review it.`)
-  } catch (e) {
-    console.error('Error requesting member link:', e)
-    toast.error('Could not send the request. Please try again.')
-  } finally {
-    submittingClaim.value = false
-  }
-}
-
-const handleWithdrawClaim = async () => {
-  try {
-    await withdraw(myPendingClaim.value)
-    toast.success('Request withdrawn')
-  } catch (e) {
-    console.error('Error withdrawing member claim:', e)
-    toast.error('Could not withdraw the request.')
-  }
+  openSharedClaimSheet()
 }
 
 const openMyProfile = () => {

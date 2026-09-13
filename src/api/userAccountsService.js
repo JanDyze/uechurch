@@ -8,7 +8,7 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
-} from 'firebase/firestore'
+} from './firestore'
 import { toDate } from '../utils/timeUtils'
 import { notify } from './notifyService'
 

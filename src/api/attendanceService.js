@@ -1,5 +1,5 @@
 import { db } from './firebase'
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp, where } from 'firebase/firestore'
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp, where } from './firestore'
 import { readProvenance } from '../../lib/attendance'
 
 const ATTENDANCE_COLLECTION = 'attendance'

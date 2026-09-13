@@ -15,7 +15,7 @@ import {
   serverTimestamp,
   arrayUnion,
   arrayRemove,
-} from 'firebase/firestore'
+} from './firestore'
 
 import { DEFAULT_MINISTRIES } from '../utils/memberUtils'
 import { inBatches } from './batchWrite'
@@ -46,6 +46,8 @@ export const subscribeToMinistries = (callback) => {
           id: d.id,
           name: d.data().name || '',
           description: d.data().description || '',
+          icon: d.data().icon || '',
+          imageUrl: d.data().imageUrl || '',
         }))
       ),
     (error) => {
@@ -54,6 +56,17 @@ export const subscribeToMinistries = (callback) => {
     }
   )
 }
+
+/**
+ * The picture a ministry is shown with: an icon from the app's own set, or a
+ * photograph somebody uploaded. One or the other, never both — setting one
+ * clears the other, so there is no question of which wins. Empty for neither.
+ */
+export const setMinistryMark = async (ministryId, { icon = '', imageUrl = '' } = {}) =>
+  updateDoc(doc(db, MINISTRIES_COLLECTION, ministryId), {
+    icon: imageUrl ? '' : icon,
+    imageUrl,
+  })
 
 export const addMinistry = async (name, description = '') =>
   addDoc(collection(db, MINISTRIES_COLLECTION), {

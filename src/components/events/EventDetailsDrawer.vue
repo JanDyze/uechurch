@@ -1,10 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { ArrowLeft, Calendar, Clock, MapPin, Users, Trash2, Edit2, CalendarClock } from '../../icons'
+import { Calendar, Clock, MapPin, Users, Trash2, Edit2, CalendarClock, X } from '../../icons'
 import { readExpectedAttendance, audienceLabel } from '../../utils/audience'
 import { EVENT_STATUS, readEventStatus, eventStatusLabel } from '../../../lib/eventStatus'
-import { getEventIcon as getIconComponent } from '../../utils/eventIcons'
-import { getEventTypeColor } from '../../utils/eventColors'
+import { getEventIcon as getIconComponent, iconForEvent } from '../../utils/eventIcons'
+import { getEventTypeColor, eventTypeLabel, CALLED_OFF_BANNER } from '../../utils/eventColors'
 import { useMediaQuery } from '../../composables/useMediaQuery'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 
@@ -71,6 +71,32 @@ const formatDate = (dateStr) => {
     day: 'numeric',
   })
 }
+
+// The record read as facts, one line each, the way a person's record reads.
+// Each used to be its own grey card with a tinted icon square, which put four
+// boxes on a phone screen to say four short things.
+const facts = computed(() => {
+  const event = props.event
+  if (!event) return []
+  const list = [
+    { key: 'date', icon: Calendar, label: 'Date', value: formatDate(event.date) },
+  ]
+  if (event.time) list.push({ key: 'time', icon: Clock, label: 'Time', value: event.time })
+  if (event.location) {
+    list.push({ key: 'location', icon: MapPin, label: 'Location', value: event.location })
+  }
+  if (expectedCount.value) {
+    const n = expectedCount.value
+    list.push({
+      key: 'expected',
+      icon: Users,
+      label: 'Expected',
+      value: `${n} ${n === 1 ? 'person' : 'people'}`,
+      hint: audienceSummary.value,
+    })
+  }
+  return list
+})
 </script>
 
 <template>
@@ -81,12 +107,12 @@ const formatDate = (dateStr) => {
       :class="[
         isMobile
           ? 'fixed inset-0 z-80 flex flex-col justify-end'
-          : 'event-details-drawer m-2 md:m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 transition-all duration-300'
+          : 'event-details-drawer ml-3 flex h-full w-[calc(50%-0.75rem)] shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
       ]"
     >
       <div
         v-if="isMobile"
-        class="absolute inset-0 bg-black/50"
+        class="absolute inset-0 bg-black/60 backdrop-blur-sm"
         @click="$emit('back')"
       />
       <div
@@ -98,174 +124,132 @@ const formatDate = (dateStr) => {
         :class="[
           'flex flex-col min-h-0',
           isMobile
-            ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
+            ? 'relative z-10 w-full max-h-[92dvh] overflow-hidden rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
             : 'h-full w-full'
         ]"
       >
-    <!-- Header with Back Button -->
-    <div class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-t-2xl border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-5 py-4">
-      <button
-        @click="$emit('back')"
-        class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-3"
-      >
-        <ArrowLeft class="h-4 w-4" />
-        <span class="text-sm font-medium">Back to Events</span>
-      </button>
-
-      <div class="flex items-center gap-4">
+    <!-- Header: the same shape as the People page's sheets, with the event's
+         own type colour where their primary tile sits — the one place on this
+         sheet a category colour earns its keep. -->
+    <div class="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-linear-to-r from-primary/10 to-transparent px-4 py-3.5 dark:border-gray-700 dark:from-primary-light/10">
+      <div class="flex min-w-0 items-center gap-3">
         <div
           :class="[
-            'w-14 h-14 rounded-xl flex items-center justify-center shadow-lg shrink-0',
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-lg',
             getEventTypeColor(event.type),
           ]"
         >
-          <component :is="getIconComponent(event.icon || 'Calendar')" class="h-7 w-7" />
+          <component :is="getIconComponent(iconForEvent(event))" class="h-5.5 w-5.5" />
         </div>
-        <div class="flex-1 min-w-0">
-          <h2 id="event-details-drawer-title" class="text-xl font-bold text-gray-900 dark:text-white truncate">
+        <div class="min-w-0">
+          <h2
+            id="event-details-drawer-title"
+            :class="[
+              'truncate text-base font-bold',
+              isOff ? 'text-gray-500 line-through dark:text-gray-400' : 'text-gray-900 dark:text-white',
+            ]"
+          >
             {{ event.title }}
           </h2>
-          <p class="text-sm text-gray-500 dark:text-gray-400 capitalize">
-            {{ event.type }} Event
+          <p class="truncate text-xs text-gray-500 dark:text-gray-400">
+            {{ eventTypeLabel(event.type) }}<span v-if="event.isRecurring"> · Weekly</span><span v-if="event.isBirthday"> · Birthday</span>
           </p>
         </div>
       </div>
+      <button
+        @click="$emit('back')"
+        aria-label="Close"
+        class="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+      >
+        <X class="h-5 w-5" />
+      </button>
     </div>
 
     <!-- Content -->
-    <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+    <div class="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
       <!-- Called off: the first thing anyone opening this needs to know, so it
            sits above the date rather than beside it. -->
       <div
         v-if="isOff"
-        class="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/40 dark:bg-amber-500/10"
+        :class="['rounded-xl border px-4 py-3', CALLED_OFF_BANNER]"
       >
-        <p class="flex items-center gap-2 text-sm font-bold text-amber-800 dark:text-amber-300">
+        <p class="flex items-center gap-2 text-sm font-bold">
           <CalendarClock class="h-4 w-4 shrink-0" />
           {{ statusHeading }}
         </p>
-        <p v-if="event.postponedTo" class="mt-1 text-xs text-amber-700 dark:text-amber-300/80">
+        <p v-if="event.postponedTo" class="mt-1 text-xs opacity-90">
           Moved to {{ formatDate(event.postponedTo) }}
         </p>
-        <p v-if="event.statusNote" class="mt-1 text-sm text-amber-700 dark:text-amber-300/80">
+        <p v-if="event.statusNote" class="mt-1 text-sm opacity-90">
           {{ event.statusNote }}
         </p>
       </div>
 
-      <!-- Date & Time Card -->
-      <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-3">
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
-            <Calendar class="h-5 w-5 text-primary dark:text-primary-light" />
-          </div>
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Date</p>
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ formatDate(event.date) }}
-            </p>
-          </div>
-        </div>
-        
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
-            <Clock class="h-5 w-5 text-primary dark:text-primary-light" />
-          </div>
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Time</p>
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ event.time }}
-            </p>
+      <dl class="divide-y divide-gray-100 rounded-xl border border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+        <div v-for="fact in facts" :key="fact.key" class="flex items-start gap-3 px-4 py-3">
+          <component :is="fact.icon" class="mt-0.5 h-4.5 w-4.5 shrink-0 text-gray-400 dark:text-gray-500" />
+          <div class="min-w-0 flex-1">
+            <dt class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+              {{ fact.label }}
+            </dt>
+            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ fact.value }}</dd>
+            <dd v-if="fact.hint" class="truncate text-xs text-gray-500 dark:text-gray-400">
+              {{ fact.hint }}
+            </dd>
           </div>
         </div>
-      </div>
+      </dl>
 
-      <!-- Location Card -->
-      <div v-if="event.location" class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
-            <MapPin class="h-5 w-5 text-primary dark:text-primary-light" />
-          </div>
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Location</p>
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ event.location }}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Attendees Card -->
-      <div v-if="expectedCount" class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-primary/10 dark:bg-primary-light/10 rounded-lg">
-            <Users class="h-5 w-5 text-primary dark:text-primary-light" />
-          </div>
-          <div class="min-w-0">
-            <p class="text-xs text-gray-500 dark:text-gray-400">Expected Attendees</p>
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ expectedCount }} {{ expectedCount === 1 ? 'person' : 'people' }}
-            </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
-              {{ audienceSummary }}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Description -->
-      <div v-if="event.description" class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-        <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+      <div v-if="event.description" class="rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700">
+        <h3 class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
           Description
         </h3>
-        <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+        <p class="whitespace-pre-line text-sm leading-relaxed text-gray-700 dark:text-gray-300">
           {{ event.description }}
         </p>
       </div>
-
     </div>
 
-    <!-- Footer Actions -->
-    <div v-if="isEditable" class="shrink-0 bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent rounded-b-2xl border-t border-primary/20 dark:border-primary-light/20 px-4 sm:px-5 py-4">
-      <div class="flex justify-end gap-2">
-        <!-- Calling it off is not deleting it: the gathering stays on the
-             calendar, marked, so nobody turns up for something that is not
-             happening. -->
-        <button
-          v-if="canCallOff"
-          @click="$emit('status')"
-          :class="[
-            'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-            isOff
-              ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:hover:bg-amber-500/30'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600',
-          ]"
-          :title="isOff ? 'Change or reinstate' : 'Cancel or postpone'"
-        >
-          <CalendarClock class="h-5 w-5" />
-          <span class="hidden sm:inline">{{ isOff ? 'Change' : 'Call off' }}</span>
-        </button>
-        <button
-          @click="$emit('edit')"
-          class="p-2 text-white bg-primary dark:bg-primary-light rounded-lg hover:bg-primary-hover dark:hover:bg-[#1a9aab] transition-colors shadow-lg shadow-primary/25 dark:shadow-primary-light/25"
-          :title="event.isVirtual ? 'Override' : 'Edit'"
-          :aria-label="event.isVirtual ? 'Override' : 'Edit'"
-        >
-          <Edit2 class="h-5 w-5" />
-        </button>
-        <!-- Deleting is the other answer to "this is not happening", and a
-             different one: calling off leaves the gathering on the calendar
-             marked, deleting takes the date away. A weekly occurrence has no
-             document of its own, so deleting it writes the override that
-             stands in for it; a birthday is hidden rather than deleted. -->
-        <button
-          @click="$emit('delete')"
-          class="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors shadow-lg shadow-red-500/25"
-          :title="deleteLabel"
-          :aria-label="deleteLabel"
-        >
-          <Trash2 class="h-5 w-5" />
-        </button>
-      </div>
+    <!-- Actions: labelled at every width, sized for a thumb, and in the order
+         the People page's selection bar uses — the quiet one first, the
+         primary one last and widest. -->
+    <div
+      v-if="isEditable"
+      class="flex shrink-0 items-center gap-2 border-t border-gray-200 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-gray-700"
+    >
+      <!-- Deleting is the other answer to "this is not happening", and a
+           different one: calling off leaves the gathering on the calendar
+           marked, deleting takes the date away. A weekly occurrence has no
+           document of its own, so deleting it writes the override that
+           stands in for it; a birthday is hidden rather than deleted. -->
+      <button
+        @click="$emit('delete')"
+        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-gray-700 dark:text-gray-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+        :title="deleteLabel"
+        :aria-label="deleteLabel"
+      >
+        <Trash2 class="h-5 w-5" />
+      </button>
+      <!-- Calling it off is not deleting it: the gathering stays on the
+           calendar, marked, so nobody turns up for something that is not
+           happening. -->
+      <button
+        v-if="canCallOff"
+        @click="$emit('status')"
+        class="inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+        :title="isOff ? 'Change or reinstate' : 'Cancel or postpone'"
+      >
+        <CalendarClock class="h-4 w-4 shrink-0" />
+        <span class="truncate">{{ isOff ? 'Change status' : 'Call off' }}</span>
+      </button>
+      <button
+        @click="$emit('edit')"
+        class="inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition-colors hover:bg-primary-hover"
+        :title="event.isVirtual ? 'Edit this date only' : 'Edit'"
+      >
+        <Edit2 class="h-4 w-4 shrink-0" />
+        <span class="truncate">Edit</span>
+      </button>
     </div>
       </div>
     </div>
@@ -275,7 +259,7 @@ const formatDate = (dateStr) => {
 
 <style scoped>
 .event-details-drawer {
-  transition: max-width 0.3s ease-out, opacity 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  transition: max-width 0.3s ease-out, opacity 0.3s ease;
 }
 
 .drawer-enter-from.event-details-drawer,

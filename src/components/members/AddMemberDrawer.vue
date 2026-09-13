@@ -9,6 +9,8 @@ import { calculateAgeFromDate, CIVIL_STATUS_OPTIONS as civilStatusOptions } from
 import { useMediaQuery } from "../../composables/useMediaQuery";
 import { useFocusTrap } from "../../composables/useFocusTrap";
 import { useMinistries } from '../../composables/useMinistries'
+import { useLabelMarks } from '../../composables/useLabelMarks'
+import LabelMark from '../common/LabelMark.vue'
 
 const props = defineProps({
   showAddMember: {
@@ -89,6 +91,14 @@ const updateField = (field, value) => {
 };
 
 const { ministryNames } = useMinistries();
+const { ministryMark, tagMark } = useLabelMarks();
+
+// The form arrives already carrying a tag (First Timer), and a chip that is on
+// but not listed could never be switched off — so whatever the person holds is
+// offered alongside the church's list.
+const tagOptions = computed(() => [
+  ...new Set([...props.allTags, ...(props.newMember.tags || [])]),
+]);
 
 const toggleTag = (tag) => {
   const tags = props.newMember.tags.includes(tag)
@@ -143,17 +153,16 @@ const sexOptions = [
             'flex flex-col min-h-0',
             isMobile
               ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
-              : 'add-member-drawer m-3 rounded-2xl border-2 border-green-500/30 dark:border-green-400/30 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] min-w-110 h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-green-500/25 dark:shadow-green-400/20'
+              : 'add-member-drawer m-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 w-[calc(50%-1.5rem)] min-w-110 h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl'
           ]"
           @click.stop
         >
           <!-- Header -->
-          <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-t-2xl border-b border-green-500/20 dark:border-green-400/20 px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div class="shrink-0 rounded-t-2xl border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between">
             <div>
               <h3 id="add-member-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">
                 Add New Person
               </h3>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Fill in the details below</p>
             </div>
             <button
               @click="emit('update:showAddMember', false)"
@@ -179,7 +188,7 @@ const sexOptions = [
                     <button
                       type="button"
                       @click="showImageCropper = true"
-                      class="absolute -bottom-1 -right-1 p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors shadow-lg"
+                      class="absolute -bottom-1 -right-1 p-2 bg-primary dark:bg-primary-light text-white rounded-full hover:opacity-90 transition-opacity shadow-md"
                       title="Upload Image"
                       aria-label="Upload image"
                     >
@@ -193,7 +202,7 @@ const sexOptions = [
                       <button
                         type="button"
                         @click="showImageCropper = true"
-                        class="px-3 py-1.5 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                        class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                       >
                         {{ newMember.image ? 'Change' : 'Upload' }}
                       </button>
@@ -201,7 +210,7 @@ const sexOptions = [
                         v-if="newMember.image"
                         type="button"
                         @click="updateField('image', null)"
-                        class="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                        class="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 rounded-lg hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
                       >
                         Remove
                       </button>
@@ -218,8 +227,8 @@ const sexOptions = [
                   class="w-full px-4 py-3 flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <div class="flex items-center gap-3">
-                    <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                      <User class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <div class="p-2 bg-white dark:bg-gray-800 rounded-lg">
+                      <User class="h-4 w-4 text-gray-500 dark:text-gray-400" />
                     </div>
                     <div class="text-left">
                       <p class="text-sm font-medium text-gray-900 dark:text-white">Personal Information</p>
@@ -279,7 +288,7 @@ const sexOptions = [
                         />
                         <span
                           v-if="computedAge !== null"
-                          class="absolute -top-2 right-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full"
+                          class="absolute -top-2 right-2 px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-full"
                         >
                           {{ computedAge }} yrs
                         </span>
@@ -297,8 +306,8 @@ const sexOptions = [
                   class="w-full px-4 py-3 flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <div class="flex items-center gap-3">
-                    <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                      <Phone class="h-4 w-4 text-green-600 dark:text-green-400" />
+                    <div class="p-2 bg-white dark:bg-gray-800 rounded-lg">
+                      <Phone class="h-4 w-4 text-gray-500 dark:text-gray-400" />
                     </div>
                     <div class="text-left">
                       <p class="text-sm font-medium text-gray-900 dark:text-white">Contact Information</p>
@@ -342,8 +351,8 @@ const sexOptions = [
                   class="w-full px-4 py-3 flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <div class="flex items-center gap-3">
-                    <div class="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                      <Church class="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    <div class="p-2 bg-white dark:bg-gray-800 rounded-lg">
+                      <Church class="h-4 w-4 text-gray-500 dark:text-gray-400" />
                     </div>
                     <div class="text-left">
                       <p class="text-sm font-medium text-gray-900 dark:text-white">Church Information</p>
@@ -367,7 +376,7 @@ const sexOptions = [
                         :aria-pressed="newMember.isMember"
                         :class="[
                           'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
-                          newMember.isMember ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                          newMember.isMember ? 'bg-primary dark:bg-primary-light' : 'bg-gray-300 dark:bg-gray-600'
                         ]"
                       >
                         <span
@@ -395,12 +404,13 @@ const sexOptions = [
                           type="button"
                           @click="toggleMinistry(ministry)"
                           :class="[
-                            'px-3 py-1.5 text-xs font-medium rounded-full transition-all',
+                            'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all',
                             (newMember.ministries || []).includes(ministry)
                               ? 'bg-primary dark:bg-primary-light text-white shadow-sm'
                               : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
                           ]"
                         >
+                          <LabelMark :mark="ministryMark(ministry)" size="h-3.5 w-3.5" />
                           {{ ministry }}
                         </button>
                       </div>
@@ -414,19 +424,20 @@ const sexOptions = [
                       <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
                         Labels for finding people. They grant nothing.
                       </p>
-                      <div v-if="allTags.length > 0" class="flex flex-wrap gap-2">
+                      <div v-if="tagOptions.length > 0" class="flex flex-wrap gap-2">
                         <button
-                          v-for="tag in allTags"
+                          v-for="tag in tagOptions"
                           :key="tag"
                           type="button"
                           @click="toggleTag(tag)"
                           :class="[
-                            'px-3 py-1.5 text-xs font-medium rounded-full transition-all',
+                            'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all',
                             newMember.tags.includes(tag)
                               ? 'bg-primary dark:bg-primary-light text-white shadow-sm'
                               : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
                           ]"
                         >
+                          <LabelMark :mark="tagMark(tag)" size="h-3.5 w-3.5" />
                           {{ tag }}
                         </button>
                       </div>
@@ -439,7 +450,7 @@ const sexOptions = [
           </div>
 
           <!-- Sticky Footer -->
-          <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-b-2xl border-t border-green-500/20 dark:border-green-400/20 px-4 sm:px-6 py-4">
+          <div class="shrink-0 rounded-b-2xl border-t border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4">
             <div class="flex gap-3">
               <button
                 type="button"
@@ -456,7 +467,7 @@ const sexOptions = [
                   :class="[
                     'w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all',
                     canAddMember
-                      ? 'text-white bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/25 hover:shadow-green-500/40'
+                      ? 'text-white bg-primary dark:bg-primary-light hover:opacity-90'
                       : 'text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 cursor-not-allowed'
                   ]"
                 >

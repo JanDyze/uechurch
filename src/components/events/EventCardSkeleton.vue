@@ -1,18 +1,14 @@
 <script setup>
+// Stands in for EventListItem while the calendar loads, at the same size, so
+// the list does not jump when the rows arrive.
 </script>
 
 <template>
-  <div class="w-full text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-    <div class="flex items-start gap-3">
-      <div class="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-600 animate-pulse shrink-0"></div>
-      <div class="flex-1 min-w-0 space-y-2">
-        <div class="h-4 w-3/4 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
-        <div class="h-3 w-1/2 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
-        <div class="h-3 w-2/3 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
-      </div>
+  <div class="flex items-center gap-3 p-3">
+    <div class="h-11 w-11 shrink-0 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-600"></div>
+    <div class="min-w-0 flex-1 space-y-2">
+      <div class="h-4 w-3/5 animate-pulse rounded bg-gray-200 dark:bg-gray-600"></div>
+      <div class="h-3 w-2/5 animate-pulse rounded bg-gray-200 dark:bg-gray-600"></div>
     </div>
   </div>
 </template>
-
-
-

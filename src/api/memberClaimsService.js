@@ -10,7 +10,7 @@ import {
   where,
   onSnapshot,
   Timestamp,
-} from 'firebase/firestore'
+} from './firestore'
 import { notify } from './notifyService'
 
 // A claim is a signed-in account asking to be recognised as a particular

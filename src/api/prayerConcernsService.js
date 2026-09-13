@@ -1,5 +1,5 @@
 import { db } from './firebase'
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp } from './firestore'
 import { notify } from './notifyService'
 
 const PRAYER_CONCERNS_COLLECTION = 'prayerConcerns'

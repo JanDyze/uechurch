@@ -61,6 +61,13 @@ const forget = (key) => {
 const order = ref([])
 const uid = ref(null)
 
+/**
+ * Pages whose path changed, old to new. A path survives a rename of the label,
+ * but not a rename of the path itself — so without this, whoever had Lineups
+ * on their bar would find Schedules dropped to the back of the list.
+ */
+const RENAMED_PATHS = { '/lineups': '/schedules' }
+
 /** How many of them the bar shows. */
 export const BAR_SLOTS = 4
 
@@ -141,7 +148,7 @@ export function useAppOrder(allowedItems) {
    */
   const ordered = computed(() => {
     const items = allowedItems.value
-    const rank = new Map(order.value.map((path, i) => [path, i]))
+    const rank = new Map(order.value.map((path, i) => [RENAMED_PATHS[path] || path, i]))
     const known = items.filter((i) => rank.has(i.path)).sort((a, b) => rank.get(a.path) - rank.get(b.path))
     const fresh = items
       .filter((i) => !rank.has(i.path))

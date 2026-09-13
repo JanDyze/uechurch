@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { X } from '../../icons'
+import { X, CalendarPlus, Edit2 } from '../../icons'
 import IconSelector from './IconSelector.vue'
 import AudiencePicker from '../common/AudiencePicker.vue'
 import { useMediaQuery } from '../../composables/useMediaQuery'
@@ -71,12 +71,12 @@ useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
       :class="[
         isMobile
           ? 'fixed inset-0 z-80 flex flex-col justify-end'
-          : 'add-edit-event-drawer m-2 md:m-3 rounded-2xl border-2 border-green-500/30 dark:border-green-400/30 bg-white dark:bg-gray-800 w-[calc(100%-1rem)] md:w-[calc(50%-1.5rem)] h-[calc(100%-1rem)] md:h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-green-500/25 dark:shadow-green-400/20 transition-all duration-300'
+          : 'add-edit-event-drawer ml-3 flex h-full w-[calc(50%-0.75rem)] shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
       ]"
     >
       <div
         v-if="isMobile"
-        class="absolute inset-0 bg-black/50"
+        class="absolute inset-0 bg-black/60 backdrop-blur-sm"
         @click="$emit('update:show', false)"
       />
       <div
@@ -88,28 +88,38 @@ useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
         :class="[
           'flex flex-col min-h-0',
           isMobile
-            ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
+            ? 'relative z-10 w-full max-h-[92dvh] overflow-hidden rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
             : 'h-full w-full'
         ]"
       >
-    <!-- Header -->
-    <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-t-2xl border-b border-green-500/20 dark:border-green-400/20 px-4 sm:px-5 py-4">
-      <div class="flex items-center justify-between">
-        <h3 id="add-edit-event-drawer-title" class="text-lg font-semibold text-gray-900 dark:text-white">
-          {{ isEdit ? 'Edit Event' : 'Add New Event' }}
-        </h3>
-        <button
-          @click="$emit('cancel')"
-          aria-label="Close"
-          class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-        >
-          <X class="h-5 w-5" />
-        </button>
+    <!-- Header, in the People page's sheet shape. It was green, a colour
+         nothing else on the page used, so adding an event looked like a
+         different app from the calendar it was adding to. -->
+    <div class="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-linear-to-r from-primary/10 to-transparent px-4 py-3.5 dark:border-gray-700 dark:from-primary-light/10">
+      <div class="flex min-w-0 items-center gap-3">
+        <div class="shrink-0 rounded-xl bg-primary p-2.5 shadow-lg shadow-primary/30">
+          <component :is="isEdit ? Edit2 : CalendarPlus" class="h-5 w-5 text-white" />
+        </div>
+        <div class="min-w-0">
+          <h2 id="add-edit-event-drawer-title" class="truncate text-base font-bold text-gray-900 dark:text-white">
+            {{ isEdit ? 'Edit event' : 'Add event' }}
+          </h2>
+          <p class="truncate text-xs text-gray-500 dark:text-gray-400">
+            {{ isEdit ? eventData.title || 'Untitled' : 'Title and date are required' }}
+          </p>
+        </div>
       </div>
+      <button
+        @click="$emit('cancel')"
+        aria-label="Close"
+        class="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+      >
+        <X class="h-5 w-5" />
+      </button>
     </div>
 
     <!-- Event Form -->
-    <div class="flex-1 overflow-y-auto min-h-0 p-4 sm:p-5 space-y-4">
+    <div class="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Title <span class="text-red-500">*</span>
@@ -119,7 +129,7 @@ useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
           @input="$emit('update:eventData', { ...eventData, title: $event.target.value })"
           type="text"
           placeholder="Event title"
-          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -131,7 +141,7 @@ useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
             :value="eventDate"
             @input="$emit('update:eventDate', $event.target.value)"
             type="date"
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
         <div>
@@ -142,7 +152,7 @@ useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
             :value="eventData.time"
             @input="$emit('update:eventData', { ...eventData, time: $event.target.value })"
             type="time"
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
       </div>
@@ -154,7 +164,7 @@ useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
           <select
             :value="eventData.type"
             @change="$emit('update:eventData', { ...eventData, type: $event.target.value })"
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
           >
             <option v-for="type in eventTypes" :key="type" :value="type">
               {{ type.charAt(0).toUpperCase() + type.slice(1) }}
@@ -186,7 +196,7 @@ useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
           @input="$emit('update:eventData', { ...eventData, location: $event.target.value })"
           type="text"
           placeholder="Event location"
-          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
       <div>
@@ -198,24 +208,31 @@ useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
           @input="$emit('update:eventData', { ...eventData, description: $event.target.value })"
           rows="3"
           placeholder="Event description"
-          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
     </div>
 
-    <!-- Footer with buttons -->
-    <div class="shrink-0 bg-linear-to-r from-green-500/10 to-transparent dark:from-green-400/10 dark:to-transparent rounded-b-2xl border-t border-green-500/20 dark:border-green-400/20 px-4 sm:px-5 py-4">
+    <!-- Footer: the same pair of buttons, and the same disabled look, as the
+         People page's selection bar -->
+    <div class="flex shrink-0 items-center gap-2 border-t border-gray-200 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-gray-700">
+      <button
+        @click="$emit('cancel')"
+        class="inline-flex h-11 shrink-0 items-center justify-center rounded-lg border border-gray-200 px-4 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+      >
+        Cancel
+      </button>
       <button
         @click="$emit('save')"
         :disabled="!isFormValid"
         :class="[
-          'w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-colors',
+          'inline-flex h-11 flex-1 items-center justify-center rounded-lg px-4 text-sm font-semibold transition-colors',
           isFormValid
-            ? 'text-white bg-green-500 hover:bg-green-600 cursor-pointer shadow-lg shadow-green-500/25'
-            : 'text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 cursor-not-allowed opacity-50'
+            ? 'bg-primary text-white shadow-lg shadow-primary/25 hover:bg-primary-hover'
+            : 'cursor-not-allowed bg-gray-200 text-gray-400 dark:bg-gray-700'
         ]"
       >
-        {{ isEdit ? 'Save Changes' : 'Save Event' }}
+        {{ isEdit ? 'Save changes' : 'Save event' }}
       </button>
     </div>
       </div>
@@ -226,7 +243,7 @@ useFocusTrap(dialogRef, () => props.show, () => emit('cancel'))
 
 <style scoped>
 .add-edit-event-drawer {
-  transition: max-width 0.3s ease-out, opacity 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  transition: max-width 0.3s ease-out, opacity 0.3s ease;
 }
 
 .drawer-enter-from.add-edit-event-drawer,

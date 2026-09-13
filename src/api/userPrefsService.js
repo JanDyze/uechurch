@@ -1,5 +1,5 @@
 import { db } from './firebase'
-import { deleteField, doc, onSnapshot, setDoc } from 'firebase/firestore'
+import { deleteField, doc, onSnapshot, setDoc } from './firestore'
 
 // One document per account for the choices that belong to a person rather than
 // to the church: the order they dragged their apps into, and whatever else

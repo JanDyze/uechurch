@@ -1,22 +1,26 @@
 import XLSX from 'xlsx-js-style';
 import { getChurchIdentity } from '../composables/useAppSettings';
 
-// Available fields for export
-const availableFields = [
+// Every column a sheet can carry, in the order they are laid out. Exported so
+// the dialog offers exactly these and the two cannot drift apart.
+export const EXPORT_FIELDS = [
   { key: "id", label: "ID" },
   { key: "firstName", label: "First Name" },
   { key: "lastName", label: "Last Name" },
   { key: "nickname", label: "Nickname" },
-  { key: "sex", label: "Gender" },
+  { key: "sex", label: "Sex" },
   { key: "dateOfBirth", label: "Date of Birth" },
   { key: "age", label: "Age" },
   { key: "civilStatus", label: "Civil Status" },
-  { key: "address", label: "Address" },
   { key: "contactNumber", label: "Contact Number" },
+  { key: "email", label: "Email" },
+  { key: "address", label: "Address" },
   { key: "occupation", label: "Occupation" },
+  { key: "isMember", label: "Standing" },
+  { key: "ministries", label: "Ministries" },
   { key: "tags", label: "Tags" },
-  { key: "isMember", label: "Is Member" },
 ];
+const availableFields = EXPORT_FIELDS;
 
 // Cell styles
 const styles = {
@@ -166,7 +170,7 @@ const getCellStyle = (fieldKey, value, rowIndex) => {
   const baseStyle = isEven ? styles.dataEven : styles.dataOdd;
 
   if (fieldKey === "isMember") {
-    return value === "Yes" ? styles.memberYes : styles.memberNo;
+    return value === "Member" ? styles.memberYes : styles.memberNo;
   }
   
   if (fieldKey === "sex") {
@@ -200,7 +204,7 @@ export const exportToExcel = (members, config) => {
   const wsData = [];
   
   // Title row
-  wsData.push([`${getChurchIdentity().shortName} - Members Directory`]);
+  wsData.push([`${getChurchIdentity().shortName} - People`]);
   
   // Subtitle row
   const exportDate = new Date().toLocaleDateString('en-US', { 
@@ -209,7 +213,7 @@ export const exportToExcel = (members, config) => {
     month: 'long', 
     day: 'numeric' 
   });
-  wsData.push([`Exported on ${exportDate} • ${dataToExport.length} members`]);
+  wsData.push([`Exported on ${exportDate} • ${dataToExport.length} ${dataToExport.length === 1 ? 'person' : 'people'}`]);
   
   // Empty row
   wsData.push([]);
@@ -222,11 +226,12 @@ export const exportToExcel = (members, config) => {
     const row = headerKeys.map((key) => {
       let value = member[key];
       
-      if (key === "tags" && Array.isArray(value)) {
+      if ((key === "tags" || key === "ministries") && Array.isArray(value)) {
         value = value.join(", ");
       }
+      // The church's own words for it, not a yes/no about a word nobody uses.
       if (key === "isMember") {
-        value = value ? "Yes" : "No";
+        value = value ? "Member" : "Attendee";
       }
       if (value === null || value === undefined) {
         value = "";
@@ -288,7 +293,8 @@ export const exportToExcel = (members, config) => {
     const key = headerKeys[idx];
     // Different widths based on field type
     if (key === 'address') return { wch: 35 };
-    if (key === 'tags') return { wch: 25 };
+    if (key === 'tags' || key === 'ministries') return { wch: 25 };
+    if (key === 'email') return { wch: 24 };
     if (key === 'firstName' || key === 'lastName') return { wch: 15 };
     if (key === 'nickname') return { wch: 12 };
     if (key === 'dateOfBirth') return { wch: 14 };
@@ -311,11 +317,11 @@ export const exportToExcel = (members, config) => {
 
   // Create workbook
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Members');
+  XLSX.utils.book_append_sheet(wb, ws, 'People');
 
   // Generate filename
   const prefix = (getChurchIdentity().shortName || "Church").replace(/[^\w-]+/g, "_");
-  const filename = `${prefix}_Members_${new Date().toISOString().split("T")[0]}.xlsx`;
+  const filename = `${prefix}_People_${new Date().toISOString().split("T")[0]}.xlsx`;
 
   // Download
   XLSX.writeFile(wb, filename);

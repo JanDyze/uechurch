@@ -6,10 +6,8 @@ import { useBirthdayEvents } from '../composables/useBirthdayEvents'
 import { useRecurringEvents } from '../composables/useRecurringEvents'
 import { useEventForm } from '../composables/useEventForm'
 import { useEventSearch } from '../composables/useEventSearch'
-import { useEventStats } from '../composables/useEventStats'
 import { useCalendar } from '../composables/useCalendar'
 import EventsToolbar from '../components/events/EventsToolbar.vue'
-import EventsSummary from '../components/events/EventsSummary.vue'
 import EventsFab from '../components/events/EventsFab.vue'
 import CalendarView from '../components/events/CalendarView.vue'
 import MonthEventsDrawer from '../components/events/MonthEventsDrawer.vue'
@@ -19,8 +17,6 @@ import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 import EventDetailsDrawer from '../components/events/EventDetailsDrawer.vue'
 import EventStatusSheet from '../components/events/EventStatusSheet.vue'
 import { useEventStatus } from '../composables/useEventStatus'
-import { isCalledOff } from '../../lib/eventStatus'
-import { ChevronDown } from '../icons'
 
 // Events data management
 const {
@@ -79,26 +75,6 @@ const closeSearch = () => {
   searchQuery.value = ''
 }
 
-// Whether the three tiles are worth their height is a per-person judgement, so
-// it is remembered per device rather than decided here — the same key shape
-// the People page uses.
-const SUMMARY_KEY = 'uec.events.showSummary'
-const readSummary = () => {
-  try {
-    return localStorage.getItem(SUMMARY_KEY) !== '0'
-  } catch {
-    return true
-  }
-}
-const showSummary = ref(readSummary())
-watch(showSummary, (on) => {
-  try {
-    localStorage.setItem(SUMMARY_KEY, on ? '1' : '0')
-  } catch {
-    /* the preference lasts the session */
-  }
-})
-
 // Calendar logic
 const {
   currentDate,
@@ -124,18 +100,16 @@ const goToToday = () => {
 // series, not just the title.
 const { filteredEvents } = useEventSearch(events, searchQuery)
 
-// What the calendar and the month card are actually showing, which is what
-// the summary reports on: a search for "prayer" reports on the prayer
-// meetings rather than on the whole month.
+// What the calendar and the month card are actually showing: a search for
+// "prayer" narrows both to the prayer meetings.
+//
+// There is no summary above them any more. Three tiles and a type bar cost a
+// phone a fifth of its height on every visit to answer questions the grid
+// answers by being looked at — what is next, how busy the week is — and Home
+// already reports the month for anyone taking stock.
 const visibleEvents = computed(() =>
   searchQuery.value.trim() ? filteredEvents.value : events.value
 )
-
-// At-a-glance report, above whichever view is on screen. Called-off gatherings
-// are left out of it: "six events this month" has to mean six things that are
-// happening, or the number is worse than not having it.
-const countableEvents = computed(() => visibleEvents.value.filter((e) => !isCalledOff(e)))
-const { stats, typeMix } = useEventStats(countableEvents, currentDate)
 
 // Event form
 const {
@@ -554,8 +528,8 @@ watch([filteredEvents, searchQuery], ([matches, query]) => {
 // Events in the month on screen. Matched on the raw 'YYYY-MM' prefix rather
 // than a parsed Date: `new Date('2026-08-01')` is UTC midnight, which is still
 // July anywhere west of Greenwich, and would file the first of the month under
-// the previous one - the same rule useEventStats follows, so the summary and
-// the list beneath it can never disagree.
+// the previous one - the same rule useEventStats follows on Home, so the two
+// pages can never disagree about what a month holds.
 const monthKey = computed(
   () => `${currentDate.value.getFullYear()}-${String(currentDate.value.getMonth() + 1).padStart(2, '0')}`
 )
@@ -584,26 +558,6 @@ const showFab = computed(
       @close="closeSearch"
     />
 
-    <!-- What is next, how heavy the week is, and what kind of month this is -->
-    <Transition name="summary">
-      <EventsSummary
-        v-if="showSummary"
-        :stats="stats"
-        :type-mix="typeMix"
-        :loading="loading"
-        :searching="!!searchQuery.trim()"
-        @hide="showSummary = false"
-      />
-    </Transition>
-    <button
-      v-if="!showSummary"
-      @click="showSummary = true"
-      class="flex w-full shrink-0 items-center justify-center gap-1.5 border-b border-gray-200 py-2 text-[11px] font-semibold text-gray-400 transition-colors hover:text-gray-600 dark:border-gray-700 dark:hover:text-gray-300"
-    >
-      <ChevronDown class="h-3.5 w-3.5" />
-      Show summary
-    </button>
-
     <!-- Main Content -->
     <div class="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
       <!-- Calendar View -->
@@ -628,7 +582,7 @@ const showFab = computed(
           @calendar-wheel="handleCalendarWheel"
           @set-date="handleSetDate"
         />
-        </div>
+      </div>
 
       <!-- Day Events Drawer -->
       <DayEventsDrawer
@@ -720,40 +674,3 @@ const showFab = computed(
     />
   </div>
 </template>
-
-<style scoped>
-/* Collapsing tiles: height and opacity together, from a fixed max rather than
-   a measured one — the block is three tiles on one row at every width, so the
-   ceiling is known and no JS hook is needed to find it. Same as the People
-   page, which is where this pattern comes from. */
-.summary-enter-active,
-.summary-leave-active {
-  transition:
-    max-height 0.25s ease,
-    opacity 0.2s ease;
-  overflow: hidden;
-}
-
-.summary-enter-from,
-.summary-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-
-.summary-enter-to,
-.summary-leave-from {
-  /* Generous on purpose: the type legend wraps, so on a narrow phone with
-     several kinds of event in the month this block is taller than the People
-     page's. A ceiling below the real height clips instantly and then animates,
-     which reads as a jump. */
-  max-height: 16rem;
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .summary-enter-active,
-  .summary-leave-active {
-    transition: none;
-  }
-}
-</style>

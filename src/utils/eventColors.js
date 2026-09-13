@@ -88,3 +88,33 @@ export const getEventTypeText = (type) => colorsFor(type).text;
 /** Stored types are lowercase; every screen that shows one title-cases it. */
 export const eventTypeLabel = (type) =>
   type ? type.charAt(0).toUpperCase() + type.slice(1) : "Other";
+
+// A gathering that is called off — cancelled or postponed — in the shapes the
+// pages need. Red, and muted rather than filled: it has to be the first thing
+// read on a row somebody is deciding whether to turn up for, but a solid block
+// beside every struck-through title shouted louder than the gatherings that
+// are actually happening. It used to be amber, which on this app already means
+// "needs your attention" — a record with gaps, an unrecorded service — and a
+// cancelled service is not asking anybody to do anything.
+//
+// The strike-through and the dropped type colour stay alongside it: the red
+// says what happened, the de-emphasis says it is not one to plan around.
+// Home and the attendance row spell the badge out inline rather than importing
+// it; keep the three in step.
+
+/** Small label naming the state — "Cancelled", "Postponed", "Off". */
+export const CALLED_OFF_BADGE = "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300";
+
+/** A block saying what happened, border colour included; add a border width. */
+export const CALLED_OFF_BANNER =
+  "border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300";
+
+/**
+ * The dashed edge of a hollow chip or disc standing in for the type colour.
+ * Border colour only — add a width, and a text colour to suit: a glyph can
+ * carry the red, a struck-through title reads better grey.
+ */
+export const CALLED_OFF_OUTLINE = "border-dashed border-red-300 dark:border-red-400/50";
+
+/** Foreground alone, for a glyph or a status line. */
+export const CALLED_OFF_TEXT = "text-red-600 dark:text-red-400";

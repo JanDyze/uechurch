@@ -1,23 +1,19 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Repeat, Plus, Pencil, Trash2, X, CalendarClock } from '../icons'
 import {
-  useRecurringSchedules,
-  WEEKDAYS,
-  OCCURRENCES,
-  sortOccurrences,
-  SHOW_BEFORE_OPTIONS,
-  DEFAULT_SHOW_BEFORE,
-  showBeforeLabel,
-} from '../composables/useRecurringSchedules'
-import { addDays, formatShortDate, scheduleFallsOn } from '../../lib/occurrences'
-import { useToast } from '../composables/useToast'
-import { useMediaQuery } from '../composables/useMediaQuery'
-import ConfirmationModal from '../components/common/ConfirmationModal.vue'
-import AudiencePicker from '../components/common/AudiencePicker.vue'
-import { useMembers } from '../composables/useMembers'
-import { audienceLabel, expectedAttendance } from '../utils/audience'
+  ArrowLeft,
+  Building2,
+  ChevronRight,
+  Globe,
+  HandHeart,
+  KeyRound,
+  Mail,
+  Repeat,
+  ShieldCheck,
+  Tag,
+} from '../icons'
+import RecurringEventsAdmin from '../components/settings/RecurringEventsAdmin.vue'
 import MemberLinkAdmin from '../components/settings/MemberLinkAdmin.vue'
 import RolePermissionsAdmin from '../components/settings/RolePermissionsAdmin.vue'
 import MinistriesAdmin from '../components/settings/MinistriesAdmin.vue'
@@ -27,956 +23,274 @@ import EmailDigestAdmin from '../components/settings/EmailDigestAdmin.vue'
 import LandingPageAdmin from '../components/settings/LandingPageAdmin.vue'
 import { useAppSettings } from '../composables/useAppSettings'
 import { useVersionCheck } from '../composables/useVersionCheck'
-import { useScrollLock } from '../composables/useScrollLock'
+import { useMediaQuery } from '../composables/useMediaQuery'
+import { useRecurringSchedules } from '../composables/useRecurringSchedules'
+import { useMinistries } from '../composables/useMinistries'
+import { useMemberClaims } from '../composables/useMemberClaims'
+import { useLabelMarks } from '../composables/useLabelMarks'
+import { useMembers } from '../composables/useMembers'
 
-const { categories: appCategories, church, saveChurch, saveCategories } = useAppSettings()
-const eventTypes = computed(() => appCategories.value.eventTypes)
+// Settings is a list of places, not a strip of tabs.
+//
+// Eight tabs in a row was a strip that scrolled sideways on a phone, so half of
+// what Settings could do sat off the edge of the screen with nothing to say it
+// was there, and the tab it opened on was the fourth one. Now a phone opens on
+// every section at once, grouped by what it is about, each row saying where it
+// stands — "3 on the calendar", "2 requests waiting" — so the one that needs
+// attention is visible before anything is opened. A wide screen keeps the list
+// down the side and the open section beside it.
+//
+// The section lives in the URL (?section=), so a refresh, the back button and
+// a link someone sends all land in the same place. The old ?tab= links still
+// work.
 
 const route = useRoute()
 const router = useRouter()
+const isDesktop = useMediaQuery('(min-width: 1024px)')
 
-// Settings grew from one section to four, and three of them are tall. Tabs keep
-// the phone viewport to one screenful each; the tab lives in the URL so a
-// refresh — or a link to a specific tab — lands where you expect.
-const TABS = [
-  { key: 'church', label: 'Church' },
-  { key: 'landing', label: 'Public page' },
-  { key: 'schedule', label: 'Schedule' },
-  { key: 'ministries', label: 'Ministries' },
-  { key: 'tags', label: 'Tags' },
-  { key: 'roles', label: 'Roles' },
-  { key: 'accounts', label: 'Accounts' },
-  { key: 'email', label: 'Email' },
-]
-
-// Stamped in from package.json by vite's define. Shown at the foot of
-// settings because the app is installed as a PWA: when someone reports a
-// bug from their phone, the first thing to establish is which build they
-// are actually running, and a cached service worker can be well behind.
-const appVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'
-
-// The version line is where someone already looks to answer "which build is
-// this", so it is also where they can re-read what changed in it.
-const { open: openWhatsNew } = useVersionCheck()
-
-const activeTab = ref(TABS.some((t) => t.key === route.query.tab) ? route.query.tab : 'schedule')
-
-watch(activeTab, (tab) => {
-  router.replace({ query: { ...route.query, tab } })
-})
-
-const toast = useToast()
-const isMobile = useMediaQuery('(max-width: 1023px)')
-const { schedules, loading, addSchedule, updateSchedule, removeSchedule } =
-  useRecurringSchedules()
-
-// The roster the audience picker counts against: a service for the choir
-// expects however many people carry that tag today.
+const { church } = useAppSettings()
+const { schedules } = useRecurringSchedules()
+const { ministries } = useMinistries()
+const { pendingClaims } = useMemberClaims()
+const { tagRecords } = useLabelMarks()
 const { members } = useMembers()
 
-const expectedFor = (schedule) => expectedAttendance(schedule, members.value)
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
-const blankSchedule = () => ({
-  title: '',
-  type: 'worship',
-  weekday: 0,
-  occurrences: [],
-  time: '09:00',
-  location: '',
-  description: '',
-  icon: 'Calendar',
-  enabled: true,
-  showBefore: DEFAULT_SHOW_BEFORE,
-  // Whether the Minutes list offers the next occurrence of this gathering.
-  keepsMinutes: false,
-  // Empty means everyone, which is what a Sunday service is.
-  audienceTags: [],
-  excludeTags: [],
-  // What this gathering additionally is on certain weeks — communion on the
-  // first Sunday, the birthday bash on the last.
-  occasions: [],
+const tagCount = computed(() => {
+  const names = new Set(tagRecords.value.map((t) => String(t.name || '').toLowerCase()))
+  members.value.forEach((m) => (m.tags || []).forEach((t) => names.add(String(t).toLowerCase())))
+  names.delete('')
+  return names.size
 })
 
-const showEditor = ref(false)
-const editing = ref(null)
+const GROUPS = computed(() => [
+  {
+    label: 'Church',
+    items: [
+      {
+        key: 'church',
+        label: 'Church details',
+        icon: Building2,
+        status: church.value?.shortName || church.value?.name || 'Name, contacts and categories',
+        component: ChurchSettings,
+      },
+      {
+        key: 'landing',
+        label: 'Public page',
+        icon: Globe,
+        status: 'What visitors see before signing in',
+        component: LandingPageAdmin,
+      },
+    ],
+  },
+  {
+    label: 'Calendar',
+    items: [
+      {
+        key: 'schedule',
+        label: 'Recurring events',
+        icon: Repeat,
+        status: `${schedules.value.filter((s) => s.enabled).length} on the calendar`,
+        component: RecurringEventsAdmin,
+      },
+    ],
+  },
+  {
+    label: 'People',
+    items: [
+      {
+        key: 'ministries',
+        label: 'Ministries',
+        icon: HandHeart,
+        status: plural(ministries.value.length, 'ministry', 'ministries'),
+        component: MinistriesAdmin,
+      },
+      {
+        key: 'tags',
+        label: 'Tags',
+        icon: Tag,
+        status: plural(tagCount.value, 'tag'),
+        component: MemberTagsAdmin,
+      },
+      {
+        key: 'accounts',
+        label: 'Account links & admins',
+        icon: KeyRound,
+        status: pendingClaims.value.length
+          ? plural(pendingClaims.value.length, 'request waiting', 'requests waiting')
+          : 'Who each sign-in belongs to',
+        attention: pendingClaims.value.length > 0,
+        component: MemberLinkAdmin,
+      },
+    ],
+  },
+  {
+    label: 'Access',
+    items: [
+      {
+        key: 'roles',
+        label: 'Roles',
+        icon: ShieldCheck,
+        status: 'What each ministry can see and change',
+        component: RolePermissionsAdmin,
+      },
+    ],
+  },
+  {
+    label: 'Notifications',
+    items: [
+      {
+        key: 'email',
+        label: 'Email digest',
+        icon: Mail,
+        status: 'Summaries sent by email',
+        component: EmailDigestAdmin,
+      },
+    ],
+  },
+])
 
-// The schedule editor is a sheet over the settings list, so the list holds.
-useScrollLock(showEditor)
-const form = ref(blankSchedule())
-const saving = ref(false)
+const ITEMS = computed(() => GROUPS.value.flatMap((g) => g.items))
 
-const isFormValid = computed(() => form.value.title.trim().length > 0)
+const requested = computed(() => {
+  const key = route.query.section || route.query.tab
+  return ITEMS.value.some((item) => item.key === key) ? key : ''
+})
 
-const openAdd = () => {
-  editing.value = null
-  form.value = blankSchedule()
-  showEditor.value = true
-}
+// A phone with nothing chosen shows the list; a desktop always shows a section
+// beside it, so it falls back to the first rather than an empty pane.
+const activeKey = computed(() => requested.value || (isDesktop.value ? 'church' : ''))
+const active = computed(() => ITEMS.value.find((item) => item.key === activeKey.value) || null)
 
-const openEdit = (schedule) => {
-  editing.value = schedule
-  form.value = {
-    title: schedule.title,
-    type: schedule.type,
-    weekday: schedule.weekday,
-    occurrences: [...(schedule.occurrences || [])],
-    time: schedule.time,
-    location: schedule.location,
-    description: schedule.description,
-    icon: schedule.icon,
-    enabled: schedule.enabled,
-    showBefore: schedule.showBefore ?? DEFAULT_SHOW_BEFORE,
-    keepsMinutes: schedule.keepsMinutes === true,
-    audienceTags: [...(schedule.audienceTags || [])],
-    excludeTags: [...(schedule.excludeTags || [])],
-    occasions: (schedule.occasions || []).map((occasion) => ({
-      label: occasion.label,
-      occurrences: [...(occasion.occurrences || [])],
-      dates: [...(occasion.dates || [])],
-    })),
-  }
-  occasionDraft.value = blankOccasion()
-  occasionDateDraft.value = ''
-  showEditor.value = true
-}
-
-const closeEditor = () => {
-  showEditor.value = false
-  editing.value = null
-  occasionDraft.value = blankOccasion()
-  occasionDateDraft.value = ''
-}
-
-/* Occasions — communion on the first Sunday, the birthday bash on the last,
-   the Christmas party on the Sunday before it.
-   Deliberately not separate schedules: they happen inside this gathering, and
-   a second schedule would put a second entry on the calendar and a second row
-   on the attendance page for the same room of people. */
-const blankOccasion = () => ({ label: '', occurrences: [], dates: [] })
-const occasionDraft = ref(blankOccasion())
-
-const toggleDraftOccurrence = (value) => {
-  const list = [...occasionDraft.value.occurrences]
-  const index = list.indexOf(value)
-  if (index > -1) list.splice(index, 1)
-  else list.push(value)
-  occasionDraft.value.occurrences = sortOccurrences(list)
-}
-
-/* The other way to say when: the day itself. Grandparents Day, the
-   anniversary and Pastor's Appreciation are not "the fourth Sunday" in any way
-   that survives to next year, so they are pinned to the dates they fall on. */
-const occasionDateDraft = ref('')
-
-const addDraftDate = () => {
-  const date = occasionDateDraft.value
-  if (!date || occasionDraft.value.dates.includes(date)) return
-  occasionDraft.value.dates = [...occasionDraft.value.dates, date].sort()
-  occasionDateDraft.value = ''
-}
-
-const removeDraftDate = (date) => {
-  occasionDraft.value.dates = occasionDraft.value.dates.filter((d) => d !== date)
-}
-
-// Christmas Day 2026 is a Friday. A date this gathering does not meet on saves
-// happily and then marks nothing, so it is caught while it is being typed
-// rather than discovered in December.
-const draftDateMisses = computed(
-  () => Boolean(occasionDateDraft.value) && !scheduleFallsOn(form.value, occasionDateDraft.value)
+// ?tab= is how the old tabs linked; rewrite it to ?section= once, quietly.
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (!tab) return
+    const { tab: _drop, ...rest } = route.query
+    router.replace({ query: { ...rest, section: tab } })
+  },
+  { immediate: true }
 )
 
-/** The closest day this gathering does meet, to offer instead. */
-const nearestOccurrence = computed(() => {
-  if (!draftDateMisses.value) return ''
-  for (let offset = 1; offset <= 31; offset += 1) {
-    for (const direction of [-1, 1]) {
-      const candidate = addDays(occasionDateDraft.value, offset * direction)
-      if (scheduleFallsOn(form.value, candidate)) return candidate
-    }
-  }
-  return ''
-})
-
-// A label with neither rule would mark every service, which is not an
-// occasion — it is just a different name for the gathering.
-const canAddOccasion = computed(
-  () =>
-    occasionDraft.value.label.trim().length > 0 &&
-    (occasionDraft.value.occurrences.length > 0 || occasionDraft.value.dates.length > 0)
-)
-
-const addOccasion = () => {
-  if (!canAddOccasion.value) return
-  form.value.occasions = [
-    ...form.value.occasions,
-    {
-      label: occasionDraft.value.label.trim(),
-      occurrences: [...occasionDraft.value.occurrences],
-      dates: [...occasionDraft.value.dates],
-    },
-  ]
-  occasionDraft.value = blankOccasion()
-  occasionDateDraft.value = ''
+// Opening a section pushes rather than replaces, so a phone's back gesture
+// returns to the list — which is where "back" means on a phone.
+const openSection = (key) => {
+  if (key === activeKey.value) return
+  router.push({ query: { ...route.query, section: key } })
 }
 
-const removeOccasion = (index) => {
-  form.value.occasions = form.value.occasions.filter((_, i) => i !== index)
+const backToList = () => {
+  const { section: _drop, ...rest } = route.query
+  router.push({ query: rest })
 }
 
-/** "Sun 20 Dec 2026" — the year is shown because a dated occasion is that
-    year's only: next year the same Sunday falls on a different date. */
-const formatOccasionDate = (date) => `${formatShortDate(date)} ${String(date).slice(0, 4)}`
-
-/** "1st Sunday" / "Last Sunday" / "Sun 20 Dec 2026" / both, joined */
-const describeOccasion = (occasion) => {
-  const day = weekdayLabel(form.value.weekday)
-  const parts = []
-
-  if (occasion.occurrences?.length) {
-    const ordinals = sortOccurrences(occasion.occurrences)
-      .map((o) => OCCURRENCES.find((x) => x.value === o)?.label)
-      .filter(Boolean)
-      .join(', ')
-    parts.push(`${ordinals} ${day}`)
-  }
-
-  // A year of anniversaries would run off the end of one line, so the tail is
-  // counted rather than listed.
-  if (occasion.dates?.length) {
-    const shown = occasion.dates.slice(0, 3).map(formatOccasionDate).join(', ')
-    const rest = occasion.dates.length - 3
-    parts.push(rest > 0 ? `${shown} +${rest} more` : shown)
-  }
-
-  return parts.length ? parts.join(' · ') : `Every ${day}`
-}
-
-// Empty selection means "every occurrence"
-const toggleOccurrence = (value) => {
-  const list = [...form.value.occurrences]
-  const index = list.indexOf(value)
-  if (index > -1) list.splice(index, 1)
-  else list.push(value)
-  // Not a plain numeric sort any more: "Last" is a word, and subtracting it
-  // from a number gives NaN, which leaves the chips in whatever order they
-  // were tapped.
-  form.value.occurrences = sortOccurrences(list)
-}
-
-const handleSave = async () => {
-  if (!isFormValid.value || saving.value) return
-  saving.value = true
-  try {
-    const payload = { ...form.value, title: form.value.title.trim() }
-    if (editing.value) {
-      await updateSchedule(editing.value, payload)
-      toast.success('Recurring event updated')
-    } else {
-      await addSchedule(payload)
-      toast.success('Recurring event added')
-    }
-    closeEditor()
-  } catch (error) {
-    console.error('Error saving recurring schedule:', error)
-    toast.error('Failed to save. Please try again.')
-  } finally {
-    saving.value = false
-  }
-}
-
-const toggleEnabled = async (schedule) => {
-  try {
-    await updateSchedule(schedule, { enabled: !schedule.enabled })
-  } catch (error) {
-    console.error('Error toggling schedule:', error)
-    toast.error('Failed to update. Please try again.')
-  }
-}
-
-/* Delete confirmation */
-const showConfirmation = ref(false)
-const confirmationConfig = ref({
-  title: '',
-  message: '',
-  confirmText: 'Delete',
-  cancelText: 'Cancel',
-  confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
-  onConfirm: null,
-})
-
-const handleDelete = (schedule) => {
-  confirmationConfig.value = {
-    ...confirmationConfig.value,
-    title: 'Delete Recurring Event',
-    message: `Stop generating "${schedule.title}" on the calendar? Events you already edited or saved individually are kept.`,
-    onConfirm: async () => {
-      try {
-        await removeSchedule(schedule)
-        toast.success('Recurring event removed')
-      } catch (error) {
-        console.error('Error deleting schedule:', error)
-        toast.error('Failed to delete. Please try again.')
-      }
-    },
-  }
-  showConfirmation.value = true
-}
-
-/* Display helpers */
-const weekdayLabel = (value) =>
-  WEEKDAYS.find((d) => d.value === value)?.label || 'Sunday'
-
-const describe = (schedule) => {
-  const day = weekdayLabel(schedule.weekday)
-  if (!schedule.occurrences?.length) return `Every ${day}`
-  const ordinals = sortOccurrences(schedule.occurrences)
-    .map((o) => OCCURRENCES.find((x) => x.value === o)?.label)
-    .filter(Boolean)
-    .join(', ')
-  return `${ordinals} ${day} of the month`
-}
-
-// Spells the rule out with the schedule's real numbers, so an admin can see
-// that "1 hour before" on a 9:00 AM service means 8:00 AM without doing the
-// arithmetic themselves.
-const describeVisibility = (schedule) => {
-  const start = formatTime(schedule.time)
-  if (schedule.showBefore === 'sameDay') {
-    return `Ready to record all day, from midnight. Starts ${start}.`
-  }
-  if (!schedule.showBefore) {
-    return `Ready to record from ${start}, when it starts.`
-  }
-
-  const [hours, minutes] = (schedule.time || '00:00').split(':').map(Number)
-  // An arbitrary reference day - only the time of day and how many days back
-  // the lead time reaches are used.
-  const startsAt = new Date(2000, 5, 15, hours || 0, minutes || 0)
-  const opensAt = new Date(startsAt.getTime() - schedule.showBefore * 60 * 1000)
-  const clock = formatTime(
-    `${String(opensAt.getHours()).padStart(2, '0')}:${String(opensAt.getMinutes()).padStart(2, '0')}`
-  )
-  const midnightOf = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  const daysEarlier = Math.round(
-    (midnightOf(startsAt) - midnightOf(opensAt)) / (24 * 60 * 60 * 1000)
-  )
-  const when =
-    daysEarlier === 0
-      ? clock
-      : daysEarlier === 1
-        ? `${clock} the day before`
-        : `${clock}, ${daysEarlier} days before`
-  return `Ready to record from ${when}. Starts ${start}.`
-}
-
-const formatTime = (time) => {
-  if (!time) return ''
-  const [h, m] = time.split(':')
-  const hour = Number(h)
-  const suffix = hour >= 12 ? 'PM' : 'AM'
-  const display = hour % 12 === 0 ? 12 : hour % 12
-  return `${display}:${m} ${suffix}`
-}
+// Stamped in from package.json by vite's define. Shown at the foot of
+// settings because the app is installed as a PWA: when someone reports a bug
+// from their phone, the first thing to establish is which build they are
+// actually running, and a cached service worker can be well behind.
+const appVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'
+const { open: openWhatsNew } = useVersionCheck()
 </script>
 
 <template>
-  <!-- A plain block scroll container, deliberately not `flex flex-col`. As a
-       flex column, each tab panel is a flex item that defaults to shrink:1, so
-       a panel taller than the viewport gets squashed to fit instead of
-       overflowing — and since the panels are `overflow-hidden` for their
-       rounded corners, the squashed content was simply clipped with nothing to
-       scroll. Block layout lets the panels keep their natural height so this
-       container actually overflows. -->
-  <div class="h-full overflow-y-auto">
-    <!-- Header -->
-    <div class="mb-4">
-      <h1 class="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-        Manage how the app works for your church
-      </p>
-    </div>
-
-    <!-- Tabs: scroll sideways on a narrow phone rather than wrapping.
-         No negative-margin bleed here — this column is `overflow-y-auto`, and
-         CSS computes the other axis to `auto` alongside it, so anything wider
-         than the content box puts a horizontal scrollbar on the whole page. -->
-    <div class="mb-4 overflow-x-auto no-scrollbar">
-      <div
-        class="flex w-max min-w-full gap-1 p-1 rounded-xl bg-gray-100 dark:bg-gray-800"
-        role="tablist"
-      >
-        <button
-          v-for="tab in TABS"
-          :key="tab.key"
-          role="tab"
-          :aria-selected="activeTab === tab.key"
-          @click="activeTab = tab.key"
-          :class="[
-            'flex-1 whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-lg transition-colors',
-            activeTab === tab.key
-              ? 'bg-white dark:bg-gray-700 text-primary dark:text-white shadow-sm'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
-          ]"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Recurring events -->
-    <section
-      v-show="activeTab === 'schedule'"
-      class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden mb-4"
+  <div class="h-full lg:flex lg:gap-4">
+    <!-- The list. The whole page on a phone until a section is opened; a
+         column of its own on a desktop. -->
+    <nav
+      v-if="isDesktop || !active"
+      aria-label="Settings sections"
+      class="h-full overflow-y-auto lg:w-72 lg:shrink-0"
     >
-      <div
-        class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-100 dark:border-gray-700"
-      >
-        <div class="flex items-start gap-3 min-w-0">
-          <div class="p-2 rounded-lg bg-primary/10 shrink-0">
-            <Repeat class="h-5 w-5 text-primary dark:text-primary-light" />
-          </div>
-          <div class="min-w-0">
-            <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
-              Recurring events
-            </h2>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Services and meetings that repeat every week are added to the calendar
-              automatically
-            </p>
-          </div>
-        </div>
-        <button
-          @click="openAdd"
-          class="shrink-0 flex h-10 items-center gap-1.5 rounded-lg bg-primary px-3 text-white shadow-sm transition-transform active:scale-95"
-        >
-          <Plus class="h-5 w-5" />
-          <span class="text-sm font-medium">Add</span>
-        </button>
-      </div>
+      <h1 class="mb-3 text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
 
-      <!-- Loading -->
-      <div v-if="loading" class="p-4 space-y-3">
-        <div
-          v-for="i in 2"
-          :key="`skeleton-${i}`"
-          class="h-16 rounded-lg bg-gray-100 dark:bg-gray-700 animate-pulse"
-        ></div>
-      </div>
-
-      <!-- Empty -->
-      <div v-else-if="schedules.length === 0" class="px-4 py-10 text-center">
-        <CalendarClock class="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600" />
-        <p class="mt-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-          No recurring events yet
-        </p>
-        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
-          Add one for your Sunday service or midweek prayer meeting and it will appear
-          on the calendar every week.
-        </p>
-        <button
-          @click="openAdd"
-          class="mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-4 text-white shadow-sm transition-transform active:scale-95"
+      <div v-for="group in GROUPS" :key="group.label" class="mb-4">
+        <h2
+          class="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500"
         >
-          <Plus class="h-5 w-5" />
-          <span class="text-sm font-medium">Add recurring event</span>
-        </button>
-      </div>
-
-      <!-- List -->
-      <ul v-else class="divide-y divide-gray-100 dark:divide-gray-700">
-        <li
-          v-for="schedule in schedules"
-          :key="schedule.id"
-          class="flex items-center gap-3 px-4 py-3"
+          {{ group.label }}
+        </h2>
+        <ul
+          class="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white dark:divide-gray-700 dark:border-gray-700 dark:bg-gray-800"
         >
-          <div class="min-w-0 flex-1">
-            <p
+          <li v-for="item in group.items" :key="item.key">
+            <button
+              type="button"
+              @click="openSection(item.key)"
+              :aria-current="activeKey === item.key ? 'page' : undefined"
               :class="[
-                'text-sm font-medium truncate',
-                schedule.enabled
-                  ? 'text-gray-900 dark:text-white'
-                  : 'text-gray-400 dark:text-gray-500',
+                'flex w-full items-center gap-3 px-3 py-3 text-left transition-colors',
+                activeKey === item.key && isDesktop
+                  ? 'bg-primary/5 dark:bg-primary-light/10'
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700/50',
               ]"
             >
-              {{ schedule.title }}
-            </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-              {{ describe(schedule) }} &middot; {{ formatTime(schedule.time) }}
-              <span v-if="schedule.location"> &middot; {{ schedule.location }}</span>
-            </p>
-            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
-              {{ audienceLabel(schedule.audienceTags, schedule.excludeTags) }} &middot;
-              {{ expectedFor(schedule) }} expected &middot;
-              attendance {{ showBeforeLabel(schedule.showBefore).toLowerCase() }}
-            </p>
-          </div>
-
-          <button
-            @click="toggleEnabled(schedule)"
-            :class="[
-              'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors',
-              schedule.enabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
-            ]"
-            role="switch"
-            :aria-checked="schedule.enabled"
-            :aria-label="`Turn ${schedule.title} ${schedule.enabled ? 'off' : 'on'}`"
-          >
-            <span
-              :class="[
-                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                schedule.enabled ? 'translate-x-6' : 'translate-x-1',
-              ]"
-            ></span>
-          </button>
-
-          <button
-            @click="openEdit(schedule)"
-            class="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            :aria-label="`Edit ${schedule.title}`"
-          >
-            <Pencil class="h-4 w-4" />
-          </button>
-          <button
-            @click="handleDelete(schedule)"
-            class="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-            :aria-label="`Delete ${schedule.title}`"
-          >
-            <Trash2 class="h-4 w-4" />
-          </button>
-        </li>
-      </ul>
-    </section>
-
-    <!-- Member account links -->
-    <!-- Church identity and category vocabularies -->
-    <ChurchSettings v-show="activeTab === 'church'" class="mb-4" />
-
-    <!-- The visitors' page at "/" -->
-    <LandingPageAdmin v-show="activeTab === 'landing'" class="mb-4" />
-
-    <!-- What people do, and what it lets them do -->
-    <MinistriesAdmin v-show="activeTab === 'ministries'" class="mb-4" />
-
-    <!-- Descriptive labels that grant nothing -->
-    <MemberTagsAdmin v-show="activeTab === 'tags'" class="mb-4" />
-
-    <!-- Tag-based roles -->
-    <RolePermissionsAdmin v-show="activeTab === 'roles'" class="mb-4" />
-
-    <!-- Member accounts and administrators -->
-    <MemberLinkAdmin v-show="activeTab === 'accounts'" class="mb-4" />
-
-    <!-- Digest subscriptions, manual sends and the activity report -->
-    <EmailDigestAdmin v-show="activeTab === 'email'" class="mb-4" />
-
-    <!-- Which build this is. Every tab, because a bug report can come from
-         any of them and the version is the first question asked. -->
-    <p class="pb-4 text-center text-xs text-gray-400 dark:text-gray-500">
-      UEC Church v{{ appVersion }} &middot;
-      <button
-        @click="openWhatsNew"
-        class="underline underline-offset-2 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-      >
-        What's new
-      </button>
-    </p>
-
-    <!-- Editor -->
-    <Teleport to="body">
-      <Transition name="sheet">
-        <div v-if="showEditor" class="fixed inset-0 z-80 flex flex-col justify-end sm:items-center sm:justify-center">
-          <div class="absolute inset-0 bg-black/50" @click="closeEditor" />
-
-          <div
-            class="sheet-panel relative z-10 w-full sm:max-w-lg max-h-[92dvh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white dark:bg-gray-800 shadow-2xl border-t sm:border border-gray-200 dark:border-gray-700"
-          >
-            <div
-              class="shrink-0 flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700"
-            >
-              <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                {{ editing ? 'Edit recurring event' : 'New recurring event' }}
-              </h3>
-              <button
-                @click="closeEditor"
-                class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                aria-label="Close"
-              >
-                <X class="h-5 w-5" />
-              </button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-              <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Name *
-                </label>
-                <input
-                  v-model="form.title"
-                  type="text"
-                  placeholder="e.g. Sunday Service"
-                  class="w-full h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-                  Repeats on
-                </label>
-                <div class="grid grid-cols-7 gap-1">
-                  <button
-                    v-for="day in WEEKDAYS"
-                    :key="day.value"
-                    @click="form.weekday = day.value"
-                    :class="[
-                      'h-11 rounded-lg text-xs font-medium transition-colors',
-                      form.weekday === day.value
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-                    ]"
-                  >
-                    {{ day.short }}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-                  Which weeks
-                </label>
-                <div class="flex gap-1">
-                  <button
-                    @click="form.occurrences = []"
-                    :class="[
-                      'h-11 flex-1 rounded-lg text-xs font-medium transition-colors',
-                      !form.occurrences.length
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-                    ]"
-                  >
-                    Every
-                  </button>
-                  <button
-                    v-for="occurrence in OCCURRENCES"
-                    :key="occurrence.value"
-                    @click="toggleOccurrence(occurrence.value)"
-                    :class="[
-                      'h-11 flex-1 rounded-lg text-xs font-medium transition-colors',
-                      form.occurrences.includes(occurrence.value)
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-                    ]"
-                  >
-                    {{ occurrence.label }}
-                  </button>
-                </div>
-                <p class="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-                  {{ describe(form) }}
-                </p>
-              </div>
-
-              <!-- Occasions. Communion on the first Sunday is the Sunday
-                   service, so it renames that week rather than adding a second
-                   entry to the calendar and a second row to record. -->
-              <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Occasions
-                </label>
-                <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">
-                  Something this gathering also is — communion, a birthday bash,
-                  Pastor's Appreciation. Set it by week of the month, or pin it
-                  to a date. It marks the same service; there is still one entry
-                  on the calendar and one attendance sheet.
-                </p>
-
-                <ul v-if="form.occasions.length" class="mb-2 space-y-1.5">
-                  <li
-                    v-for="(occasion, index) in form.occasions"
-                    :key="`${occasion.label}-${index}`"
-                    class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-900"
-                  >
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
-                        {{ occasion.label }}
-                      </p>
-                      <p class="text-xs text-gray-400 dark:text-gray-500">
-                        {{ describeOccasion(occasion) }}
-                      </p>
-                    </div>
-                    <button
-                      @click="removeOccasion(index)"
-                      :aria-label="`Remove ${occasion.label}`"
-                      class="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-700"
-                    >
-                      <Trash2 class="h-4 w-4" />
-                    </button>
-                  </li>
-                </ul>
-
-                <div
-                  class="space-y-2 rounded-lg border border-dashed border-gray-200 p-2 dark:border-gray-600"
-                >
-                  <input
-                    v-model="occasionDraft.label"
-                    type="text"
-                    placeholder="e.g. Communion"
-                    class="w-full h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
-                  />
-                  <div class="flex gap-1">
-                    <button
-                      v-for="occurrence in OCCURRENCES"
-                      :key="`occasion-${occurrence.value}`"
-                      @click="toggleDraftOccurrence(occurrence.value)"
-                      :class="[
-                        'h-10 flex-1 rounded-lg text-xs font-medium transition-colors',
-                        occasionDraft.occurrences.includes(occurrence.value)
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-                      ]"
-                    >
-                      {{ occurrence.label }}
-                    </button>
-                  </div>
-
-                  <!-- ...or on the day itself, for the occasions no ordinal can
-                       describe: Christmas, the anniversary, whichever Sunday
-                       Teacher's Day is being kept on this year. -->
-                  <p class="text-xs text-gray-400 dark:text-gray-500">or on a date</p>
-
-                  <div class="flex gap-1">
-                    <input
-                      v-model="occasionDateDraft"
-                      type="date"
-                      class="h-10 min-w-0 flex-1 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
-                    />
-                    <button
-                      @click="addDraftDate"
-                      :disabled="!occasionDateDraft"
-                      :class="[
-                        'h-10 shrink-0 rounded-lg px-3 text-xs font-semibold transition-colors',
-                        occasionDateDraft
-                          ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200'
-                          : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500',
-                      ]"
-                    >
-                      Add date
-                    </button>
-                  </div>
-
-                  <!-- Saving a date the gathering does not meet on would mark
-                       nothing at all, so say so, and offer the day it does. -->
-                  <p
-                    v-if="draftDateMisses"
-                    class="text-xs text-amber-600 dark:text-amber-400"
-                  >
-                    {{ weekdayLabel(form.weekday) }}s only — this date is not one.
-                    <button
-                      v-if="nearestOccurrence"
-                      @click="occasionDateDraft = nearestOccurrence"
-                      class="font-semibold underline"
-                    >
-                      Use {{ formatOccasionDate(nearestOccurrence) }}
-                    </button>
-                  </p>
-
-                  <div v-if="occasionDraft.dates.length" class="flex flex-wrap gap-1">
-                    <button
-                      v-for="date in occasionDraft.dates"
-                      :key="`draft-date-${date}`"
-                      @click="removeDraftDate(date)"
-                      :aria-label="`Remove ${formatOccasionDate(date)}`"
-                      class="flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1.5 text-xs font-medium text-primary dark:bg-primary-light/15 dark:text-primary-light"
-                    >
-                      {{ formatOccasionDate(date) }}
-                      <X class="h-3 w-3" />
-                    </button>
-                  </div>
-
-                  <button
-                    @click="addOccasion"
-                    :disabled="!canAddOccasion"
-                    :class="[
-                      'h-10 w-full rounded-lg text-xs font-semibold transition-colors',
-                      canAddOccasion
-                        ? 'bg-primary/10 text-primary hover:bg-primary/20 dark:bg-primary-light/15 dark:text-primary-light'
-                        : 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500',
-                    ]"
-                  >
-                    Add occasion
-                  </button>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Time
-                  </label>
-                  <input
-                    v-model="form.time"
-                    type="time"
-                    class="w-full h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Type
-                  </label>
-                  <select
-                    v-model="form.type"
-                    class="w-full h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
-                  >
-                    <option v-for="type in eventTypes" :key="type" :value="type">
-                      {{ type.charAt(0).toUpperCase() + type.slice(1) }}
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Show in attendance
-                </label>
-                <select
-                  v-model="form.showBefore"
-                  class="w-full h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
-                >
-                  <option
-                    v-for="option in SHOW_BEFORE_OPTIONS"
-                    :key="String(option.value)"
-                    :value="option.value"
-                  >
-                    {{ option.label }}
-                  </option>
-                </select>
-                <p class="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-                  {{ describeVisibility(form) }} Whoever opens Attendance before then
-                  will not see it yet, and may record a separate event instead.
-                </p>
-              </div>
-
-              <AudiencePicker
-                v-model="form.audienceTags"
-                v-model:exclude="form.excludeTags"
-                :members="members"
-                label-class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
-              />
-
-              <!-- Sits under the audience because that is what it inherits:
-                   a minute started from this gathering opens with the same
-                   people already picked out for attendance. Asked for rather
-                   than inferred from the type — two gatherings can both be
-                   "meeting" and only one of them minuted. -->
-              <label
-                class="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-600"
-              >
-                <input
-                  v-model="form.keepsMinutes"
-                  type="checkbox"
-                  class="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span class="min-w-0">
-                  <span class="block text-sm font-medium text-gray-900 dark:text-white">
-                    Keep minutes for this gathering
-                  </span>
-                  <span class="mt-0.5 block text-xs text-gray-400 dark:text-gray-500">
-                    The next one shows on the Minutes page as “Not started”. Opening it starts
-                    the record with this gathering’s date, time, place and people already in.
-                  </span>
-                </span>
-              </label>
-
-              <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Location
-                </label>
-                <input
-                  v-model="form.location"
-                  type="text"
-                  :placeholder="`e.g. ${church.shortName}`"
-                  class="w-full h-11 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Description
-                </label>
-                <textarea
-                  v-model="form.description"
-                  rows="2"
-                  placeholder="Shown on the event details"
-                  class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
-                ></textarea>
-              </div>
-            </div>
-
-            <div
-              class="shrink-0 flex gap-3 px-5 py-4 border-t border-gray-200 dark:border-gray-700 pb-[max(1rem,env(safe-area-inset-bottom))]"
-            >
-              <button
-                @click="closeEditor"
-                class="flex-1 h-11 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                @click="handleSave"
-                :disabled="!isFormValid || saving"
+              <span
                 :class="[
-                  'flex-1 h-11 rounded-lg text-sm font-semibold transition-colors',
-                  isFormValid && !saving
-                    ? 'bg-primary text-white shadow-sm hover:bg-primary-hover'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed',
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                  activeKey === item.key && isDesktop
+                    ? 'bg-primary text-white dark:bg-primary-light'
+                    : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300',
                 ]"
               >
-                {{ saving ? 'Saving...' : editing ? 'Save changes' : 'Add event' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+                <component :is="item.icon" class="h-4.5 w-4.5" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium text-gray-900 dark:text-white">
+                  {{ item.label }}
+                </span>
+                <span
+                  :class="[
+                    'block truncate text-xs',
+                    item.attention
+                      ? 'font-semibold text-amber-600 dark:text-amber-400'
+                      : 'text-gray-500 dark:text-gray-400',
+                  ]"
+                >
+                  {{ item.status }}
+                </span>
+              </span>
+              <ChevronRight class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
+            </button>
+          </li>
+        </ul>
+      </div>
 
-    <ConfirmationModal
-      :show="showConfirmation"
-      :title="confirmationConfig.title"
-      :message="confirmationConfig.message"
-      :confirm-text="confirmationConfig.confirmText"
-      :cancel-text="confirmationConfig.cancelText"
-      :confirm-button-class="confirmationConfig.confirmButtonClass"
-      @update:show="showConfirmation = $event"
-      @confirm="confirmationConfig.onConfirm?.()"
-      @cancel="showConfirmation = false"
-    />
+      <!-- Which build this is. Under the list rather than inside a section,
+           because a bug report can come from any of them and the version is
+           the first question asked. -->
+      <p class="pb-4 text-center text-xs text-gray-400 dark:text-gray-500">
+        UEC Church v{{ appVersion }} &middot;
+        <button
+          @click="openWhatsNew"
+          class="underline underline-offset-2 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+        >
+          What's new
+        </button>
+      </p>
+    </nav>
+
+    <!-- The open section. A plain block scroller, deliberately not a flex
+         column: a flex item shrinks to fit, and the sections are
+         overflow-hidden for their rounded corners, so a tall one was clipped
+         with nothing to scroll. -->
+    <main v-if="active" class="h-full min-w-0 flex-1 overflow-y-auto pb-4">
+      <!-- The way back, on a phone only. The section's own card carries its
+           name, so this says where back goes rather than repeating it. -->
+      <button
+        v-if="!isDesktop"
+        type="button"
+        @click="backToList"
+        class="-ml-1 mb-2 flex items-center gap-1 rounded-lg px-1 py-2 text-sm font-medium text-gray-600 dark:text-gray-300"
+      >
+        <ArrowLeft class="h-5 w-5" />
+        Settings
+      </button>
+
+      <KeepAlive>
+        <component :is="active.component" :key="active.key" />
+      </KeepAlive>
+    </main>
   </div>
 </template>
-
-<style scoped>
-.sheet-enter-active,
-.sheet-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.sheet-enter-active .sheet-panel,
-.sheet-leave-active .sheet-panel {
-  transition: transform 0.25s ease;
-}
-
-.sheet-enter-from,
-.sheet-leave-to {
-  opacity: 0;
-}
-
-.sheet-enter-from .sheet-panel,
-.sheet-leave-to .sheet-panel {
-  transform: translateY(100%);
-}
-
-@media (min-width: 640px) {
-  .sheet-enter-from .sheet-panel,
-  .sheet-leave-to .sheet-panel {
-    transform: scale(0.96);
-  }
-}
-</style>

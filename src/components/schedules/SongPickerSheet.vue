@@ -169,7 +169,7 @@ const confirm = () => {
                   <span
                     v-if="alreadyChosen.has(String(song.id))"
                     class="ml-1 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400"
-                    >in lineup</span
+                    >already in</span
                   >
                 </span>
                 <span class="block text-xs text-gray-500 dark:text-gray-400 truncate">

@@ -1,907 +1,742 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { Image as ImageIcon, Plus, Maximize2, X, MapPin, Calendar, Clock, ChevronRight, ChevronLeft, ArrowLeft, Loader2, Upload, Download as DownloadIcon, ListFilter, Users, Info, Grid, Check, Trash2, Share2, AlertTriangle, MoreHorizontal, LogIn, ExternalLink } from '../icons'
-import { subscribeToAlbums, uploadPhoto, addAlbum, subscribeToAlbumPhotos, setAlbumCover, deletePhoto, deleteAlbum } from '../api/galleryService'
-import { subscribeToEvents } from '../api/eventsService'
-import churchCover from '../assets/church.jpg'
-import { useMediaQuery } from '../composables/useMediaQuery'
-import { useAppSettings } from '../composables/useAppSettings'
-import { withAllOption } from '../data/appDefaults'
-import { compressImageToBase64 } from '../utils/imageUtils'
-import SearchBar from '../components/common/SearchBar.vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import GalleryToolbar from '../components/gallery/GalleryToolbar.vue'
+import GalleryFab from '../components/gallery/GalleryFab.vue'
+import AlbumCard from '../components/gallery/AlbumCard.vue'
+import AlbumRow from '../components/gallery/AlbumRow.vue'
+import NewAlbumSheet from '../components/gallery/NewAlbumSheet.vue'
+import PhotoLightbox from '../components/gallery/PhotoLightbox.vue'
+import ConfirmationModal from '../components/common/ConfirmationModal.vue'
+import { useGalleryAlbums, matchesAlbumQuery, RECENT_EMPTY_DAYS } from '../composables/useGalleryAlbums'
+import { useListScrollMemory } from '../composables/useListScrollMemory'
 import { usePermissions } from '../composables/usePermissions'
-import { useScrollLock } from '../composables/useScrollLock'
-
-const { canManage } = usePermissions()
-
-const route = useRoute()
-const router = useRouter()
-const isMobile = useMediaQuery('(max-width: 1023px)')
-const mobileSearchOpen = ref(false)
+import { useToast } from '../composables/useToast'
+import {
+  addAlbum,
+  deleteAlbum,
+  deletePhoto,
+  setAlbumCover,
+  subscribeToAlbumPhotos,
+  uploadPhoto,
+} from '../api/galleryService'
+import { compressImageToBase64 } from '../utils/imageUtils'
+import { addDays, formatLongDate, formatMonth } from '../../lib/occurrences'
+import { ArrowLeft, Image as ImageIcon, ImagePlus, SearchX, Trash2 } from '../icons'
 
 const props = defineProps({
   id: String,
   view: String,
-  photoId: String
+  photoId: String,
 })
 
-// Categories for the gallery
-const { categories: appCategories } = useAppSettings()
-const categories = computed(() => withAllOption(appCategories.value.gallery))
-const selectedCategory = ref('All')
+const router = useRouter()
+const toast = useToast()
+const { canManage } = usePermissions()
+const canEdit = computed(() => canManage('gallery'))
+
+const { albums, loading, today } = useGalleryAlbums()
+
+/* ------------------------------------------------------------------ search */
 const searchQuery = ref('')
-const selectedEvent = ref(null) 
-const selectedImage = ref(null) 
+// Search is a mode, opened from the floating button. Closing it clears the
+// query: a bar you cannot see must not still be filtering the list.
+const searchOpen = ref(false)
+const openSearch = () => { searchOpen.value = true }
+const closeSearch = () => {
+  searchOpen.value = false
+  searchQuery.value = ''
+}
+const searching = computed(() => Boolean(searchQuery.value.trim()))
 
-// The lightbox covers the screen and swipes between photos; the grid behind it
-// has no business moving while it is up.
-useScrollLock(() => selectedImage.value !== null)
-const showFilterDropdown = ref(false)
-const showDetails = ref(false) 
-const showDeleteModal = ref(false)
-const showMoreActions = ref(false)
-const showAlbumActions = ref(false)
-const showAlbumDeleteModal = ref(false)
+/* ------------------------------------------------------------------- list */
+// Covers whose file failed to load. Kept by id so the album drops to a row for
+// the rest of the visit instead of retrying a broken image on every render.
+const brokenCovers = ref(new Set())
+const markBroken = (album) => {
+  const next = new Set(brokenCovers.value)
+  next.add(album.id)
+  brokenCovers.value = next
+}
 
-// Context Menu state
-const contextMenu = ref({
-  show: false,
-  x: 0,
-  y: 0,
-  album: null,
-  photo: null
+const listed = computed(() =>
+  albums.value.map((album) =>
+    album.hasPhotos && brokenCovers.value.has(album.id)
+      ? { ...album, hasPhotos: false, coverBroken: true }
+      : album
+  )
+)
+
+// An empty album is an invitation to add photos, and only somebody who can add
+// them has any use for one. Everybody else sees the albums with pictures in.
+const offered = computed(() =>
+  listed.value.filter((album) => album.hasPhotos || album.coverBroken || canEdit.value)
+)
+
+const recentFrom = computed(() => addDays(today.value, -RECENT_EMPTY_DAYS))
+
+// A gathering that is not recent and still has nothing in it is left off the
+// unsearched list — see RECENT_EMPTY_DAYS. A stored album is never left off:
+// somebody made it, so it is theirs to find or delete.
+const isStale = (album) =>
+  !album.hasPhotos && !album.existsInGallery && String(album.date) < recentFrom.value
+
+const visibleAlbums = computed(() =>
+  searching.value
+    ? offered.value.filter((album) => matchesAlbumQuery(album, searchQuery.value))
+    : offered.value.filter((album) => !isStale(album))
+)
+
+const staleCount = computed(() =>
+  searching.value ? 0 : offered.value.filter(isStale).length
+)
+
+// Month by month, newest first. Within a month the albums with photos lead as
+// covers and the empty ones follow as a short list — mixing the two by date
+// would break the grid into single cards between rows.
+const albumGroups = computed(() => {
+  const groups = new Map()
+  for (const album of visibleAlbums.value) {
+    const key = album.date ? String(album.date).slice(0, 7) : 'undated'
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        label: album.date ? formatMonth(album.date) : 'No date',
+        covers: [],
+        empties: [],
+      })
+    }
+    groups.get(key)[album.hasPhotos ? 'covers' : 'empties'].push(album)
+  }
+  return [...groups.values()].sort((a, b) =>
+    a.key === 'undated' ? 1 : b.key === 'undated' ? -1 : b.key.localeCompare(a.key)
+  )
 })
 
-// Upload/Cover/Delete state
-const fileInput = ref(null)
-const isUploading = ref(false)
-const isSettingCover = ref(false)
-const isDeleting = ref(false)
-const uploadProgress = ref('')
+// Opening an album replaces the list in place, so the list has to remember
+// where it was — both across this page's own album view and across leaving
+// the page altogether.
+const listScroller = ref(null)
+useListScrollMemory(listScroller, { key: '/gallery' })
+let listScrollTop = 0
 
-// Real data from Firebase
-const manualAlbums = ref([])
-const calendarEvents = ref([])
-const albumPhotos = ref([]) 
-const isLoading = ref(true)
-const isPhotosLoading = ref(false) 
+/* ------------------------------------------------------------------ album */
+const routeAlbumId = computed(() => (props.id && props.id !== 'all' ? props.id : ''))
 
-let unsubscribeAlbums = null
-let unsubscribeEvents = null
+const currentAlbum = computed(() => {
+  const id = routeAlbumId.value
+  if (!id) return null
+  return listed.value.find((album) => album.id === id || album.derivedId === id) || null
+})
+
+// A gathering's album has a computed id until its first photo is saved and a
+// document id after. The address follows, so a link copied from here opens
+// the album itself rather than the gathering it started as.
+watch(currentAlbum, (album) => {
+  if (!album || album.id === routeAlbumId.value) return
+  router.replace({
+    name: 'Gallery',
+    params: { id: album.id, view: props.view, photoId: props.photoId },
+  })
+})
+
+watch(routeAlbumId, async (id, previous) => {
+  if (id && !previous) {
+    listScrollTop = listScroller.value?.scrollTop || 0
+    closeSearch()
+  } else if (!id && previous) {
+    await nextTick()
+    if (listScroller.value) listScroller.value.scrollTop = listScrollTop
+  }
+})
+
+const photos = ref([])
+const photosLoading = ref(false)
 let unsubscribePhotos = null
 
-onMounted(() => {
-  isLoading.value = true
-  unsubscribeAlbums = subscribeToAlbums((data) => {
-    manualAlbums.value = data
-    checkLoading()
-    syncSelectedEvent()
-  })
-  unsubscribeEvents = subscribeToEvents((data) => {
-    calendarEvents.value = data
-    checkLoading()
-    syncSelectedEvent()
-  })
-  window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('click', closeContext)
-})
+// Only a stored album has photos to read. A gathering's album is empty by
+// definition until the first upload makes it a document.
+const photoSourceId = computed(() =>
+  currentAlbum.value?.existsInGallery ? currentAlbum.value.id : ''
+)
 
-const checkLoading = () => {
-  if (manualAlbums.value.length >= 0 && calendarEvents.value.length >= 0) {
-    isLoading.value = false
-  }
-}
-
-const syncSelectedEvent = () => {
-  const routeId = route.params.id
-  if (routeId && routeId !== 'v') {
-    const found = allAlbums.value.find(a => a.id === routeId)
-    if (found) {
-      selectedEvent.value = found
-    }
-  } else if (!showDetails.value) {
-    selectedEvent.value = null
-  }
-}
-
-// Watch for photoId in URL to open lightbox
-watch([() => route.params.photoId, () => albumPhotos.value], ([newPhotoId, photos]) => {
-  if (newPhotoId && photos.length > 0) {
-    const found = photos.find(p => p.id === newPhotoId)
-    if (found) {
-      selectedImage.value = { 
-        ...found, 
-        ...selectedEvent.value, 
-        albumId: selectedEvent.value?.id 
-      }
-    }
-  } else if (!newPhotoId) {
-    selectedImage.value = null
-    showDeleteModal.value = false
-    showMoreActions.value = false
-  }
-}, { immediate: true })
-
-watch(() => route.params.id, (newId) => {
-  if (newId && newId !== 'v') {
-    syncSelectedEvent()
-    showDetails.value = false
-  } else if (!newId) {
-    selectedEvent.value = null
-  }
-})
-
-const subscribeToCurrentPhotos = (albumId) => {
-  if (unsubscribePhotos) unsubscribePhotos()
-  if (albumId && !albumId.startsWith('ev-')) {
-    isPhotosLoading.value = true
-    unsubscribePhotos = subscribeToAlbumPhotos(albumId, (photos) => {
-      albumPhotos.value = photos
-      isPhotosLoading.value = false
+watch(
+  photoSourceId,
+  (albumId) => {
+    unsubscribePhotos?.()
+    unsubscribePhotos = null
+    photos.value = []
+    photosLoading.value = Boolean(albumId)
+    if (!albumId) return
+    unsubscribePhotos = subscribeToAlbumPhotos(albumId, (data) => {
+      photos.value = data
+      photosLoading.value = false
     })
-  } else {
-    albumPhotos.value = []
-    isPhotosLoading.value = false
-  }
-}
+  },
+  { immediate: true }
+)
 
-watch(() => selectedEvent.value?.id, (newId) => {
-  subscribeToCurrentPhotos(newId)
-}, { immediate: true })
+onUnmounted(() => unsubscribePhotos?.())
 
-onUnmounted(() => {
-  if (unsubscribeAlbums) unsubscribeAlbums()
-  if (unsubscribeEvents) unsubscribeEvents()
-  if (unsubscribePhotos) unsubscribePhotos()
-  window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('click', closeContext)
+const albumDetail = computed(() => {
+  const album = currentAlbum.value
+  if (!album) return ''
+  const count = photos.value.length
+  return [
+    album.date ? formatLongDate(album.date) : '',
+    album.location,
+    count ? `${count} ${count === 1 ? 'photo' : 'photos'}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
 })
 
-const allAlbums = computed(() => {
-  const today = new Date()
-  today.setHours(23, 59, 59, 999)
-  const pastEvents = calendarEvents.value
-    .filter(ev => ev.date && new Date(ev.date) <= today)
-    .map(ev => ({
-      id: `ev-${ev.firestoreId || ev.id}`,
-      calendarEventId: ev.firestoreId || ev.id,
-      title: ev.title,
-      description: ev.description || '',
-      category: ev.type?.charAt(0).toUpperCase() + ev.type?.slice(1) || 'General',
-      date: ev.date,
-      location: ev.location || '',
-      coverUrl: '',
-      isCalendarEvent: true,
-      existsInGallery: false
-    }))
-  const combined = [...pastEvents]
-  manualAlbums.value.forEach(album => {
-    // An album fills in the calendar event it was shot at, so the page shows
-    // one tile rather than two. Two guards on that, both load-bearing:
-    //
-    //   item.isCalendarEvent — only an event row may be filled in. Without it
-    //     an album matched the *album* already sitting in the row and replaced
-    //     it, so several albums sharing a title and date collapsed into a
-    //     single tile showing only the last of them. The rest were on the page
-    //     nowhere: not openable, and so not deletable either. Deleting the
-    //     tile just handed its place to the next one, complete with a
-    //     different set of photos — which reads exactly like a delete that
-    //     did not work.
-    //
-    //   !item.existsInGallery — one album per event. A row already filled is
-    //     taken, and a second album pointing at the same event gets its own
-    //     tile rather than evicting the first.
-    const existingIndex = combined.findIndex(item =>
-      item.isCalendarEvent &&
-      !item.existsInGallery &&
-      ((album.calendarEventId && item.calendarEventId === album.calendarEventId) ||
-        (item.title === album.title && item.date === album.date))
-    )
-    if (existingIndex !== -1) combined[existingIndex] = { ...combined[existingIndex], ...album, existsInGallery: true }
-    else combined.push({ ...album, isCalendarEvent: false, existsInGallery: true })
-  })
-  return combined.sort((a, b) => new Date(b.date) - new Date(a.date))
-})
-
-const filteredEvents = computed(() => {
-  return allAlbums.value.filter(album => {
-    const matchesCategory = selectedCategory.value === 'All' || album.category.toLowerCase() === selectedCategory.value.toLowerCase()
-    const matchesSearch = album.title.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-                          album.category.toLowerCase().includes(searchQuery.value.toLowerCase())
-    return matchesCategory && matchesSearch
-  })
-})
-
-const groupedAlbums = computed(() => {
-  const groups = {}
-  filteredEvents.value.forEach(album => {
-    if (!album.date) return
-    const date = new Date(album.date)
-    const key = date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-    if (!groups[key]) groups[key] = { label: key, timestamp: date.getTime(), albums: [] }
-    groups[key].albums.push(album)
-  })
-  return Object.values(groups).sort((a, b) => b.timestamp - a.timestamp)
-})
-
-const openEvent = (event) => { 
-  selectedEvent.value = event
-  showDetails.value = true
+const openAlbum = (album) => {
+  router.push({ name: 'Gallery', params: { id: album.id } })
 }
 
-const enterAlbum = () => {
-  if (!selectedEvent.value) return
-  showDetails.value = false
-  router.push({ name: 'Gallery', params: { id: selectedEvent.value.id } })
+// Back to the list the way the phone's own back button would go, when that is
+// where the album was opened from; a link straight into an album has no list
+// behind it, so that one goes forward to it instead.
+const closeAlbum = () => {
+  if (window.history.state?.back === '/gallery') router.back()
+  else router.push({ name: 'Gallery' })
 }
 
-const closeEvent = () => { router.push({ name: 'Gallery' }) }
+/* ----------------------------------------------------------------- upload */
+const fileInput = ref(null)
+const uploadTarget = ref(null)
+// The album being uploaded into, by every id it may be known by during the
+// upload — it starts as a gathering and becomes a document part-way through.
+const uploadingIds = ref([])
+const progress = ref({ done: 0, total: 0 })
+const uploading = computed(() => uploadingIds.value.length > 0)
 
-const openImage = (image) => { 
-  const albumId = selectedEvent.value?.id || 'all'
-  router.push({ 
-    name: 'Gallery', 
-    params: { 
-      id: albumId, 
-      view: 'v', 
-      photoId: image.id 
-    } 
-  })
-}
+const isUploadingTo = (album) =>
+  Boolean(album) &&
+  uploadingIds.value.some((id) => id === album.id || id === album.derivedId)
 
-const closeImage = () => { 
-  if (selectedEvent.value) {
-    router.push({ name: 'Gallery', params: { id: selectedEvent.value.id } })
-  } else {
-    router.push({ name: 'Gallery' })
-  }
-}
-
-const openAlbumContext = (album, e) => {
-  contextMenu.value = {
-    show: true,
-    x: e.clientX,
-    y: e.clientY,
-    album,
-    photo: null
-  }
-}
-
-const openPhotoContext = (photo, e) => {
-  contextMenu.value = {
-    show: true,
-    x: e.clientX,
-    y: e.clientY,
-    album: selectedEvent.value,
-    photo
-  }
-}
-
-const closeContext = () => { contextMenu.value.show = false }
-
-// Navigation in Lightbox (Update URLs)
-const nextImage = (e) => {
-  if (e) e.stopPropagation()
-  if (!selectedImage.value || !albumPhotos.value.length) return
-  const index = albumPhotos.value.findIndex(p => p.id === route.params.photoId)
-  if (index !== -1 && index < albumPhotos.value.length - 1) {
-    openImage(albumPhotos.value[index + 1])
-  } else if (index === albumPhotos.value.length - 1) {
-    openImage(albumPhotos.value[0])
-  }
-}
-
-const prevImage = (e) => {
-  if (e) e.stopPropagation()
-  if (!selectedImage.value || !albumPhotos.value.length) return
-  const index = albumPhotos.value.findIndex(p => p.id === route.params.photoId)
-  if (index > 0) {
-    openImage(albumPhotos.value[index - 1])
-  } else if (index === 0) {
-    openImage(albumPhotos.value[albumPhotos.value.length - 1])
-  }
-}
-
-const handleKeydown = (e) => {
-  if (showDeleteModal.value || showAlbumDeleteModal.value) {
-    if (e.key === 'Escape') { showDeleteModal.value = false; showAlbumDeleteModal.value = false }
-    if (e.key === 'Enter') { if(showDeleteModal.value) confirmDelete(); if(showAlbumDeleteModal.value) confirmAlbumDelete() }
+// Straight from the tap, not after an await: a browser only opens the file
+// picker inside the gesture that asked for it.
+const pickPhotosFor = (album) => {
+  if (!album || !canEdit.value) return
+  // A second batch while the first is going would race it for the cover and
+  // share one progress bar between two albums.
+  if (uploading.value) {
+    toast.info('Wait for the photos already going up to finish.')
     return
   }
-  if (!selectedImage.value) return
-  if (e.key === 'ArrowRight') nextImage()
-  if (e.key === 'ArrowLeft') prevImage()
-  if (e.key === 'Escape') closeImage()
+  uploadTarget.value = album
+  fileInput.value?.click()
 }
 
-const triggerUpload = () => { if (!selectedEvent.value) return; fileInput.value.click() }
+const onRowTap = (album) => {
+  // A row standing in for a broken cover still has photos behind it; opening
+  // the album shows them, where the picker would only add more.
+  if (album.coverBroken) openAlbum(album)
+  else pickPhotosFor(album)
+}
 
-const handleFileUpload = async (event) => {
-  const files = event.target.files
-  if (!files.length) return
-  isUploading.value = true
+const onFilesChosen = (event) => {
+  const files = Array.from(event.target.files || [])
+  event.target.value = ''
+  const album = uploadTarget.value
+  uploadTarget.value = null
+  if (!files.length || !album) return
+  uploadInto(album, files)
+}
+
+/**
+ * Puts photos into an album, creating the album first if it is still only a
+ * gathering. The page moves into the album as soon as the upload starts, so
+ * the photos are seen arriving where they are going.
+ */
+const uploadInto = async (album, files) => {
+  uploadingIds.value = [album.id, album.derivedId].filter(Boolean)
+  progress.value = { done: 0, total: files.length }
+
+  if (album.id && routeAlbumId.value !== album.id) openAlbum(album)
+
+  let albumId = album.existsInGallery ? album.id : ''
   try {
-    let currentId = selectedEvent.value.id
-    if (!selectedEvent.value.existsInGallery) {
-      uploadProgress.value = 'Preparing album...'
-      const newAlbumData = {
-        title: selectedEvent.value.title,
-        date: selectedEvent.value.date,
-        category: selectedEvent.value.category,
-        location: selectedEvent.value.location,
-        calendarEventId: selectedEvent.value.calendarEventId,
-        description: selectedEvent.value.description
-      }
-      currentId = await addAlbum(newAlbumData)
-      router.replace({ name: 'Gallery', params: { id: currentId } })
+    if (!albumId) {
+      albumId = await addAlbum({
+        title: album.title,
+        date: album.date,
+        category: album.category || 'General',
+        location: album.location || '',
+        description: album.description || '',
+        calendarEventId: album.calendarEventId || null,
+      })
+      uploadingIds.value = [...uploadingIds.value, albumId]
+      if (!album.id) router.push({ name: 'Gallery', params: { id: albumId } })
     }
-    for (let i = 0; i < files.length; i++) {
-       uploadProgress.value = `Uploading ${i + 1}/${files.length}`
-       const base64 = await compressImageToBase64(files[i])
-       await uploadPhoto(currentId, base64, '')
-    }
-    event.target.value = ''
-  } catch (err) { alert("Upload failed."); console.error(err) } finally { isUploading.value = false; uploadProgress.value = '' }
-}
-
-const downloadPhoto = (targetContent = null) => {
-  const photo = targetContent || selectedImage.value
-  if (!photo) return
-  const img = new Image()
-  img.onload = () => {
-    const canvas = document.createElement('canvas')
-    canvas.width = img.width; canvas.height = img.height
-    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0)
-    const jpegData = canvas.toDataURL('image/jpeg', 0.95)
-    const link = document.createElement('a')
-    link.href = jpegData; link.download = `uec_photo_${Date.now()}.jpg`
-    document.body.appendChild(link); link.click(); document.body.removeChild(link)
+  } catch (error) {
+    console.error('Error creating album:', error)
+    toast.error('Could not create the album. Please try again.')
+    uploadingIds.value = []
+    return
   }
-  img.src = photo.url
+
+  // One at a time, and a bad file does not stop the rest: twenty photos from a
+  // service should not all be lost to the one that was a screenshot of a PDF.
+  let failed = 0
+  for (const file of files) {
+    try {
+      const base64 = await compressImageToBase64(file)
+      await uploadPhoto(albumId, base64, '')
+    } catch (error) {
+      failed += 1
+      console.error('Error uploading photo:', error)
+    }
+    progress.value = { ...progress.value, done: progress.value.done + 1 }
+  }
+
+  const added = files.length - failed
+  if (failed) {
+    toast.error(
+      added
+        ? `${added} added, ${failed} could not be uploaded.`
+        : 'Those photos could not be uploaded. Please try again.'
+    )
+  } else {
+    toast.success(`${added} ${added === 1 ? 'photo' : 'photos'} added`)
+  }
+  uploadingIds.value = []
 }
 
-const handleSharePhoto = async (targetContent = null) => {
-  const photo = targetContent || selectedImage.value
+/* ------------------------------------------------------------- new album */
+const showNewAlbum = ref(false)
+
+const createAlbum = ({ title, date, location, files }) => {
+  showNewAlbum.value = false
+  uploadInto(
+    {
+      id: '',
+      title,
+      date,
+      location,
+      category: 'General',
+      description: '',
+      calendarEventId: null,
+      existsInGallery: false,
+    },
+    files
+  )
+}
+
+/* ----------------------------------------------------------------- photos */
+const photoIndex = computed(() =>
+  props.view === 'v' && props.photoId
+    ? photos.value.findIndex((photo) => photo.id === props.photoId)
+    : -1
+)
+const lightboxOpen = computed(() => photoIndex.value !== -1)
+
+const openPhoto = (photo) => {
+  router.push({
+    name: 'Gallery',
+    params: { id: currentAlbum.value.id, view: 'v', photoId: photo.id },
+  })
+}
+
+// Replaced rather than pushed: a swipe through forty photos should not leave
+// forty entries for the back button to walk through.
+const goToPhoto = (index) => {
+  const photo = photos.value[index]
   if (!photo) return
-  const albumId = selectedEvent.value?.id || 'all'
-  const url = `${window.location.origin}/gallery/${albumId}/v/${photo.id}`
-  const title = selectedEvent.value?.title || 'UEC Gallery'
-  
+  router.replace({
+    name: 'Gallery',
+    params: { id: currentAlbum.value.id, view: 'v', photoId: photo.id },
+  })
+}
+
+const closePhoto = () => {
+  const albumPath = `/gallery/${currentAlbum.value?.id}`
+  if (window.history.state?.back === albumPath) router.back()
+  else router.replace({ name: 'Gallery', params: { id: currentAlbum.value?.id } })
+}
+
+const sharePhoto = async (photo) => {
+  const album = currentAlbum.value
+  const url = `${window.location.origin}/gallery/${album.id}/v/${photo.id}`
   if (navigator.share) {
     try {
-      await navigator.share({
-        title,
-        text: `From the UEC Gallery archive: ${title}`,
-        url
-      })
-    } catch (err) { console.error('Share failed:', err) }
-  } else {
-    try {
-      await navigator.clipboard.writeText(url)
-      alert("Direct photo link copied to clipboard.")
-    } catch (err) { alert("Copy failed.") }
-  }
-}
-
-const updateCover = async (albumId = null, photoUrl = null) => {
-  const aid = albumId || selectedEvent.value?.id
-  const url = photoUrl || selectedImage.value?.url
-  if (!aid || !url) return
-  
-  isSettingCover.value = true
-  showMoreActions.value = false
-  try {
-    await setAlbumCover(aid, url)
-    if (selectedEvent.value?.id === aid) {
-       selectedEvent.value.coverUrl = url
+      await navigator.share({ title: album.title, text: album.title, url })
+    } catch (error) {
+      // Dismissing the share sheet rejects too, and is not a failure.
+      if (error?.name !== 'AbortError') console.error('Share failed:', error)
     }
-  } catch (err) { alert("Cover update failed."); console.error(err) } finally { isSettingCover.value = false }
-}
-
-const handleDeletePhoto = (targetContent = null) => {
-  const photo = targetContent || selectedImage.value
-  if (!photo?.id) return
-  
-  // If targeted from context menu, temporarily set as selected to reuse modal
-  if (targetContent) selectedImage.value = targetContent
-
-  showMoreActions.value = false
-  showDeleteModal.value = true
-}
-
-const confirmDelete = async () => {
-  if (!selectedImage.value?.id) return
-  isDeleting.value = true
+    return
+  }
   try {
-    await deletePhoto(selectedImage.value.id)
-    showDeleteModal.value = false
-    closeImage()
-  } catch (err) {
-    alert("Delete failed.")
-    console.error(err)
-  } finally {
-    isDeleting.value = false
+    await navigator.clipboard.writeText(url)
+    toast.success('Link copied')
+  } catch {
+    toast.error('Could not copy the link.')
   }
 }
 
-const confirmAlbumDelete = async () => {
-  const id = contextMenu.value.album?.id || selectedEvent.value?.id
-  if (!id) return
-  isDeleting.value = true
+// Fetched and saved as a file. The old way drew the photo onto a canvas first,
+// which a browser refuses to export for an image served from another origin —
+// and every photo lives in Blob storage now, so it failed for all of them.
+const downloadPhoto = async (photo) => {
   try {
-    await deleteAlbum(id)
-    showAlbumDeleteModal.value = false
-    showDetails.value = false
-    selectedEvent.value = null
-  } catch (err) { alert("Album delete failed."); console.error(err) } finally { isDeleting.value = false }
+    const response = await fetch(photo.url)
+    const blob = await response.blob()
+    const extension = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+    const href = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = href
+    link.download = `photo-${photo.id}.${extension}`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(href), 1000)
+  } catch (error) {
+    console.error('Download failed:', error)
+    window.open(photo.url, '_blank', 'noopener')
+  }
 }
 
-const cancelDelete = () => {
-  showDeleteModal.value = false
-  showAlbumDeleteModal.value = false
+const useAsCover = async (photo) => {
+  try {
+    await setAlbumCover(currentAlbum.value.id, photo.url)
+    toast.success('Cover updated')
+  } catch (error) {
+    console.error('Error setting cover:', error)
+    toast.error('Could not change the cover. Please try again.')
+  }
 }
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return 'No date'
-  return new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+/* ---------------------------------------------------------------- deleting */
+const showConfirmation = ref(false)
+const confirmationConfig = ref({
+  title: 'Confirm Action',
+  message: '',
+  confirmText: 'Confirm',
+  cancelText: 'Cancel',
+  confirmButtonClass: 'bg-red-600 text-white hover:bg-red-700',
+  onConfirm: null,
+})
+
+const showConfirmModal = (config) => {
+  confirmationConfig.value = { ...confirmationConfig.value, ...config }
+  showConfirmation.value = true
+}
+
+const handleConfirmation = () => confirmationConfig.value.onConfirm?.()
+
+const confirmDeletePhoto = (photo) => {
+  showConfirmModal({
+    title: 'Delete photo',
+    message: 'This photo will be removed from the album for good.',
+    confirmText: 'Delete',
+    onConfirm: async () => {
+      const albumId = currentAlbum.value?.id
+      try {
+        await deletePhoto(photo.id)
+        router.replace({ name: 'Gallery', params: { id: albumId } })
+        toast.success('Photo deleted')
+      } catch (error) {
+        console.error('Error deleting photo:', error)
+        toast.error('Could not delete that photo. Please try again.')
+      }
+    },
+  })
+}
+
+const confirmDeleteAlbum = () => {
+  const album = currentAlbum.value
+  if (!album?.existsInGallery) return
+  const count = photos.value.length
+  showConfirmModal({
+    title: 'Delete album',
+    message: count
+      ? `Delete "${album.title}" and its ${count} ${count === 1 ? 'photo' : 'photos'}? This cannot be undone.`
+      : `Delete "${album.title}"? This cannot be undone.`,
+    confirmText: 'Delete',
+    onConfirm: async () => {
+      try {
+        await deleteAlbum(album.id)
+        router.push({ name: 'Gallery' })
+        toast.success('Album deleted')
+      } catch (error) {
+        console.error('Error deleting album:', error)
+        toast.error('Could not delete that album. Please try again.')
+      }
+    },
+  })
 }
 </script>
 
 <template>
-  <div class="flex flex-col h-full overflow-hidden">
-    <input type="file" ref="fileInput" @change="handleFileUpload" accept="image/*" multiple class="hidden" />
+  <div class="relative flex h-full flex-col">
+    <input
+      ref="fileInput"
+      type="file"
+      accept="image/*"
+      multiple
+      class="hidden"
+      @change="onFilesChosen"
+    />
 
-    <!-- Action Bar -->
-    <div class="sticky top-0 z-40 mb-4 shrink-0 rounded-xl border border-gray-200/80 bg-white/95 px-2 py-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:px-3">
-      <div class="flex items-center justify-between gap-2 w-full flex-nowrap">
-        <button v-if="selectedEvent && !showDetails && route.params.id" @click="closeEvent" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors">
-          <ArrowLeft class="h-5 w-5" />
-        </button>
+    <!-- Opened from the floating button rather than always sitting there. -->
+    <GalleryToolbar
+      v-if="!routeAlbumId"
+      :search-query="searchQuery"
+      :open="searchOpen"
+      :result-count="visibleAlbums.length"
+      :total-count="offered.length"
+      @update:search-query="searchQuery = $event"
+      @close="closeSearch"
+    />
 
-        <SearchBar
-          v-model="searchQuery"
-          v-model:open="mobileSearchOpen"
-          :placeholder="selectedEvent ? 'Search in album...' : 'Search albums...'"
-        />
-
-        <div :class="['flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 ml-auto', mobileSearchOpen ? 'hidden lg:flex' : 'flex']">
-          <button v-if="!selectedEvent || (selectedEvent && !route.params.id)" @click="showAddAlbum = true" class="flex h-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0" title="Create Album">
-            <Plus class="h-5 w-5 shrink-0" />
-            <span class="hidden sm:inline whitespace-nowrap">Add</span>
-          </button>
-
-          <div v-if="!selectedEvent || (selectedEvent && !route.params.id)" class="relative">
-            <button @click="showFilterDropdown = !showFilterDropdown" :class="[ 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors border border-transparent shrink-0', selectedCategory !== 'All' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' ]" title="Filter by Category" aria-label="Filter by category" aria-haspopup="true" :aria-expanded="showFilterDropdown">
-              <ListFilter class="h-5 w-5" />
-            </button>
-            <Transition name="fade"><div v-if="showFilterDropdown" @click="showFilterDropdown = false" class="fixed inset-0 z-40"></div></Transition>
-            <Transition name="fade">
-              <div v-if="showFilterDropdown" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 py-2 overflow-hidden">
-                <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat; showFilterDropdown = false" :class="[ 'w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors', selectedCategory === cat ? 'text-primary bg-primary/5' : 'text-gray-500 dark:text-gray-400' ]">{{ cat }}</button>
-              </div>
-            </Transition>
+    <div class="relative flex flex-1 overflow-hidden">
+      <!-- ============================ Album list ============================ -->
+      <!-- Full-bleed on a phone, a card from sm: up, the way Minutes sits. -->
+      <div
+        v-if="!routeAlbumId"
+        ref="listScroller"
+        class="flex-1 overflow-y-auto bg-white pb-20 sm:rounded-lg sm:border sm:border-gray-200 dark:bg-gray-800 sm:dark:border-gray-700"
+      >
+        <div v-if="loading">
+          <div class="px-3 py-2 sm:px-4">
+            <div class="h-3 w-24 rounded bg-gray-200 animate-pulse dark:bg-gray-600"></div>
           </div>
-          <button v-if="canManage('gallery') && selectedEvent && route.params.id" @click="triggerUpload" :class="[ 'flex h-10 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover transition-all px-2.5 sm:px-4 gap-1.5 w-10 sm:w-auto shrink-0', isUploading ? 'opacity-50 cursor-not-allowed' : '' ]" :disabled="isUploading">
-            <Loader2 v-if="isUploading" class="h-5 w-5 animate-spin shrink-0" />
-            <Upload v-else class="h-5 w-5 shrink-0" />
-            <span class="hidden sm:inline whitespace-nowrap">Add</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Workspace -->
-    <div class="flex-1 flex overflow-hidden min-h-0 bg-transparent">
-      
-      <!-- List Area -->
-      <div class="flex-1 h-full overflow-y-auto p-4 custom-scrollbar transition-all duration-300 scroll-smooth">
-        <Transition name="fade">
-          <div v-if="isUploading" class="sticky top-0 z-50 flex items-center justify-center p-4">
-             <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-full px-6 py-3 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
-               <Loader2 class="h-4 w-4 animate-spin text-primary" /><span class="text-[11px] font-black uppercase tracking-widest text-gray-900 dark:text-white">{{ uploadProgress || 'Processing...' }}</span>
-             </div>
+          <div class="grid grid-cols-2 gap-2 p-2 sm:grid-cols-3 sm:gap-3 sm:p-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div
+              v-for="i in 4"
+              :key="`card-${i}`"
+              class="aspect-4/3 rounded-xl bg-gray-200 animate-pulse dark:bg-gray-700"
+            ></div>
           </div>
-        </Transition>
-
-        <!-- Gallery Grid -->
-        <div v-if="isLoading && !route.params.id" class="space-y-10">
-          <div v-for="i in 2" :key="i" class="space-y-6">
-            <div class="flex items-center gap-4 py-2 animate-pulse"><div class="w-32 h-6 bg-gray-200 dark:bg-gray-800 rounded-lg"></div><div class="flex-1 h-px bg-gray-100 dark:bg-gray-800"></div></div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6"><div v-for="j in 5" :key="j" class="bg-white dark:bg-gray-800 rounded-4xl overflow-hidden border border-gray-100 dark:border-gray-700 animate-pulse"><div class="aspect-4/3 bg-gray-100 dark:bg-gray-900"></div><div class="p-5 space-y-3"><div class="w-12 h-2 bg-gray-100 dark:bg-gray-800 rounded"></div><div class="w-full h-4 bg-gray-100 dark:bg-gray-800 rounded"></div></div></div></div>
-          </div>
-        </div>
-
-        <template v-else-if="!route.params.id">
-          <div v-if="groupedAlbums.length === 0" class="flex flex-col items-center justify-center py-20 text-gray-500"><ImageIcon class="h-16 w-16 mb-4 opacity-5" /><p class="text-xl font-medium tracking-tight">Album Empty</p></div>
-          <div v-for="group in groupedAlbums" :key="group.label" class="mb-10">
-            <div class="flex items-center gap-4 mb-4 sticky top-0 bg-white/90 dark:bg-gray-900/90 py-2 z-10 backdrop-blur-md">
-              <h2 class="text-[13px] font-black text-gray-900 dark:text-white tracking-widest uppercase">{{ group.label }}</h2>
-              <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
-            </div>
-            
-            <div class="grid gap-4 transform-gpu transition-all duration-300" 
-              :class="[
-                showDetails 
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
-              ]"
-            >
-              <div v-for="album in group.albums" :key="album.id" 
-                @click="openEvent(album)" 
-                @contextmenu.prevent="openAlbumContext(album, $event)"
-                class="group relative bg-white dark:bg-gray-800 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700 transition-all cursor-pointer aspect-square"
-                :class="{ 
-                  'border-primary ring-2 ring-primary/10 bg-gray-50 dark:bg-gray-700/30': selectedEvent?.id === album.id && showDetails,
-                  'opacity-80 scale-[0.98]': contextMenu.show && contextMenu.album?.id === album.id
-                }"
-              >
-                <!-- Full-size Image Background -->
-                <div class="absolute inset-0 overflow-hidden">
-                  <img :src="album.coverUrl || churchCover" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  
-                  <!-- Gradient Overlay -->
-                  <div class="absolute inset-0 bg-linear-to-t from-black via-black/30 to-transparent"></div>
-                  
-                  <div v-if="!album.existsInGallery" class="absolute top-4 left-4">
-                    <p class="text-[8px] text-primary dark:text-primary-light font-black uppercase tracking-widest bg-white/90 dark:bg-black/40 px-3 py-1.5 rounded-full border border-white/20 shadow-sm backdrop-blur-sm">No photos yet</p>
-                  </div>
-                </div>
-
-                <!-- Text Container (Overlayed) -->
-                <div class="absolute bottom-0 inset-x-0 p-5 flex flex-col justify-end bg-linear-to-t from-black/90 via-black/40 to-transparent h-1/2">
-                   <div class="flex items-center justify-between mb-1 text-[8px] font-black uppercase tracking-[0.2em] text-white/70">
-                    <span class="truncate max-w-30">{{ album.category }}</span>
-                    <span>{{ formatDate(album.date).split(',')[1] }}</span>
-                  </div>
-                  <h3 class="text-sm font-bold text-white group-hover:text-primary-light transition-colors line-clamp-2 leading-snug tracking-tight mb-1">{{ album.title }}</h3>
-                  <div class="w-8 h-1 bg-primary rounded-full group-hover:w-full transition-all duration-500"></div>
-                </div>
+          <div class="divide-y divide-gray-100 dark:divide-gray-700/60">
+            <div v-for="i in 3" :key="`row-${i}`" class="flex items-center gap-3 px-3 py-2 sm:px-4">
+              <div class="h-9 w-9 shrink-0 rounded-lg bg-gray-200 animate-pulse dark:bg-gray-600"></div>
+              <div class="flex-1 space-y-1.5">
+                <div class="h-3.5 w-40 rounded bg-gray-200 animate-pulse dark:bg-gray-600"></div>
+                <div class="h-3 w-24 rounded bg-gray-200 animate-pulse dark:bg-gray-600"></div>
               </div>
             </div>
           </div>
-        </template>
+        </div>
+
+        <div v-else-if="visibleAlbums.length === 0" class="px-6 py-16 text-center">
+          <component
+            :is="searching ? SearchX : ImageIcon"
+            class="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600"
+          />
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-300">
+            {{ searching ? 'No album matches that.' : 'No photos yet' }}
+          </p>
+          <p class="mx-auto mt-1 max-w-xs text-xs text-gray-400 dark:text-gray-500">
+            {{ searching
+              ? 'Try the month, the gathering, or where it was.'
+              : canEdit
+                ? 'Every gathering gets an album here once it has happened.'
+                : 'Photos from services and events will show up here.' }}
+          </p>
+        </div>
 
         <template v-else>
-          <!-- List View Inside Album -->
-          <div v-if="isPhotosLoading" class="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 space-y-3">
-            <div v-for="i in 8" :key="i" class="break-inside-avoid relative overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 animate-pulse" :style="{ height: [200, 300, 150, 400][i % 4] + 'px' }"></div>
-          </div>
-          <div v-else-if="albumPhotos.length === 0" class="flex flex-col items-center justify-center py-24 text-gray-500">
-            <ImageIcon class="h-16 w-16 mb-4 opacity-10" /><h3 class="text-lg font-bold">This album is empty</h3>
-            <p class="text-[11px] mt-1 max-w-xs text-center font-black uppercase tracking-widest opacity-40">Add photos to this album.</p>
-            <button v-if="canManage('gallery')" @click="triggerUpload" :disabled="isUploading" class="mt-8 px-8 py-3 bg-primary text-white rounded-xl flex items-center gap-2 font-black uppercase tracking-widest text-[10px] transition-all"><Upload class="h-4 w-4" /><span>Add Photo</span></button>
-          </div>
-          <div v-else class="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 space-y-3">
-            <div v-for="photo in albumPhotos" :key="photo.id" 
-              @click="openImage(photo)" 
-              @contextmenu.prevent="openPhotoContext(photo, $event)"
-              class="break-inside-avoid relative group overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 cursor-zoom-in transition-all"
-              :class="{ 'opacity-80 scale-[0.98]': contextMenu.show && contextMenu.photo?.id === photo.id }"
+          <section v-for="group in albumGroups" :key="group.key">
+            <h3
+              class="sticky top-0 z-10 border-b border-gray-100 bg-white/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 backdrop-blur sm:px-4 dark:border-gray-700/60 dark:bg-gray-800/95 dark:text-gray-500"
             >
-              <img :src="photo.url" class="w-full h-auto transition-transform duration-500 group-hover:scale-105" />
-              <div class="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4"><p class="text-white text-[10px] font-black tracking-widest uppercase">Photo View</p></div>
+              {{ group.label }}
+            </h3>
+
+            <div
+              v-if="group.covers.length"
+              class="grid grid-cols-2 gap-2 p-2 sm:grid-cols-3 sm:gap-3 sm:p-3 lg:grid-cols-4 xl:grid-cols-5"
+            >
+              <AlbumCard
+                v-for="album in group.covers"
+                :key="album.id"
+                :album="album"
+                @open="openAlbum"
+                @broken="markBroken"
+              />
             </div>
-          </div>
+
+            <div
+              v-if="group.empties.length"
+              class="divide-y divide-gray-100 dark:divide-gray-700/60"
+            >
+              <AlbumRow
+                v-for="album in group.empties"
+                :key="album.id"
+                :album="album"
+                :uploading="isUploadingTo(album)"
+                @add="onRowTap"
+              />
+            </div>
+          </section>
+
+          <p
+            v-if="staleCount && canEdit"
+            class="px-6 py-6 text-center text-xs text-gray-400 dark:text-gray-500"
+          >
+            Older gatherings without photos turn up when you search for them.
+          </p>
         </template>
       </div>
 
-      <!-- Panel Flow Sibling -->
-      <Teleport to="body" :disabled="!isMobile">
-      <Transition :name="isMobile ? 'modal-sheet' : 'panel'">
-        <div v-if="showDetails && selectedEvent"
-          :class="[
-            isMobile
-              ? 'fixed inset-0 z-80 flex flex-col justify-end'
-              : 'member-details-drawer m-3 rounded-2xl border-2 border-primary/30 dark:border-primary-light/30 bg-white dark:bg-gray-800 w-[calc(40%-1rem)] h-[calc(100%-1.5rem)] flex flex-col shrink-0 shadow-xl shadow-primary/25 dark:shadow-primary-light/20 relative overflow-hidden'
-          ]"
+      <!-- ============================== One album ============================= -->
+      <div
+        v-else
+        class="flex min-w-0 flex-1 flex-col overflow-hidden bg-white sm:rounded-lg sm:border sm:border-gray-200 dark:bg-gray-800 sm:dark:border-gray-700"
+      >
+        <div
+          class="flex shrink-0 items-center gap-2 border-b border-gray-100 px-2 py-2 sm:px-3 dark:border-gray-700/60"
         >
-          <div
-            v-if="isMobile"
-            class="absolute inset-0 bg-black/50"
-            @click="showDetails = false"
-          />
-          <div
-            :class="[
-              'flex flex-col min-h-0',
-              isMobile
-                ? 'relative z-10 w-full max-h-[92dvh] rounded-t-2xl bg-white dark:bg-gray-800 shadow-2xl border-t border-gray-200 dark:border-gray-700'
-                : 'h-full w-full'
-            ]"
+          <button
+            @click="closeAlbum"
+            aria-label="Back to albums"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
           >
-          <!-- Header -->
-          <div class="shrink-0 rounded-t-2xl bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-b border-primary/20 dark:border-primary-light/20 px-4 sm:px-6 py-4 flex items-center justify-between">
-            <div>
-              <h3 class="text-md font-bold text-gray-900 dark:text-white uppercase tracking-tight">Album Details</h3>
-              <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 font-black uppercase tracking-widest">{{ selectedEvent.category }} Archive</p>
-            </div>
-            <button @click="showDetails = false" class="p-2 rounded-lg text-gray-400 hover:text-primary dark:hover:text-primary-light hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group">
-              <X class="h-5 w-5 transition-transform group-hover:rotate-90" />
+            <ArrowLeft class="h-5 w-5" />
+          </button>
+          <div class="min-w-0 flex-1">
+            <h2 class="truncate text-sm font-semibold text-gray-900 dark:text-white">
+              {{ currentAlbum?.title || (loading ? '' : 'Album') }}
+            </h2>
+            <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ albumDetail }}</p>
+          </div>
+          <button
+            v-if="canEdit && currentAlbum?.existsInGallery"
+            @click="confirmDeleteAlbum"
+            aria-label="Delete album"
+            title="Delete album"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+          >
+            <Trash2 class="h-4.5 w-4.5" />
+          </button>
+        </div>
+
+        <!-- Progress, under the header rather than over the photos, so the
+             ones that have landed can be looked at while the rest go up. -->
+        <div
+          v-if="isUploadingTo(currentAlbum) || (uploading && !currentAlbum)"
+          class="shrink-0 border-b border-gray-100 px-3 py-2 sm:px-4 dark:border-gray-700/60"
+        >
+          <div class="flex items-center justify-between text-xs font-medium text-gray-600 dark:text-gray-300">
+            <span>Adding photos…</span>
+            <span class="tabular-nums">{{ progress.done }} of {{ progress.total }}</span>
+          </div>
+          <div class="mt-1.5 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+            <div
+              class="h-full rounded-full bg-primary transition-all duration-300"
+              :style="{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }"
+            ></div>
+          </div>
+        </div>
+
+        <div class="min-h-0 flex-1 overflow-y-auto pb-20">
+          <div
+            v-if="loading || photosLoading || (uploading && !currentAlbum)"
+            class="grid grid-cols-3 gap-0.5 p-0.5 sm:grid-cols-4 sm:gap-1 sm:p-1 lg:grid-cols-6"
+          >
+            <div
+              v-for="i in 12"
+              :key="i"
+              class="aspect-square bg-gray-200 animate-pulse dark:bg-gray-700"
+            ></div>
+          </div>
+
+          <div v-else-if="!currentAlbum" class="px-6 py-16 text-center">
+            <SearchX class="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
+            <p class="text-sm font-medium text-gray-600 dark:text-gray-300">
+              This album is not here any more.
+            </p>
+            <button
+              @click="router.push({ name: 'Gallery' })"
+              class="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+            >
+              All albums
             </button>
           </div>
 
-          <!-- Content -->
-          <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6 custom-scrollbar">
-            <!-- Info Section -->
-            <section class="space-y-3">
-              <h4 class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Info class="h-3.5 w-3.5" /> Information
-              </h4>
-              <div class="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4 space-y-4 border border-gray-100 dark:border-gray-800">
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="space-y-1">
-                    <p class="text-[8px] font-black uppercase tracking-widest text-primary/60">Date Taken</p>
-                    <p class="text-xs font-bold text-gray-900 dark:text-white leading-tight">{{ formatDate(selectedEvent.date) }}</p>
-                  </div>
-                  <div class="space-y-1">
-                    <p class="text-[8px] font-black uppercase tracking-widest text-primary/60">Location</p>
-                    <p class="text-xs font-bold text-gray-900 dark:text-white leading-tight truncate">{{ selectedEvent.location || 'N/A' }}</p>
-                  </div>
-                </div>
-                <div class="pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <p class="text-[8px] font-black uppercase tracking-widest text-primary/60 mb-1">Title</p>
-                    <h2 class="text-md font-black text-gray-900 dark:text-white leading-snug">{{ selectedEvent.title }}</h2>
-                </div>
-                <div v-if="selectedEvent.description" class="pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <p class="text-[8px] font-black uppercase tracking-widest text-primary/60 mb-1">Description</p>
-                    <p class="text-[11px] text-gray-500 dark:text-gray-400 font-medium leading-relaxed">{{ selectedEvent.description }}</p>
-                </div>
-              </div>
-            </section>
-
-            <!-- Previews -->
-            <section class="space-y-3">
-               <h4 class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Grid class="h-3.5 w-3.5" /> Photos
-              </h4>
-               <div v-if="isPhotosLoading" class="grid grid-cols-3 gap-2"><div v-for="i in 6" :key="i" class="aspect-square bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div></div>
-               <div v-else-if="albumPhotos.length" class="grid grid-cols-3 gap-2"><div v-for="photo in albumPhotos.slice(0, 9)" :key="photo.id" @click="openImage(photo)" class="aspect-square rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-white shadow-sm hover:shadow-md transition-shadow cursor-zoom-in"><img :src="photo.url" class="w-full h-full object-cover" /></div><div v-if="albumPhotos.length > 9" class="aspect-square rounded-xl bg-primary/5 border border-dashed border-primary/20 flex items-center justify-center"><p class="text-sm font-black text-primary">+{{ albumPhotos.length - 9 }}</p></div></div>
-               <div v-else class="py-12 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-3xl flex flex-col items-center justify-center text-gray-300"><ImageIcon class="h-8 w-8 mb-3 opacity-20" /><p class="text-[8px] font-black uppercase tracking-widest opacity-40">No photos</p></div>
-            </section>
+          <div
+            v-else-if="photos.length"
+            class="grid grid-cols-3 gap-0.5 p-0.5 sm:grid-cols-4 sm:gap-1 sm:p-1 lg:grid-cols-6"
+          >
+            <button
+              v-for="photo in photos"
+              :key="photo.id"
+              type="button"
+              @click="openPhoto(photo)"
+              class="relative aspect-square overflow-hidden bg-gray-100 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none dark:bg-gray-900"
+              :aria-label="`Open photo from ${currentAlbum.title}`"
+            >
+              <img
+                :src="photo.url"
+                alt=""
+                loading="lazy"
+                decoding="async"
+                class="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+              />
+            </button>
           </div>
 
-          <!-- Panel Footer Actions -->
-          <div class="shrink-0 rounded-b-2xl bg-linear-to-r from-primary/10 to-transparent dark:from-primary-light/10 dark:to-transparent border-t border-primary/20 dark:border-primary-light/20 px-4 sm:px-6 py-4">
-            <div class="flex items-center gap-2 relative">
-               <!-- Major: Enter -->
-              <button @click="enterAlbum" class="flex-1 py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 hover:bg-primary-hover hover:shadow-xl transition-all flex items-center justify-center gap-2 group">
-                Enter Album <ChevronRight class="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </button>
-
-              <!-- Album More Actions -->
-              <div v-if="selectedEvent.existsInGallery" class="relative group">
-                <button @click="showAlbumActions = !showAlbumActions" class="px-4 py-3 bg-white/50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors" title="Album Actions" aria-label="Album actions" aria-haspopup="true" :aria-expanded="showAlbumActions">
-                   <MoreHorizontal class="h-4 w-4" />
-                </button>
-
-                <Transition name="fade">
-                  <div v-if="showAlbumActions" class="absolute bottom-full right-0 mb-3 w-48 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden py-1.5 z-120">
-                    <button 
-                      @click="showAlbumDeleteModal = true; showAlbumActions = false" 
-                      class="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-[10px] font-black uppercase tracking-widest text-red-500"
-                    >
-                      <Trash2 class="h-3.5 w-3.5" />
-                      <span>Delete Album</span>
-                    </button>
-                  </div>
-                </Transition>
-                <div v-if="showAlbumActions" @click="showAlbumActions = false" class="fixed inset-0 z-115"></div>
-              </div>
-            </div>
-          </div>
+          <!-- Reached by a link, or by a manager who backed out of the picker.
+               The list never draws an empty album this large. -->
+          <div v-else-if="!isUploadingTo(currentAlbum)" class="px-6 py-16 text-center">
+            <ImagePlus class="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
+            <p class="text-sm font-medium text-gray-600 dark:text-gray-300">
+              Nothing in this album yet
+            </p>
+            <button
+              v-if="canEdit"
+              @click="pickPhotosFor(currentAlbum)"
+              class="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+            >
+              Add photos
+            </button>
           </div>
         </div>
-      </Transition>
-      </Teleport>
+      </div>
     </div>
 
-    <!-- Context Menu Portal -->
-    <Transition name="fade">
-      <div v-if="contextMenu.show" 
-        class="fixed z-500 w-56 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl py-2 overflow-hidden animate-in fade-in zoom-in duration-200"
-        :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
-        @click.stop
-      >
-        <!-- Album Context -->
-        <template v-if="contextMenu.album && !contextMenu.photo">
-          <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-800 mb-1">
-            <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Album Actions</p>
-            <p class="text-[11px] font-bold text-gray-900 dark:text-white truncate">{{ contextMenu.album.title }}</p>
-          </div>
-          <button @click="openEvent(contextMenu.album); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 dark:hover:bg-primary-light/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
-            <Info class="h-3.5 w-3.5 text-primary" /> <span>View Details</span>
-          </button>
-          <button @click="selectedEvent = contextMenu.album; enterAlbum(); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 dark:hover:bg-primary-light/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
-            <LogIn class="h-3.5 w-3.5 text-primary" /> <span>Enter Album</span>
-          </button>
-          <template v-if="contextMenu.album.existsInGallery">
-            <div class="h-px bg-gray-100 dark:bg-gray-800 my-1"></div>
-            <button @click="showAlbumDeleteModal = true; closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-red-500/10 text-[10px] font-black uppercase tracking-widest text-red-500 transition-colors">
-              <Trash2 class="h-3.5 w-3.5" /> <span>Delete Album</span>
-            </button>
-          </template>
-        </template>
+    <!-- Floating actions -->
+    <GalleryFab
+      v-if="!routeAlbumId || (canEdit && currentAlbum)"
+      :can-manage="canEdit"
+      :in-album="Boolean(routeAlbumId)"
+      :uploading="uploading"
+      @search="openSearch"
+      @add="showNewAlbum = true"
+      @upload="pickPhotosFor(currentAlbum)"
+    />
 
-        <!-- Photo Context -->
-        <template v-else-if="contextMenu.photo">
-          <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-800 mb-1">
-            <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Photo Actions</p>
-            <p class="text-[11px] font-bold text-gray-900 dark:text-white">Quick Access</p>
-          </div>
-          <button @click="openImage(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
-            <Maximize2 class="h-3.5 w-3.5 text-primary" /> <span>Expand View</span>
-          </button>
-          <button @click="handleSharePhoto(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest text-primary transition-colors">
-            <Share2 class="h-3.5 w-3.5" /> <span>Copy Link</span>
-          </button>
-          <button @click="downloadPhoto(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
-            <DownloadIcon class="h-3.5 w-3.5" /> <span>Download JPEG</span>
-          </button>
-          <div class="h-px bg-gray-100 dark:bg-gray-800 my-1"></div>
-          <button @click="updateCover(null, contextMenu.photo.url); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white transition-colors">
-            <Check class="h-3.5 w-3.5 text-green-500" /> <span>Set as Cover</span>
-          </button>
-          <button @click="handleDeletePhoto(contextMenu.photo); closeContext()" class="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-red-500/10 text-[10px] font-black uppercase tracking-widest text-red-500 transition-colors">
-            <Trash2 class="h-3.5 w-3.5" /> <span>Delete Photo</span>
-          </button>
-        </template>
-      </div>
-    </Transition>
+    <NewAlbumSheet :show="showNewAlbum" @close="showNewAlbum = false" @create="createAlbum" />
 
-    <!-- Lightbox -->
-    <Transition name="modal">
-      <div v-if="selectedImage" role="dialog" aria-modal="true" aria-label="Photo viewer" class="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 md:p-10" @click="closeImage">
+    <PhotoLightbox
+      v-if="lightboxOpen && currentAlbum"
+      :photos="photos"
+      :index="photoIndex"
+      :album="currentAlbum"
+      :can-manage="canEdit"
+      :paused="showConfirmation"
+      @close="closePhoto"
+      @go="goToPhoto"
+      @share="sharePhoto"
+      @download="downloadPhoto"
+      @cover="useAsCover"
+      @delete="confirmDeletePhoto"
+    />
 
-        <!-- Navigation Arrows -->
-        <button @click="nextImage" aria-label="Next photo" class="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 z-110 p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md group">
-          <ChevronRight class="h-8 w-8 transition-transform group-hover:translate-x-1" />
-        </button>
-        <button @click="prevImage" aria-label="Previous photo" class="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 z-110 p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md group">
-          <ChevronLeft class="h-8 w-8 transition-transform group-hover:-translate-x-1" />
-        </button>
-
-        <button @click="closeImage" aria-label="Close" class="absolute top-6 right-6 p-4 text-white/50 hover:text-white transition-colors z-110"><X class="h-8 w-8" /></button>
-        
-        <div class="max-w-7xl w-full h-full flex flex-col md:flex-row items-center gap-8 relative" @click.stop>
-          <div class="flex-1 h-full flex items-center justify-center relative">
-            <Transition name="fade" mode="out-in">
-              <img :key="selectedImage.url" :src="selectedImage.url" class="max-h-full max-w-full rounded-xl object-contain shadow-2xl border border-white/5" />
-            </Transition>
-          </div>
-          <div class="w-full md:w-80 shrink-0 text-white space-y-6">
-            <div><span class="px-3 py-1 rounded-full bg-primary/20 border border-primary/50 text-primary-light text-[10px] font-black uppercase tracking-wider mb-3 block w-fit">{{ selectedImage.category }}</span><h2 class="text-2xl font-black leading-tight">{{ selectedEvent.title }}</h2></div>
-            <p class="text-white/70 leading-relaxed text-[11px] font-medium opacity-60">{{ selectedImage.description || 'Photo view.' }}</p>
-            <div class="space-y-4 pt-4 border-t border-white/10 text-[10px] tracking-widest font-black uppercase">
-              <div class="flex items-center gap-3"><Calendar class="h-3.5 w-3.5 text-primary-light" /><span>{{ selectedEvent.date ? new Date(selectedEvent.date).toLocaleDateString(undefined, { dateStyle: 'full' }) : 'No date' }}</span></div>
-              <div class="flex items-center gap-3"><MapPin class="h-3.5 w-3.5 text-primary-light" /><span>{{ selectedEvent.location || 'Church Campus' }}</span></div>
-            </div>
-            
-            <!-- Minimal Action Row -->
-            <div class="flex items-center gap-2 mt-auto pt-6 px-1 relative">
-              <!-- Major Actions -->
-              <button @click="handleSharePhoto()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 transition-all rounded-xl flex items-center justify-center group text-blue-400" title="Share Photo Link" aria-label="Share photo link">
-                <Share2 class="h-4 w-4 transition-transform group-hover:scale-110" />
-              </button>
-
-              <button @click="downloadPhoto()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 transition-all rounded-xl flex items-center justify-center group" title="Download JPEG" aria-label="Download JPEG">
-                <DownloadIcon class="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
-              </button>
-
-              <!-- More Actions Toggle -->
-              <div class="relative flex-1">
-                <button @click="showMoreActions = !showMoreActions" class="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 transition-all rounded-xl flex items-center justify-center group" title="More Actions" aria-label="More actions" aria-haspopup="true" :aria-expanded="showMoreActions">
-                  <MoreHorizontal class="h-4 w-4 transition-transform group-hover:scale-110" />
-                </button>
-                
-                <!-- More Actions Menu -->
-                <Transition name="fade">
-                  <div v-if="showMoreActions" class="absolute bottom-full right-0 mb-3 w-48 bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1.5 z-120">
-                    <button 
-                      @click="updateCover()" 
-                      :disabled="isSettingCover || selectedEvent.coverUrl === selectedImage.url"
-                      class="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-[10px] font-black uppercase tracking-widest text-white/80 disabled:opacity-30"
-                    >
-                      <ImageIcon class="h-3.5 w-3.5" />
-                      <span>Set as Cover</span>
-                    </button>
-                    <div class="h-px bg-white/5 mx-3"></div>
-                    <button 
-                      @click="handleDeletePhoto()"
-                      class="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-500/10 transition-colors text-[10px] font-black uppercase tracking-widest text-red-500"
-                    >
-                      <Trash2 class="h-3.5 w-3.5" />
-                      <span>Delete Photo</span>
-                    </button>
-                  </div>
-                </Transition>
-                <div v-if="showMoreActions" @click="showMoreActions = false" class="fixed inset-0 z-115"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Custom Delete Modal -->
-    <Transition name="modal">
-      <div v-if="showDeleteModal || showAlbumDeleteModal" class="fixed inset-0 z-200 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click="cancelDelete">
-        <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden transform transition-all" @click.stop>
-          <div class="p-8 text-center">
-            <div class="mx-auto w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mb-6">
-              <AlertTriangle class="h-8 w-8 text-red-500" />
-            </div>
-            <h3 class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">Delete {{ showAlbumDeleteModal ? 'Album' : 'Photo' }}?</h3>
-            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 leading-relaxed mb-8 px-4">
-              This {{ showAlbumDeleteModal ? 'entire album and all its photos' : 'photo' }} will be permanently removed. This action cannot be undone.
-            </p>
-            
-            <div class="flex flex-col gap-3">
-              <button 
-                @click="showAlbumDeleteModal ? confirmAlbumDelete() : confirmDelete()" 
-                :disabled="isDeleting"
-                class="w-full py-4 bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-red-500/20 hover:bg-red-600 hover:shadow-xl transition-all flex items-center justify-center gap-2"
-              >
-                <Loader2 v-if="isDeleting" class="h-4 w-4 animate-spin" />
-                <span v-else>Confirm Delete</span>
-              </button>
-              <button 
-                @click="cancelDelete" 
-                class="w-full py-4 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <ConfirmationModal
+      :show="showConfirmation"
+      :title="confirmationConfig.title"
+      :message="confirmationConfig.message"
+      :confirm-text="confirmationConfig.confirmText"
+      :cancel-text="confirmationConfig.cancelText"
+      :confirm-button-class="confirmationConfig.confirmButtonClass"
+      @update:show="showConfirmation = $event"
+      @confirm="handleConfirmation"
+      @cancel="showConfirmation = false"
+    />
   </div>
 </template>
-
-<style scoped>
-.modal-enter-active, .modal-leave-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-.modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.95); }
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-
-.member-details-drawer {
-  transition: max-width 0.3s ease-out, opacity 0.3s ease;
-}
-
-.panel-enter-from, .panel-leave-to {
-  max-width: 0 !important;
-  opacity: 0;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-}
-
-.modal-sheet-enter-active,
-.modal-sheet-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.modal-sheet-enter-active > div:last-child,
-.modal-sheet-leave-active > div:last-child {
-  transition: transform 0.25s ease;
-}
-
-.modal-sheet-enter-from,
-.modal-sheet-leave-to {
-  opacity: 0;
-}
-
-.modal-sheet-enter-from > div:last-child,
-.modal-sheet-leave-to > div:last-child {
-  transform: translateY(100%);
-}
-
-.break-inside-avoid { break-inside: avoid; }
-.transform-gpu { transform: translate3d(0,0,0); }
-
-/* Context Menu Animations */
-.animate-in { animation: animateIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-@keyframes animateIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-</style>

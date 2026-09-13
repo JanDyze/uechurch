@@ -5,6 +5,9 @@ import { usePermissions } from '../../composables/usePermissions'
 import { useMinistries } from '../../composables/useMinistries'
 import { useToast } from '../../composables/useToast'
 import ConfirmationModal from '../common/ConfirmationModal.vue'
+import LabelMark from '../common/LabelMark.vue'
+import LabelMarkSheet from './LabelMarkSheet.vue'
+import { setMinistryMark } from '../../api/ministriesService'
 
 // Ministries are what people do in the church, and the only thing that grants
 // access. Tags are the other list — free-text labels that grant nothing. They
@@ -98,6 +101,30 @@ const handleRename = async (ministry) => {
     toast.error('Could not rename that ministry.')
   } finally {
     busy.value = null
+  }
+}
+
+/* ------------------------------------------------------------------ picture */
+// Held by id, not by object, so the sheet shows the new picture the moment the
+// listener brings it back rather than the copy it was opened with.
+const markTargetId = ref(null)
+const markTarget = computed(() => ministries.value.find((m) => m.id === markTargetId.value) || null)
+const markOf = (ministry) =>
+  ministry?.icon || ministry?.imageUrl ? { icon: ministry.icon, imageUrl: ministry.imageUrl } : null
+const savingMark = ref(false)
+
+const saveMark = async (mark) => {
+  const ministry = markTarget.value
+  if (!ministry?.id || savingMark.value) return
+  savingMark.value = true
+  try {
+    await setMinistryMark(ministry.id, mark)
+    markTargetId.value = null
+  } catch (e) {
+    console.error('Error saving ministry picture:', e)
+    toast.error('Could not save that picture.')
+  } finally {
+    savingMark.value = false
   }
 }
 
@@ -224,14 +251,14 @@ const handleDelete = async () => {
             <input
               v-model="editName"
               type="text"
-              class="flex-1 h-10 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
+              class="flex-1 min-w-0 h-10 px-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary focus:border-primary"
               @keydown.enter="handleRename(ministry)"
               @keydown.esc="cancelEdit"
             />
             <button
               @click="handleRename(ministry)"
               :disabled="busy === ministry.name"
-              class="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-50"
+              class="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors disabled:opacity-50"
               aria-label="Save"
             >
               <Loader2 v-if="busy === ministry.name" class="h-4 w-4 animate-spin" />
@@ -247,6 +274,18 @@ const handleDelete = async () => {
           </template>
 
           <template v-else>
+            <!-- The picture, and the way to change it: the mark itself is the
+                 button, so a row with none shows an initial to tap. -->
+            <button
+              type="button"
+              @click="markTargetId = ministry.id"
+              :aria-label="`Picture for ${ministry.name}`"
+              class="shrink-0 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            >
+              <LabelMark v-if="markOf(ministry)" :mark="markOf(ministry)" :size="markOf(ministry)?.imageUrl ? 'h-10 w-10' : 'h-5 w-5'" />
+              <span v-else class="text-sm font-semibold">{{ ministry.name.slice(0, 1) }}</span>
+            </button>
+
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
                 {{ ministry.name }}
@@ -270,7 +309,7 @@ const handleDelete = async () => {
             </button>
             <button
               @click="askDelete(ministry)"
-              class="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              class="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
               :aria-label="`Delete ${ministry.name}`"
             >
               <Trash2 class="h-4 w-4" />
@@ -279,6 +318,16 @@ const handleDelete = async () => {
         </li>
       </ul>
     </template>
+
+    <LabelMarkSheet
+      :show="Boolean(markTarget)"
+      :name="markTarget?.name || ''"
+      kind="Ministry"
+      :mark="markOf(markTarget)"
+      :busy="savingMark"
+      @close="markTargetId = null"
+      @save="saveMark"
+    />
 
     <ConfirmationModal
       :show="showConfirmation"

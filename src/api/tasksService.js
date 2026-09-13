@@ -9,7 +9,7 @@ import {
   orderBy,
   onSnapshot,
   Timestamp,
-} from 'firebase/firestore'
+} from './firestore'
 import { notify } from './notifyService'
 import { assigneeLabel, dueLabel } from '../utils/taskUtils'
 

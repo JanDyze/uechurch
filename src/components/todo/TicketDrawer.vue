@@ -1,6 +1,6 @@
 <script setup>
-import { ref, watch } from 'vue'
-import { Plus, X } from '../../icons'
+import { computed, ref, watch } from 'vue'
+import { Check, Plus, X } from '../../icons'
 import { useFocusTrap } from '../../composables/useFocusTrap'
 import { useToast } from '../../composables/useToast'
 import { TICKET_KINDS, kindClasses } from '../../utils/ticketUtils'
@@ -8,6 +8,10 @@ import { TICKET_KINDS, kindClasses } from '../../utils/ticketUtils'
 const props = defineProps({
   show: { type: Boolean, default: false },
   saving: { type: Boolean, default: false },
+  // The ticket being edited, or null for a new one. One drawer for both, so
+  // the words you file a ticket with and the words you correct it with are
+  // typed into the same boxes.
+  ticket: { type: Object, default: null },
 })
 
 const emit = defineEmits(['update:show', 'save'])
@@ -18,16 +22,18 @@ const title = ref('')
 const details = ref('')
 const kind = ref('feature')
 const titleRef = ref(null)
+const editing = computed(() => Boolean(props.ticket))
 
 // A drawer that reopens holding the last ticket's text would have you deleting
-// someone else's words before writing your own.
+// someone else's words before writing your own — unless it was opened on a
+// ticket, in which case that ticket's words are exactly what it should hold.
 watch(
   () => props.show,
   (open) => {
     if (!open) return
-    title.value = ''
-    details.value = ''
-    kind.value = 'feature'
+    title.value = props.ticket?.title || ''
+    details.value = props.ticket?.details || ''
+    kind.value = props.ticket?.kind || 'feature'
     requestAnimationFrame(() => titleRef.value?.focus())
   }
 )
@@ -75,7 +81,7 @@ useFocusTrap(dialogRef, () => props.show, close)
               id="ticket-drawer-title"
               class="text-lg font-semibold text-gray-900 dark:text-white"
             >
-              New ticket
+              {{ editing ? 'Edit ticket' : 'New ticket' }}
             </h3>
             <button
               @click="close"
@@ -165,8 +171,9 @@ useFocusTrap(dialogRef, () => props.show, close)
               class="flex items-center gap-2 rounded-lg px-4 py-2 text-white transition-opacity hover:opacity-90 disabled:opacity-40"
               :style="{ background: 'var(--color-primary)' }"
             >
-              <Plus class="h-4 w-4" />
-              {{ saving ? 'Adding…' : 'Add ticket' }}
+              <component :is="editing ? Check : Plus" class="h-4 w-4" />
+              <template v-if="editing">{{ saving ? 'Saving…' : 'Save' }}</template>
+              <template v-else>{{ saving ? 'Adding…' : 'Add ticket' }}</template>
             </button>
           </div>
         </div>

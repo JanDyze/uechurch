@@ -33,6 +33,7 @@ import { isCalledOff, eventStatusLabel, readEventStatus } from '../../lib/eventS
 import { isRecorded } from '../../lib/attendance'
 import { memberKey } from '../utils/sgUtils'
 import { formatServiceDate } from '../utils/lineupUtils'
+import { peopleOnService } from '../data/scheduleRoles'
 import { isAssignedTo, isDueToday, isOverdue } from '../utils/taskUtils'
 import MemberAvatar from '../components/members/MemberAvatar.vue'
 
@@ -251,7 +252,7 @@ const attentionItems = computed(() => {
 
 // The one thing the team checks on a Saturday night: who is leading tomorrow
 // and what is being sung. Planners see draft months too; everyone else waits
-// for the lineup to be published.
+// for the schedule to be published.
 const canSeeLineups = computed(() => can('lineups.view'))
 const upcomingService = computed(() => nextService(canManage('lineups')))
 
@@ -265,13 +266,13 @@ const serviceLeader = computed(() => {
   )
 })
 
-// Whether the signed-in member is rostered for that service — the reason a
-// song leader opens the app on a Saturday night.
+// Whether the signed-in member is on that service in any role — the reason a
+// song leader, or an usher, opens the app on a Saturday night.
 const isMyService = computed(() => {
   const service = upcomingService.value
   if (!service || !myMember.value) return false
-  const me = memberKey(myMember.value)
-  return String(service.leaderId) === me || (service.teamIds || []).some((id) => String(id) === me)
+  const me = new Set([memberKey(myMember.value), String(myMember.value.firestoreId)])
+  return peopleOnService(service).some((id) => me.has(id))
 })
 
 /* --------------------------------------------------------- recent activity */
@@ -438,10 +439,14 @@ const reachDelta = computed(() => {
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-sm font-bold text-primary">Up next in worship</h3>
           <router-link
-            :to="upcomingService ? `/lineups/${upcomingService.month}` : '/lineups'"
+            :to="
+              upcomingService
+                ? { path: `/schedules/${upcomingService.month}`, query: { date: upcomingService.date } }
+                : '/schedules'
+            "
             class="text-xs font-bold text-gray-400 hover:text-primary transition-colors"
           >
-            View lineup
+            View schedule
           </router-link>
         </div>
 
@@ -495,7 +500,7 @@ const reachDelta = computed(() => {
         </template>
 
         <p v-else class="py-6 text-center text-sm font-semibold text-gray-400">
-          No worship lineup published yet
+          No schedule published yet
         </p>
       </div>
 
@@ -535,7 +540,7 @@ const reachDelta = computed(() => {
               </span>
               <span
                 v-if="isCalledOff(e)"
-                class="shrink-0 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-black uppercase text-white"
+                class="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-black uppercase text-red-700 dark:bg-red-500/15 dark:text-red-300"
               >
                 {{ eventStatusLabel(readEventStatus(e)) }}
               </span>

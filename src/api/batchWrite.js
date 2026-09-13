@@ -1,4 +1,4 @@
-import { writeBatch } from 'firebase/firestore'
+import { writeBatch } from './firestore'
 import { db } from './firebase'
 
 // Applying one label to thirty people used to mean thirty round trips — the
@@ -6,7 +6,9 @@ import { db } from './firebase'
 // calls. Firestore takes 500 writes in a single commit, so a whole
 // congregation is one, and a batch either lands or it does not.
 
-export const BATCH_LIMIT = 500
+// One short of Firestore's 500: every commit also carries its audit entry
+// (see firestore.js).
+export const BATCH_LIMIT = 499
 
 /**
  * Applies `write` to every item, committing in chunks Firestore accepts.

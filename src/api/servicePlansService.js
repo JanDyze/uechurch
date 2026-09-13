@@ -6,7 +6,7 @@ import {
   setDoc,
   deleteDoc,
   serverTimestamp,
-} from 'firebase/firestore'
+} from './firestore'
 
 // What the tech team is actually running on a given Sunday.
 //

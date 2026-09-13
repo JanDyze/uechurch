@@ -1,13 +1,25 @@
 import { db } from './firebase'
-import { collection, doc, setDoc, deleteDoc, onSnapshot, Timestamp } from 'firebase/firestore'
+import { collection, doc, setDoc, deleteDoc, onSnapshot, Timestamp } from './firestore'
 import { notify } from './notifyService'
 import { formatMonthLabel } from '../utils/lineupUtils'
+import {
+  BAND_ROLE,
+  SONG_LEADER_ROLE,
+  assignmentsOf,
+  isWorshipRole,
+} from '../data/scheduleRoles'
 
 // One document per month, keyed by 'YYYY-MM' so a month can never be planned
 // twice. A month holds a handful of Sundays and a handful of songs each, well
 // inside Firestore's per-document limit, so the whole plan lives on one
 // document: reordering songs or reassigning a leader is a single write, and
 // the month page renders from a single listener.
+//
+// The page is called Schedules now, and a service carries ushers and preachers
+// as well as the band, but the collection keeps its old name. Renaming it would
+// mean copying every month ever planned, and the Present page, the digest
+// email and the MCP connector all read it by this name — the word on screen
+// changed, the data did not have to.
 const LINEUPS_COLLECTION = 'worshipLineups'
 
 /** A song as it sits in a service order — the title is denormalised so an old
@@ -29,7 +41,41 @@ const normalizeSunday = (data = {}) => ({
   teamIds: Array.isArray(data.teamIds) ? data.teamIds.map(String) : [],
   theme: data.theme || '',
   songs: Array.isArray(data.songs) ? data.songs.map(normalizeSong) : [],
+  // Everyone on the service keyed by role, the worship roles included — read
+  // off leaderId and teamIds, so a lineup saved before roles existed arrives
+  // here already looking like a schedule.
+  assignments: assignmentsOf(data),
 })
+
+/**
+ * The shape a service is written back in.
+ *
+ * The song leader and the band go back into leaderId and teamIds and are left
+ * out of `assignments`, so each person is stored in exactly one place and the
+ * two can never disagree. That also keeps every reader that predates schedules
+ * — Home, Present, an older deploy of the connector — seeing the worship team
+ * exactly as before.
+ *
+ * A role removed in Settings is not a reason to drop the people once on it:
+ * any role id the editor did not recognise is written back untouched.
+ */
+export const toStoredSunday = (sunday = {}) => {
+  const all = sunday.assignments ? { ...sunday.assignments } : assignmentsOf(sunday)
+  const rest = {}
+  Object.entries(all).forEach(([roleId, ids]) => {
+    if (isWorshipRole(roleId)) return
+    const clean = [...new Set((ids || []).map(String).filter(Boolean))]
+    if (clean.length) rest[roleId] = clean
+  })
+  return {
+    date: sunday.date || '',
+    leaderId: all[SONG_LEADER_ROLE]?.[0] ?? null,
+    teamIds: [...new Set((all[BAND_ROLE] || []).map(String).filter(Boolean))],
+    theme: sunday.theme || '',
+    songs: (sunday.songs || []).map(normalizeSong),
+    assignments: rest,
+  }
+}
 
 const normalizeLineup = (data, docId) => ({
   id: docId,
@@ -84,6 +130,9 @@ export const saveLineup = async (monthKey, updates, updatedBy) => {
     {
       month: monthKey,
       ...updates,
+      // Serialised here rather than by each caller, so no screen can write a
+      // service with its worship team in the wrong field.
+      ...(Array.isArray(updates?.sundays) ? { sundays: updates.sundays.map(toStoredSunday) } : {}),
       updatedBy: updatedBy?.email || updatedBy?.uid || '',
       updatedAt: Timestamp.now(),
     },
@@ -97,10 +146,12 @@ export const saveLineup = async (monthKey, updates, updatedBy) => {
   // on. Reordering songs inside an already-published month is not announced;
   // it would fire on every keystroke's worth of planning.
   if (updates?.status === 'published') {
+    // The kind keeps its old key: notification preferences and the history
+    // already on file are filed under it.
     notify('lineup.published', {
-      title: `Worship lineup: ${formatMonthLabel(monthKey)}`,
-      body: 'The month is published and ready for the team.',
-      url: `/lineups/${monthKey}`,
+      title: `Schedule: ${formatMonthLabel(monthKey)}`,
+      body: 'The month is published — check which Sundays you are on.',
+      url: `/schedules/${monthKey}`,
     })
   }
 }

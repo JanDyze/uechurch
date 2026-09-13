@@ -1,11 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import {
-  getEventTypeBar,
-  getEventTypeColor,
-  getEventTypeText,
-  eventTypeLabel,
-} from '../../utils/eventColors'
+import { getEventTypeBar, getEventTypeColor, eventTypeLabel } from '../../utils/eventColors'
 import { isCalledOff, eventStatusLabel, readEventStatus } from '../../../lib/eventStatus'
 import { isRecorded } from '../../../lib/attendance'
 import { CalendarClock, Trash2 } from '../../icons'
@@ -139,14 +134,12 @@ const share = computed(() => {
   >
     <!-- The row itself is the gauge: it fills from the left in proportion to
          turnout, so a full house and a thin one are told apart down the list
-         without reading a single number. In the gathering's own colour, so the
-         list is sorted by kind at a glance as well as by size. -->
+         without reading a single number. Always the primary colour — a month
+         of rows each filling in its own hue was a rainbow, and the kind of
+         gathering is already carried by the stripe and the badge. -->
     <div
       v-if="share !== null"
-      :class="[
-        'pointer-events-none absolute inset-y-0 left-0 opacity-20 transition-[width] duration-700 ease-out dark:opacity-30',
-        getEventTypeBar(type),
-      ]"
+      class="pointer-events-none absolute inset-y-0 left-0 bg-primary opacity-10 transition-[width] duration-700 ease-out dark:bg-primary-light dark:opacity-20"
       :style="{ width: `${share}%` }"
     ></div>
 
@@ -196,7 +189,7 @@ const share = computed(() => {
              different words rather than one grey badge for all of them. -->
         <span
           v-if="calledOff"
-          class="rounded bg-amber-500 px-1.5 py-0.5 text-xs font-semibold text-white"
+          class="rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-500/15 dark:text-red-300"
         >
           {{ statusLabel }}
         </span>
@@ -255,7 +248,7 @@ const share = computed(() => {
 
     <p
       v-if="share !== null"
-      :class="['relative shrink-0 text-xl font-bold tabular-nums', getEventTypeText(type)]"
+      class="relative shrink-0 text-xl font-bold tabular-nums text-primary dark:text-primary-light"
     >
       {{ share }}<span class="text-sm font-semibold">%</span>
     </p>
